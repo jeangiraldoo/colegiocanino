@@ -1,0 +1,23 @@
+# << Editor configuration files >>
+# IntelliJ
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+
+# Sublime
+*.sublime-workspace
+
+# << Build systems >>
+target/
+build/
+out/
+dist/
+
+# << Programming languages >>
+# Python
+.ruff_cache
+
+# << Debugging/logs >>
+*.log
