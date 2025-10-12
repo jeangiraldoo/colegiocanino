@@ -18,6 +18,7 @@ dist/
 # << Programming languages >>
 # Python
 .ruff_cache
+*.egg-info
 
 # << Debugging/logs >>
 *.log
