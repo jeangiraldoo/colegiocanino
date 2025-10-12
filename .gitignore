@@ -21,3 +21,9 @@ dist/
 
 # << Debugging/logs >>
 *.log
+
+# << Environment >>
+.env
+.env.*
+!.env.example
+!.env.template
