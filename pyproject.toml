@@ -1,0 +1,37 @@
+[project]
+name = "raices_caninas"
+version = "0.0.1"
+description = "Website for a fictional pet school"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+	"django>=5.2",
+	"python-dotenv>=1.1.1"
+]
+readme = "README.md"
+authors = [
+	{name = "Mónica Cortés"},
+	{name = "Santiago Valencia"},
+	{name = "Manuel Rodriguez"},
+	{name = "Jean Giraldo"}
+]
+
+[project.optional-dependencies]
+dev = [
+	"raices_caninas[lint]"
+]
+lint = [
+	"ruff>=0.14.0"
+]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+indent-style = "tab"
+docstring-code-format = true
+
+[tool.ruff.lint]
+preview = true
+select = ["E", "F", "B"]
+extend-select = ["E501"]
