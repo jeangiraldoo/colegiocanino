@@ -35,3 +35,22 @@ jobs:
     - name: Run ESLint
       run: npx eslint '**/*.{ts,tsx}' --max-warnings=0
       working-directory: client
+
+  prettier_check:
+    name: Check Prettier formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Run Prettier check
+        run: npx prettier --check '**/*.{ts,tsx,js,jsx,json,css,md}'
+        working-directory: client
