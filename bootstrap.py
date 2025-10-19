@@ -8,11 +8,6 @@ VENV_PATH = Path("venv")  # Assuming the script is executed at the repository ro
 OS_NAME = platform.system()
 SHELL_BIN_PATH = os.environ.get("SHELL")
 
-if SHELL_BIN_PATH:
-	shell_name = Path(SHELL_BIN_PATH).name
-else:
-	shell_name = "powershell"
-
 match OS_NAME:
 	case "Windows":
 		pip_path = VENV_PATH / "Scripts" / "pip.exe"
