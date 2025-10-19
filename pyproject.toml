@@ -15,6 +15,10 @@ authors = [
 	{name = "Jean Giraldo"}
 ]
 
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project.optional-dependencies]
 dev = [
 	"raices_caninas[lint]"
@@ -22,6 +26,9 @@ dev = [
 lint = [
 	"ruff>=0.14.0"
 ]
+
+[tool.setuptools.packages.find]
+include = ["server*"]
 
 [tool.ruff]
 line-length = 100
