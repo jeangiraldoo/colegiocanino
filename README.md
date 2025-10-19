@@ -37,7 +37,9 @@ El comando varía por sistema operativo:
 Este script llevará a cabo las siguientes acciones:
 
 - Creará un entorno virtual `venv/`
-- Instalará las dependencias de desarrollo en `venv`
+- Instalará las dependencias de desarrollo en:
+  - Backend: `venv`
+  - Frontend: `client/node_modules`
 
 Antes de correr el código es necesario activar el entorno virtual, de modo que el entorno global
 de tu sistema no cause problemas. El comando también varía dependiendo del sistema operativo y
@@ -61,16 +63,6 @@ DATABASE_URL='postgres://user:password@host/database'
 Aplica las migraciones: Esto conectará con la base de datos de Render y creará las tablas iniciales.
 
 python manage.py migrate
-
-### Configurar el Frontend (React)
-
-Navega a la carpeta del cliente:
-
-cd client
-
-Instala las dependencias de Node.js:
-
-npm install
 
 ### Gestión de la Base de Datos
 La base de datos de desarrollo es una instancia de PostgreSQL alojada en Render. Todos trabajamos sobre esta misma base de datos para mantener la consistencia.

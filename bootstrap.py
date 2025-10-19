@@ -28,3 +28,5 @@ subprocess.run(
 	[pip_path, "install", "-e", ".[dev]"],
 	check=True,
 )
+
+subprocess.run(["npm", "install"], cwd="./client/")
