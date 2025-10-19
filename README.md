@@ -83,7 +83,7 @@ Si necesitas inspeccionar la base de datos directamente, puedes conectarte usand
 ### Flujo de Trabajo
 Crea una nueva rama: A partir de develop, crea una rama para la funcionalidad que vas a desarrollar (ej. feature/HU-9-registro-cliente).
 
-git checkout -b feature/nombre-de-tu-funcionalidad
+git switch feature/nombre-de-tu-funcionalidad
 
 Ejecuta los servidores:
 
