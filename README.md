@@ -13,53 +13,57 @@ Aplicación web para la gestión de un colegio canino, incluyendo clientes, masc
 
 ## Configuración del Entorno Local
 
-### 1. Prerrequisitos
+### Prerrequisitos
 
-Asegúrate de tener instalado:
-*   [Python](https://www.python.org/downloads/) (versión 3.9 o superior)
+*   [Python](https://www.python.org/downloads/) (versión 3.13 o superior)
 *   [Node.js](https://nodejs.org/) (versión 18 o superior)
 
-### 2. Clonar el Repositorio
+### Inicialización
 
+Ejecuta los siguientes comandos:
+
+```bash
 git clone https://github.com/jeangiraldoo/colegiocanino.git
 cd colegiocanino
-
-
-### 3. Cambiar a la Rama de Desarrollo
-Todo el trabajo se realiza sobre la rama develop. Nunca hagas commits directamente a main.
-
 git checkout develop
+```
 
-### 4. Configurar la BD
-*   La base de datos del proyecto está alojada en Render. Para conectarse se necesitan credenciales pero por motivos de seguridad no se incluyen en el codigo. 
+La forma recomendada para inicializar tu entorno de desarrollo es ejecutando `bootstrap.py`.
+El comando varía por sistema operativo:
 
+- Windows: `python bootstrap.py`
+- Unix: `python3 bootstrap.py`
+
+Este script llevará a cabo las siguientes acciones:
+
+- Creará un entorno virtual `venv/`
+- Instalará las dependencias de desarrollo en `venv`
+
+Antes de correr el código es necesario activar el entorno virtual, de modo que el entorno global
+de tu sistema no cause problemas. El comando también varía dependiendo del sistema operativo y
+shell que uses:
+
+- Windows: `venv/Scripts/activate.ps1`
+- Unix (bash): `venv/bin/activate`
+- Unix (fish): `venv/bin/activate.fish`
+
+### Configurar la BD
+
+*   La base de datos del proyecto está alojada en Render. Para conectarse se necesitan credenciales pero por motivos de seguridad no se incluyen en el codigo.
 
 *  Crea el archivo: Dentro de la carpeta server/, crea un archivo llamado .env.
 Pega el contenido: Pega las credenciales que te proporcionaron dentro de server/.env. El archivo se verá así:
 
 DATABASE_URL='postgres://user:password@host/database'
 
-### 5. Configurar el Backend (Django)
-Navega a la carpeta del servidor:
-
-cd server
-
-# Crear el entorno (solo la primera vez)
-python -m venv venv
-
-# Activar el entorno (siempre que se abra una nueva terminal)
-.\venv\Scripts\activate
-
-Instala las dependencias de Python:
-
-pip install -r requirements.txt
+### Configurar el Backend (Django)
 
 Aplica las migraciones: Esto conectará con la base de datos de Render y creará las tablas iniciales.
 
 python manage.py migrate
 
-### 6. Configurar el Frontend (React)
-Abre una nueva terminal.
+### Configurar el Frontend (React)
+
 Navega a la carpeta del cliente:
 
 cd client
@@ -76,7 +80,7 @@ Seguridad: La conexión se maneja a través del archivo server/.env, que está e
 Conexión Directa (con DBeaver, PgAdmin, etc.)
 Si necesitas inspeccionar la base de datos directamente, puedes conectarte usando un cliente de escritorio.
 
-### Flujo de Trabajo 
+### Flujo de Trabajo
 Crea una nueva rama: A partir de develop, crea una rama para la funcionalidad que vas a desarrollar (ej. feature/HU-9-registro-cliente).
 
 git checkout -b feature/nombre-de-tu-funcionalidad
