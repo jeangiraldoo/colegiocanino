@@ -3,7 +3,7 @@ import platform
 import subprocess
 from pathlib import Path
 
-VENV_PATH = Path("venv")  # Assuming the script is executed at the repository root
+VENV_PATH = Path("venv")  
 
 OS_NAME = platform.system()
 SHELL_BIN_PATH = os.environ.get("SHELL")
