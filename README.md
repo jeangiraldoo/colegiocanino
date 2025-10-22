@@ -43,9 +43,9 @@ Este script llevará a cabo las siguientes acciones:
 
 Antes de correr el código es necesario activar el entorno virtual, de modo que el entorno global
 de tu sistema no cause problemas. El comando también varía dependiendo del sistema operativo y
-shell que uses:
+shell que uses. Se hace desde la raiz del proyecto. 
 
-- Windows: `venv/Scripts/activate.ps1`
+- Windows: `venv\Scripts\Activate.bat`
 - Unix (bash): `venv/bin/activate`
 - Unix (fish): `venv/bin/activate.fish`
 
