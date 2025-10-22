@@ -3,7 +3,7 @@ import platform
 import subprocess
 from pathlib import Path
 
-VENV_PATH = Path("venv")  # Assuming the script is executed at the repository root
+VENV_PATH = Path("venv")  
 
 OS_NAME = platform.system()
 SHELL_BIN_PATH = os.environ.get("SHELL")
@@ -28,7 +28,7 @@ def setup_backend():
 
 
 def setup_frontend():
-	subprocess.run(["npm", "install"], cwd="./client/")
+	subprocess.run(["npx", "--yes", "npm", "install"], cwd="./client/", shell=True)
 
 
 setup_backend()
