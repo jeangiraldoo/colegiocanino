@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+.bg-primary {
+	background-color: #0ea5e9;
+}
+input.input-primary,
+textarea.input-primary,
+select.input-primary {
+	background-color: #ffffff;
+	color: #4e4b4b;
+	border: 1px solid #d1d5db;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+
+input.input-primary:focus,
+input.input-primary:focus-visible,
+textarea.input-primary:focus,
+textarea.input-primary:focus-visible,
+select.input-primary:focus,
+select.input-primary:focus-visible {
+	outline: none;
+	border-color: #f59e0b;
+	box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+}
+
+input.input-primary::placeholder,
+textarea.input-primary::placeholder {
+	color: #94a3b8;
+	opacity: 1;
+}
+
+input.input-primary:-webkit-autofill,
+input.input-primary:-webkit-autofill:hover,
+input.input-primary:-webkit-autofill:focus {
+	-webkit-text-fill-color: #4e4b4b !important;
+	box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
+.tittle-primary {
+	color: #ffa600;
+}
+.subtittle-primary {
+	color: #97564d;
+}
+.white {
+	color: #ffffff;
+}
+.bg-block-amber {
+	background-color: #f1cf8c;
+}
+.link-amber {
+	color: #f59e0b;
+}
+
+.placeholder::placeholder,
+textarea.placeholder::placeholder {
+	letter-spacing: 0.16em;
+	color: #94a3b8;
+	opacity: 1;
+}
+
+:root {
+	--amber-400: #f59e0b;
+	--amber-500: #d97706;
+}
+
+input[type="checkbox"].checkbox-primary {
+	width: 1rem;
+	height: 1rem;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid #cbd5e1;
+	border-radius: 0.25rem;
+	display: inline-block;
+	vertical-align: middle;
+	position: relative;
+	background-color: #ffffff;
+	transition:
+		background-color 0.08s ease,
+		border-color 0.08s ease;
+	cursor: pointer;
+	margin: 0;
+	padding: 0;
+	accent-color: var(--amber-400);
+}
+
+input[type="checkbox"].checkbox-primary:checked {
+	background-color: var(--amber-400);
+	border-color: var(--amber-400);
+}
+
+input[type="checkbox"].checkbox-primary:checked::after {
+	content: "";
+	position: absolute;
+	left: 0.28rem;
+	top: 0.06rem;
+	width: 0.32rem;
+	height: 0.62rem;
+	border: solid white;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+input[type="checkbox"].checkbox-primary:focus {
+	outline: none;
+	border-color: var(--amber-400);
+}
+
+.btn-primary {
+	background-color: var(--amber-400);
+	color: #ffffff;
+	padding: 0.6rem 0.9rem;
+	border-radius: 0.5rem;
+	border: none;
+	cursor: pointer;
+	font-family:
+		"Jua",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+	font-weight: 700;
+	font-size: 1.125rem;
+	transition:
+		background-color 0.12s ease,
+		transform 0.06s ease,
+		opacity 0.12s ease;
+}
+.btn-primary:hover {
+	background-color: var(--amber-500);
+	transform: translateY(-1px);
+}
+.btn-primary:active {
+	transform: translateY(0);
+}
+.btn-primary:focus {
+	outline: none;
+	box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.08);
+}
+
+.btn-primary:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.letter-space-sm {
+	letter-spacing: 0.03em;
+}
+.letter-space-md {
+	letter-spacing: 0.08em;
+}
+.letter-space-lg {
+	letter-spacing: 0.16em;
+}
+.letter-space-xl {
+	letter-spacing: 0.24em;
+}
+
+.font-acme {
+	font-family:
+		"Acme",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+}
+.font-montserrat {
+	font-family:
+		"Montserrat",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+}
+.font-barriecito {
+	font-family:
+		"Barriecito",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+}
+.font-jua {
+	font-family:
+		"Jua",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+}
+.font-lekton {
+	font-family:
+		"Lekton",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+}
+.font-lekton-bold {
+	font-family:
+		"Lekton",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+	font-weight: 700;
+}
+.font-lekton-italic {
+	font-family:
+		"Lekton",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		Arial,
+		sans-serif;
+	font-weight: 400;
+	font-style: italic;
+}
+
+.fredoka-regular {
+	font-family: "Fredoka", sans-serif;
+	font-optical-sizing: auto;
+	font-weight: 400;
+	font-style: normal;
+	font-variation-settings: "wdth" 100;
+}
+
+.paw-decor {
+	position: absolute;
+	right: -3.5rem;
+	top: 0.12rem;
+	width: 5rem;
+	height: 2rem;
+	pointer-events: none;
+}
+
+.paw-item {
+	position: absolute;
+	color: #ff6363;
+	width: 1.2rem;
+	height: 1.2rem;
+	transform-origin: center;
+	opacity: 0.95;
+}
+
+.paw-1 {
+	left: 50%;
+	top: 6%;
+	transform: translate(-50%, -10%) rotate(-12deg) scale(1.5);
+}
+.paw-2 {
+	left: 78%;
+	top: 120%;
+	transform: translate(-50%, -50%) rotate(8deg) scale(1.2);
+}
+.paw-3 {
+	left: 22%;
+	top: 110%;
+	transform: translate(-50%, -50%) rotate(18deg) scale(1.3);
+}
+
+.paw-item .MuiSvgIcon-root,
+.paw-item svg {
+	width: 100%;
+	height: 100%;
+}
