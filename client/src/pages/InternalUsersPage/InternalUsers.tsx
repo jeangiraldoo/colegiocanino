@@ -23,7 +23,7 @@ export const InternalUsersPage = () => {
 
 	return (
 		<div
-			className="h-screen w-screen flex"
+			className="app-layout h-screen w-screen flex"
 			style={{ backgroundColor: "var(--page-bg)" }}
 		>
 			<aside className="w-80 sidebar flex flex-col">
@@ -52,8 +52,8 @@ export const InternalUsersPage = () => {
 							<PersonIcon className="user-icon" />
 						</div>
 						<div>
-							<p className="welcome-text font-jua">¡Bienvenido</p>
-							<p className="welcome-username font-jua">{username}!</p>
+							<p className="welcome-text font-montserrat">¡Bienvenido</p>
+							<p className="welcome-username font-montserrat">{username}!</p>
 						</div>
 					</div>
 				</div>
@@ -121,7 +121,7 @@ export const InternalUsersPage = () => {
 				</div>
 			</aside>
 
-			<main className="flex-1 p-6">
+			<main className="flex-1 p-6 main-scroll" role="main">
 				<Outlet />
 			</main>
 		</div>

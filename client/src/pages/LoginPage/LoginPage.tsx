@@ -2,6 +2,8 @@ import { useState } from "react";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PetsIcon from "@mui/icons-material/Pets";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
 
@@ -11,6 +13,7 @@ export const LoginPage = () => {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
 
 	const validate = () => {
 		if (!email) return "Ingresa un correo.";
@@ -82,7 +85,7 @@ export const LoginPage = () => {
 									type="email"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
 									placeholder="nombre@ejemplo.com"
 									required
 									aria-required="true"
@@ -98,14 +101,25 @@ export const LoginPage = () => {
 							<div className="relative mt-1">
 								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
-									type="password"
+									type={showPassword ? "text" : "password"}
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
 									placeholder="••••••••"
 									required
 									aria-required="true"
 								/>
+								<button
+									type="button"
+									className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
+									onClick={() => setShowPassword((s) => !s)}
+									aria-label={
+										showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+									}
+									title={showPassword ? "Ocultar" : "Mostrar"}
+								>
+									{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+								</button>
 							</div>
 						</label>
 

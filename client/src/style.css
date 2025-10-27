@@ -79,7 +79,7 @@ textarea.placeholder::placeholder {
    Theme variables (light) & page
    ============================ */
 :root {
-	--sidebar-bg: #fff8ef; /* cream sidebar */
+	--sidebar-bg: #ffffff; /* cream sidebar */
 	--sidebar-text: #374151; /* main text */
 	--sidebar-text-muted: #6b7280;
 	--sidebar-icon-color: #d97706; /* amber */
@@ -389,6 +389,144 @@ input[type="checkbox"].checkbox-primary:focus {
 	transform: none;
 }
 
+/* Form / RegisterUser enhancements */
+
+.form-card {
+	background: #ffffff;
+	border: 1px solid rgba(16, 24, 40, 0.06);
+	border-radius: 12px;
+	padding: 20px;
+	max-width: 840px;
+	margin: 0 auto;
+	box-shadow: 0 6px 22px rgba(16, 24, 40, 0.06);
+}
+
+.form-header {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 12px;
+}
+.form-header-icon {
+	background: rgba(245, 158, 11, 0.12); /* amber tint */
+	padding: 10px;
+	border-radius: 10px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--amber-500);
+	box-shadow: 0 4px 12px rgba(217, 119, 6, 0.06);
+}
+.form-header-title {
+	margin: 0;
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--sidebar-text); /* asegurar texto oscuro */
+}
+
+/* vertical form layout */
+.form-body {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+/* row */
+.form-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* labels */
+.form-label {
+	font-size: 0.75rem;
+	color: #6b7280;
+	font-weight: 600;
+}
+
+/* larger, nicer inputs */
+.input-lg {
+	padding: 0.75rem 0.9rem;
+	height: auto;
+	border-radius: 0.8rem;
+	border: 1px solid #e6e6e6;
+	box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
+	transition:
+		box-shadow 160ms ease,
+		border-color 140ms ease,
+		transform 120ms ease;
+	font-size: 0.95rem;
+}
+
+/* when input-primary already sets background, ensure large input inherits */
+.input-primary.input-lg {
+	background-color: #ffffff;
+	color: var(--sidebar-text);
+}
+
+/* focus effect */
+.input-lg:focus,
+.input-primary:focus {
+	outline: none;
+	border-color: var(--amber-400);
+	box-shadow: 0 6px 20px rgba(245, 158, 11, 0.12);
+	transform: translateY(-1px);
+}
+
+/* icon inside input */
+.input-with-icon {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.input-icon {
+	color: var(--sidebar-text-muted);
+	font-size: 1.05rem;
+	margin-left: 6px;
+}
+.input-with-left-icon .input-icon {
+	margin-left: 0;
+}
+.input-with-left-icon {
+	padding-left: 6px;
+}
+
+/* field error */
+.field-error {
+	color: #b91c1c;
+	font-size: 0.8rem;
+	margin-top: 4px;
+}
+
+/* actions */
+.form-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+	margin-top: 6px;
+}
+.btn-cancel {
+	background: transparent;
+	border: 1px solid rgba(16, 24, 40, 0.06);
+	padding: 0.6rem 0.9rem;
+	border-radius: 8px;
+	color: var(--sidebar-text);
+	cursor: pointer;
+	transition:
+		transform 120ms ease,
+		background 120ms ease;
+}
+.btn-cancel:hover {
+	transform: translateY(-2px);
+	background: rgba(16, 24, 40, 0.02);
+}
+
+/* ensure primary button keeps look but slightly elevated */
+.btn-primary {
+	box-shadow: 0 8px 22px rgba(217, 119, 6, 0.08);
+}
+
 /* typography helpers */
 .letter-space-sm {
 	letter-spacing: 0.03em;
@@ -550,4 +688,194 @@ input[type="checkbox"].checkbox-primary:focus {
 .sidebar-logo {
 	width: 96px;
 	height: auto;
-} /* fallback smaller size */
+}
+
+.app-layout {
+	height: 100vh;
+	overflow: hidden;
+}
+
+.app-layout .main-scroll {
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	min-height: 100%;
+	min-width: 0;
+	padding-bottom: 48px;
+}
+
+.form-card,
+.form-card .form-body {
+	max-width: 900px;
+	width: 100%;
+	box-sizing: border-box;
+	margin: 18px auto;
+}
+
+.input-with-icon input,
+.input-with-left-icon input,
+.input-with-icon .input-lg,
+.input-with-left-icon .input-lg {
+	flex: 1 1 auto;
+	width: 100%;
+	min-width: 0;
+}
+
+.input-with-icon,
+.input-with-left-icon {
+	width: 100%;
+}
+
+input[type="date"].input-primary,
+input[type="date"].input-primary.input-lg {
+	min-width: 0;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+body {
+	overflow: hidden;
+}
+
+.file-input-hidden {
+	display: none;
+}
+
+input[type="date"].input-primary {
+	-webkit-appearance: none;
+}
+
+@media (max-width: 640px) {
+	.photo-preview {
+		width: 56px;
+		height: 56px;
+	}
+}
+/* ============================
+   Custom Datepicker styles
+   ============================ */
+.custom-datepicker {
+	font-family:
+		"Montserrat",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		"Helvetica Neue",
+		Arial;
+	color: var(--sidebar-text);
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
+}
+
+.custom-datepicker .react-datepicker__header {
+	background: var(--amber-500);
+	border: none;
+	border-radius: 8px 8px 0 0;
+}
+.custom-datepicker .react-datepicker__current-month,
+.custom-datepicker .react-datepicker__day-names .react-datepicker__day-name {
+	color: #fff;
+	font-weight: 700;
+}
+
+.custom-datepicker .react-datepicker__year-dropdown,
+.custom-datepicker .react-datepicker__month-dropdown,
+.custom-datepicker .react-datepicker__year-read-view,
+.custom-datepicker .react-datepicker__month-read-view {
+	background: #ffffff !important;
+	color: var(--sidebar-text) !important;
+	border: 1px solid rgba(16, 24, 40, 0.06) !important;
+	box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06) !important;
+	border-radius: 8px !important;
+}
+
+.custom-datepicker .react-datepicker__year-dropdown-menu,
+.custom-datepicker .react-datepicker__month-dropdown-menu {
+	background: #ffffff !important;
+	color: var(--sidebar-text) !important;
+	max-height: 220px;
+	overflow: auto;
+	padding: 6px;
+}
+
+.custom-datepicker .react-datepicker__year-option,
+.custom-datepicker .react-datepicker__month-option {
+	padding: 6px 10px;
+	border-radius: 6px;
+	color: var(--sidebar-text);
+}
+.custom-datepicker .react-datepicker__year-option:hover,
+.custom-datepicker .react-datepicker__month-option:hover {
+	background: rgba(217, 119, 6, 0.08);
+	color: var(--sidebar-text);
+}
+
+.custom-datepicker .react-datepicker__year-option--selected,
+.custom-datepicker .react-datepicker__year-option--keyboard-selected,
+.custom-datepicker .react-datepicker__month-option--selected,
+.custom-datepicker .react-datepicker__month-option--keyboard-selected {
+	background: var(--amber-500) !important;
+	color: #fff !important;
+	box-shadow: 0 8px 20px rgba(217, 119, 6, 0.12);
+}
+
+.custom-datepicker .react-datepicker__triangle,
+.custom-datepicker .react-datepicker__navigation,
+.custom-datepicker .react-datepicker__day-name,
+.custom-datepicker .react-datepicker__day {
+	font-family:
+		"Montserrat",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		"Helvetica Neue",
+		Arial;
+	color: #000000 !important;
+}
+
+.password-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	color: var(--sidebar-text-muted);
+	padding: 6px;
+	margin-left: 8px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition:
+		background 120ms ease,
+		transform 120ms ease;
+}
+.password-toggle:hover {
+	background: rgba(16, 24, 40, 0.03);
+	transform: translateY(-1px);
+}
+.password-toggle .MuiSvgIcon-root,
+.password-toggle svg {
+	font-size: 1.05rem;
+}
+
+.input-with-icon input,
+.input-with-left-icon input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.relative .MuiSvgIcon-root,
+.relative svg {
+	z-index: 30;
+	pointer-events: none;
+}
+
+.input-with-icon .MuiSvgIcon-root,
+.input-with-icon svg {
+	z-index: 30;
+	pointer-events: none;
+}
