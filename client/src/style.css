@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* ============================
+   Base form / inputs / helpers
+   ============================ */
 .bg-primary {
 	background-color: #0ea5e9;
 }
+
 input.input-primary,
 textarea.input-primary,
 select.input-primary {
@@ -16,7 +20,6 @@ select.input-primary {
 	-moz-appearance: none;
 	appearance: none;
 }
-
 input.input-primary:focus,
 input.input-primary:focus-visible,
 textarea.input-primary:focus,
@@ -27,13 +30,13 @@ select.input-primary:focus-visible {
 	border-color: #f59e0b;
 	box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
 }
-
 input.input-primary::placeholder,
 textarea.input-primary::placeholder {
 	color: #94a3b8;
 	opacity: 1;
 }
 
+/* Fix autofill */
 input.input-primary:-webkit-autofill,
 input.input-primary:-webkit-autofill:hover,
 input.input-primary:-webkit-autofill:focus {
@@ -41,6 +44,7 @@ input.input-primary:-webkit-autofill:focus {
 	box-shadow: 0 0 0px 1000px #ffffff inset !important;
 }
 
+/* Small helpers */
 .tittle-primary {
 	color: #ffa600;
 }
@@ -57,6 +61,7 @@ input.input-primary:-webkit-autofill:focus {
 	color: #f59e0b;
 }
 
+/* Placeholder helper class */
 .placeholder::placeholder,
 textarea.placeholder::placeholder {
 	letter-spacing: 0.16em;
@@ -64,11 +69,248 @@ textarea.placeholder::placeholder {
 	opacity: 1;
 }
 
+/* Amber tokens */
 :root {
 	--amber-400: #f59e0b;
 	--amber-500: #d97706;
 }
 
+/* ============================
+   Theme variables (light) & page
+   ============================ */
+:root {
+	--sidebar-bg: #fff8ef; /* cream sidebar */
+	--sidebar-text: #374151; /* main text */
+	--sidebar-text-muted: #6b7280;
+	--sidebar-icon-color: #d97706; /* amber */
+	--hover-indicator: #f59e0b;
+	--hover-bg: rgba(245, 158, 11, 0.08);
+	--page-bg: #f7f3ee; /* overall page background */
+}
+
+/* Optional dark theme override (kept simple) */
+.dark {
+	--sidebar-bg: #0f1720;
+	--sidebar-text: #cbd5e1;
+	--sidebar-text-muted: #9aa3ad;
+	--sidebar-icon-color: #f59e0b;
+	--hover-indicator: #f59e0b;
+	--hover-bg: rgba(245, 158, 11, 0.08);
+	--page-bg: #0b1220;
+}
+
+/* Page background */
+body {
+	background-color: var(--page-bg);
+}
+
+/* ============================
+   Sidebar / navigation
+   ============================ */
+/* container */
+.sidebar {
+	background-color: var(--sidebar-bg);
+	color: var(--sidebar-text);
+	min-height: 100vh;
+	transition:
+		background-color 180ms ease,
+		color 160ms ease;
+}
+
+/* user avatar & welcome */
+.user-avatar {
+	background: rgba(217, 119, 6, 0.08);
+	padding: 8px;
+	border-radius: 9999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.user-icon {
+	color: var(--sidebar-icon-color);
+	width: 1.8rem;
+	height: 1.8rem;
+}
+.welcome-text {
+	color: var(--sidebar-text-muted);
+	font-weight: 400;
+	font-size: 0.875rem;
+}
+.welcome-username {
+	color: var(--sidebar-text);
+	font-weight: 600;
+	font-size: 1rem;
+	margin-top: 0;
+}
+
+/* Links / list items */
+.sidebar-link,
+.sidebar-action,
+.sidebar-logout {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.6rem 0.75rem 0.6rem 2.2rem; /* room for left indicator */
+	border-radius: 0.375rem;
+	color: var(--sidebar-text) !important; /* prevent blue default */
+	font-weight: 400; /* regular */
+	text-decoration: none;
+	transition:
+		background-color 160ms ease,
+		transform 100ms ease,
+		box-shadow 160ms ease;
+	overflow: visible;
+}
+
+/* Ensure anchor states keep desired color (fix blue on hover) */
+.sidebar-link:link,
+.sidebar-link:visited,
+.sidebar-link:hover,
+.sidebar-link:active,
+.sidebar-link:focus,
+.sidebar-action:link,
+.sidebar-action:visited,
+.sidebar-action:hover,
+.sidebar-action:active,
+.sidebar-action:focus {
+	color: var(--sidebar-text) !important;
+	text-decoration: none !important;
+}
+
+/* icons */
+.sidebar-icon {
+	color: var(--sidebar-icon-color);
+	width: 1.15rem;
+	height: 1.15rem;
+	flex-shrink: 0;
+}
+.sidebar-icon-action {
+	color: #94a3b8;
+	width: 1.15rem;
+	height: 1.15rem;
+}
+.sidebar-icon-logout {
+	color: #dc2626;
+	width: 1.15rem;
+	height: 1.15rem;
+}
+
+/* text */
+.sidebar-text,
+.sidebar-text-action,
+.sidebar-text-logout {
+	color: var(--sidebar-text);
+	font-weight: 400; /* regular */
+}
+
+/* On hover: keep text regular (no bold), only move */
+.has-hover-indicator:hover .sidebar-text,
+.has-hover-indicator:focus .sidebar-text {
+	font-weight: 400 !important;
+	color: inherit !important;
+	transition: color 120ms ease; /* keep smooth */
+}
+
+/* ============================
+   Hover indicator + arrow
+   ============================ */
+/* left thin indicator (hidden by default) */
+.has-hover-indicator::before {
+	content: "";
+	position: absolute;
+	left: 12px;
+	width: 6px;
+	height: 22px;
+	border-radius: 3px;
+	background: var(--hover-indicator);
+	opacity: 0;
+	transform: translateX(-6px);
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
+}
+/* right arrow (hidden by default) */
+.has-hover-indicator::after {
+	content: "›";
+	position: absolute;
+	right: 12px;
+	color: var(--hover-indicator);
+	font-size: 1.05rem;
+	opacity: 0;
+	transform: translateX(6px);
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
+}
+/* show on hover */
+.has-hover-indicator:hover,
+.has-hover-indicator:focus {
+	background-color: var(--hover-bg);
+	transform: translateX(4px);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+	outline: none;
+}
+.has-hover-indicator:hover::before,
+.has-hover-indicator:focus::before {
+	opacity: 1;
+	transform: translateX(0);
+}
+.has-hover-indicator:hover::after,
+.has-hover-indicator:focus::after {
+	opacity: 1;
+	transform: translateX(0);
+}
+.has-hover-indicator::before,
+.has-hover-indicator::after {
+	pointer-events: none;
+}
+
+/* ============================
+   Action / Config (indigo) styles
+   ============================ */
+.sidebar-action {
+	color: var(--sidebar-text) !important;
+}
+.sidebar-action:hover,
+.sidebar-action:focus {
+	background-color: rgba(99, 102, 241, 0.06);
+	transform: translateX(3px);
+}
+.sidebar-action::before,
+.sidebar-action::after {
+	background: #6366f1;
+	color: #6366f1;
+}
+
+/* ============================
+   Logout (red) styles for light theme
+   ============================ */
+.sidebar-logout {
+	color: #b91c1c !important; /* primary red tone */
+	background: transparent;
+	border: none;
+	padding-left: 2.2rem;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	cursor: pointer;
+}
+.sidebar-logout:hover,
+.sidebar-logout:focus {
+	background-color: rgba(220, 38, 38, 0.06);
+	transform: translateX(3px);
+	color: #7f1d1d !important; /* slightly darker on hover */
+}
+.sidebar-logout::before,
+.sidebar-logout::after {
+	background: rgba(220, 38, 38, 0.9);
+	color: rgba(220, 38, 38, 0.9);
+}
+
+/* ============================
+   Buttons / controls / utilities
+   ============================ */
 input[type="checkbox"].checkbox-primary {
 	width: 1rem;
 	height: 1rem;
@@ -88,12 +330,10 @@ input[type="checkbox"].checkbox-primary {
 	padding: 0;
 	accent-color: var(--amber-400);
 }
-
 input[type="checkbox"].checkbox-primary:checked {
 	background-color: var(--amber-400);
 	border-color: var(--amber-400);
 }
-
 input[type="checkbox"].checkbox-primary:checked::after {
 	content: "";
 	position: absolute;
@@ -105,7 +345,6 @@ input[type="checkbox"].checkbox-primary:checked::after {
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }
-
 input[type="checkbox"].checkbox-primary:focus {
 	outline: none;
 	border-color: var(--amber-400);
@@ -144,13 +383,13 @@ input[type="checkbox"].checkbox-primary:focus {
 	outline: none;
 	box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.08);
 }
-
 .btn-primary:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
 	transform: none;
 }
 
+/* typography helpers */
 .letter-space-sm {
 	letter-spacing: 0.03em;
 }
@@ -164,6 +403,27 @@ input[type="checkbox"].checkbox-primary:focus {
 	letter-spacing: 0.24em;
 }
 
+.last-login-box {
+	margin-top: 6px;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	background: rgba(245, 158, 11, 0.12); /* light amber */
+	border-radius: 8px;
+}
+.last-login-icon,
+.last-login-box .MuiSvgIcon-root,
+.last-login-box svg {
+	color: var(--amber-500); /* amber/darker */
+	font-size: 16px;
+}
+.last-login-text {
+	font-size: 12px;
+	color: var(--sidebar-text-muted);
+}
+
+/* font families */
 .font-acme {
 	font-family:
 		"Acme",
@@ -240,12 +500,13 @@ input[type="checkbox"].checkbox-primary:focus {
 
 .fredoka-regular {
 	font-family: "Fredoka", sans-serif;
-	font-optical-sizing: auto;
 	font-weight: 400;
 	font-style: normal;
-	font-variation-settings: "wdth" 100;
 }
 
+/* ============================
+   Decorative paw icons (login)
+   ============================ */
 .paw-decor {
 	position: absolute;
 	right: -3.5rem;
@@ -254,7 +515,6 @@ input[type="checkbox"].checkbox-primary:focus {
 	height: 2rem;
 	pointer-events: none;
 }
-
 .paw-item {
 	position: absolute;
 	color: #ff6363;
@@ -263,7 +523,6 @@ input[type="checkbox"].checkbox-primary:focus {
 	transform-origin: center;
 	opacity: 0.95;
 }
-
 .paw-1 {
 	left: 50%;
 	top: 6%;
@@ -279,9 +538,16 @@ input[type="checkbox"].checkbox-primary:focus {
 	top: 110%;
 	transform: translate(-50%, -50%) rotate(18deg) scale(1.3);
 }
-
 .paw-item .MuiSvgIcon-root,
 .paw-item svg {
 	width: 100%;
 	height: 100%;
 }
+
+/* ============================
+   Misc / fallback small tweaks
+   ============================ */
+.sidebar-logo {
+	width: 96px;
+	height: auto;
+} /* fallback smaller size */

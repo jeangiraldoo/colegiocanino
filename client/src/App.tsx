@@ -1,20 +1,34 @@
-// client/src/App.tsx
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React from "react";
+import {
+	BrowserRouter as Router,
+	Routes,
+	Route,
+	Navigate,
+} from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
-import { HomePage } from "./pages/HomePage/HomePage"; // Importa la página de inicio
+import { HomePage } from "./pages/HomePage/HomePage";
 import "./style.css";
+import InternalUsers from "./pages/InternalUsersPage/InternalUsers";
+import DashboardContent from "./pages/InternalUsersPage/children/DashboardContent";
+import RegisterUser from "./pages/InternalUsersPage/children/RegisterUser";
+import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
+import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
+import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
 
 function App() {
 	return (
 		<Router>
 			<Routes>
-				{/* Ruta para la página de inicio de sesión */}
 				<Route path="/login" element={<LoginPage />} />
-
-				{/* Ruta para la página principal (después del login) */}
 				<Route path="/" element={<HomePage />} />
-
-				{/* Puedes añadir más rutas aquí en el futuro */}
+				<Route path="/internal-users" element={<InternalUsers />}>
+					<Route index element={<Navigate to="dashboard" replace />} />
+					<Route path="dashboard" element={<DashboardContent />} />
+					<Route path="registrar-usuarios" element={<RegisterUser />} />
+					<Route path="administrar-usuarios" element={<ManageUsers />} />
+					<Route path="registrar-asistencia" element={<RegisterAttendance />} />
+					<Route path="visualizar-asistencia" element={<ViewAttendance />} />
+				</Route>
 			</Routes>
 		</Router>
 	);
