@@ -1,0 +1,82 @@
+erDiagram
+    CLIENT {
+        int id PK
+        int document_id UK
+        string username UK
+        string email UK
+        int phone_number UK
+        string name
+        string last_name
+        string address
+        string password
+        boolean is_active
+        date registration_date
+    }
+
+    INTERNAL_USER_TYPE {
+        int id PK
+        string rol_name UK
+    }
+
+    INTERNAL_USER {
+        int id PK
+        int document_id UK
+        string username UK
+        int INTERNAL_USER_TYPE_ID FK
+        string name
+        string last_name
+        string email UK
+        date birthdate
+        date registration_date
+        string password
+        boolean is_active
+    }
+
+    CANINE {
+        int id PK
+        int client_id FK
+        string name
+        string race
+        int age
+        string size
+    }
+
+    REGISTRATION_PLAN {
+        int id PK
+        string plan_name UK
+        int days_duration
+        float price
+    }
+
+    TRANSPORTATION_SERVICE {
+        int transporte_id PK
+        string tipo_servicio UK
+    }
+
+    REGISTRATION {
+        int matricula_id PK
+        int canino_id FK
+        int plan_id FK
+        int transporte_id FK
+        date fecha_inicio
+        date fecha_fin
+        boolean activo
+    }
+
+    ATTENDANCE {
+        int id PK
+        int canine_id FK
+        date date
+        time hora_entrada
+        string tipo_entrada
+        time hora_salida_real
+        string tipo_salida
+        string motivo_salida_anticipada
+    }
+
+    CLIENT ||--o{ CANINE : owns
+    INTERNAL_USER_TYPE ||--o{ INTERNAL_USER : defines
+    CANINE ||--o{ REGISTRATION : enrolled_in
+    REGISTRATION_PLAN ||--o{ REGISTRATION : used_in
+    TRANSPORTATION_SERVICE ||--o{ REGISTRATION : includes
+    CANINE ||--o{ ASISTENCIA : attends

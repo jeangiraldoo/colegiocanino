@@ -1,0 +1,24 @@
+flowchart TD
+    subgraph CLIENT
+        BROWSER[Navegador Web]
+    end
+
+    subgraph SERVER_RENDER
+		subgraph FRONTEND
+			FE_FRAMEWORKS[React, Tailwind, JWT]
+			FE_BASE[HTML, CSS, TypeScript]
+		end
+
+		subgraph BACKEND
+			BE_FRAMEWORKS[Django REST]
+			BE_BASE[Python, Django]
+		end
+
+		DATABASE[(PostgreSQL)]
+	end
+
+    CLIENT -->|"Interactúa"| FRONTEND
+	FRONTEND -->|"Llamadas a la API (REST)"| BACKEND
+    BACKEND -->|"Recupera/almacena datos"| DATABASE
+    DATABASE -->|"Retorna datos"| BACKEND
+    BACKEND -->|"Respuestas JSON"| FRONTEND
