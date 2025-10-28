@@ -20,13 +20,14 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(os.path.join(BASE_DIR, '.env'))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+# SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = "django-insecure-0a$w@=5%9$4d1j@c2r+u$&3so&!h#f^s@+t%@x)7z@e%y3@#t"  # Dummy key for local testing
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -43,11 +44,11 @@ INSTALLED_APPS = [
 	"django.contrib.sessions",
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
-	"rest_framework",
-	"rest_framework_simplejwt",
 	"drf_spectacular",
 	"corsheaders",
 	"api",
+	"rest_framework",
+	"rest_framework_simplejwt",
 ]
 
 MIDDLEWARE = [
@@ -91,27 +92,25 @@ WSGI_APPLICATION = "colegiocanino.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Usa SQLite local por defecto si no hay DATABASE_URL en el entorno.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-if DATABASE_URL:
-	DATABASES = {
-		"default": dj_database_url.config(
-			default=DATABASE_URL, conn_max_age=600, ssl_require=True
-		)
+if not DATABASE_URL:
+	default_db = {
+		"ENGINE": "django.db.backends.sqlite3",
+		"NAME": BASE_DIR / "db.sqlite3",
 	}
 else:
-	DATABASES = {
-		"default": {
-			"ENGINE": "django.db.backends.sqlite3",
-			"NAME": BASE_DIR / "db.sqlite3",
-		}
-	}
+	default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
+
+DATABASES = {"default": default_db}
 
 REST_FRAMEWORK = {
 	"DEFAULT_AUTHENTICATION_CLASSES": (
 		"rest_framework_simplejwt.authentication.JWTAuthentication",
 	),
+	"DEFAULT_PERMISSION_CLASSES": [
+		"rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
+	],
 	"DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -163,9 +162,8 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Custom User Model
 AUTH_USER_MODEL = "api.User"
 
 # Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")

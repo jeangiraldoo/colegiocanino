@@ -92,3 +92,30 @@ Crear y aplicar las migraciones (makemigrations, migrate).
 Crear serializadores y vistas para la API.
 Crear componentes en React para consumir la API.
 Haz commits y push: Cuando termines tu funcionalidad, sube tu rama a GitHub y crea un Pull Request para fusionarla con develop.
+
+### Probar JWT
+
+La forma más rápida de probar que JWT retorne tokens para un determinado usuario es con el siguiente comando dependiendo
+del sistema operativo:
+
+- Unix:
+
+```bash
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username": "<username>", "password": "<password>"}' \
+  http://localhost:8000/api/login/
+```
+
+- Windows:
+
+```
+curl.exe `
+  -X POST `
+  -H "Content-Type: application/json" `
+  -d "{\"username\":\"<username>\",\"password\":\"<password>\"}" `
+  "http://127.0.0.1:8000/api/login/"
+```
+
+Debes reemplazar `<username>` y `<password>` con el nombre de usuario y contraseña, respectivamente.
