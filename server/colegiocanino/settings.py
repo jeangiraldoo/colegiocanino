@@ -20,12 +20,13 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-s#=&!@3y@slx7i!lag=c!*2bw4wgb_oi-rfdi4z08^9w(_kgx("
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -43,17 +44,29 @@ INSTALLED_APPS = [
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
 	"drf_spectacular",
+	"corsheaders",
+	"api",
+	"rest_framework",
+	"rest_framework_simplejwt",
 ]
 
 MIDDLEWARE = [
 	"django.middleware.security.SecurityMiddleware",
 	"django.contrib.sessions.middleware.SessionMiddleware",
+	"corsheaders.middleware.CorsMiddleware",
 	"django.middleware.common.CommonMiddleware",
 	"django.middleware.csrf.CsrfViewMiddleware",
 	"django.contrib.auth.middleware.AuthenticationMiddleware",
 	"django.contrib.messages.middleware.MessageMiddleware",
 	"django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+	"http://localhost:5173",  # Vite dev server
+	"http://localhost:3000",  # Alternative frontend port
+]
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = "colegiocanino.urls"
 
@@ -78,16 +91,25 @@ WSGI_APPLICATION = "colegiocanino.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-	"default": dj_database_url.config(
-		default=os.environ.get("DATABASE_URL"), conn_max_age=600, ssl_require=True
-	)
-}
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+	default_db = {
+		"ENGINE": "django.db.backends.sqlite3",
+		"NAME": BASE_DIR / "db.sqlite3",
+	}
+else:
+	default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
+
+DATABASES = {"default": default_db}
 
 REST_FRAMEWORK = {
 	"DEFAULT_AUTHENTICATION_CLASSES": (
 		"rest_framework_simplejwt.authentication.JWTAuthentication",
 	),
+	"DEFAULT_PERMISSION_CLASSES": [
+		"rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
+	],
 	"DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -138,3 +160,9 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "api.User"
+
+# Media files
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
