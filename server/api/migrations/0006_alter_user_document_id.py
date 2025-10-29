@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+	dependencies = [
+		("api", "0005_remove_enrollment_total_price"),
+	]
 
-    dependencies = [
-        ('api', '0005_remove_enrollment_total_price'),
-    ]
-
-    operations = [
-        migrations.AlterField(
-            model_name='user',
-            name='document_id',
-            field=models.CharField(blank=True, max_length=50, null=True, unique=True),
-        ),
-    ]
+	operations = [
+		migrations.AlterField(
+			model_name="user",
+			name="document_id",
+			field=models.CharField(blank=True, max_length=50, null=True, unique=True),
+		),
+	]

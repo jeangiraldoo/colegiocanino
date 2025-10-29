@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
+	dependencies = [
+		("api", "0003_remove_transportservice_price"),
+	]
 
-    dependencies = [
-        ('api', '0003_remove_transportservice_price'),
-    ]
-
-    operations = [
-        migrations.RemoveField(
-            model_name='transportservice',
-            name='name',
-        ),
-    ]
+	operations = [
+		migrations.RemoveField(
+			model_name="transportservice",
+			name="name",
+		),
+	]

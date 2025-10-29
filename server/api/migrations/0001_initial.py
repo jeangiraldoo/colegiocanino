@@ -9,152 +9,365 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+	initial = True
 
-    initial = True
+	dependencies = [
+		("auth", "0012_alter_user_first_name_max_length"),
+	]
 
-    dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
-    ]
-
-    operations = [
-        migrations.CreateModel(
-            name='User',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=[django.contrib.auth.validators.UnicodeUsernameValidator()], verbose_name='username')),
-                ('first_name', models.CharField(blank=True, max_length=150, verbose_name='first name')),
-                ('last_name', models.CharField(blank=True, max_length=150, verbose_name='last name')),
-                ('email', models.EmailField(blank=True, max_length=254, verbose_name='email address')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
-                ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
-                ('phone_number', models.CharField(blank=True, max_length=15)),
-                ('address', models.TextField(blank=True)),
-                ('status', models.BooleanField(default=True)),
-                ('document_id', models.CharField(blank=True, max_length=50, unique=True)),
-                ('registration_date', models.DateField(default=django.utils.timezone.now)),
-                ('groups', models.ManyToManyField(blank=True, help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.', related_name='user_set', related_query_name='user', to='auth.group', verbose_name='groups')),
-                ('user_permissions', models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions')),
-            ],
-            options={
-                'verbose_name': 'user',
-                'verbose_name_plural': 'users',
-            },
-            managers=[
-                ('objects', django.contrib.auth.models.UserManager()),
-            ],
-        ),
-        migrations.CreateModel(
-            name='EnrollmentPlan',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('duration', models.CharField(choices=[('1_mes', '1 Mes'), ('1_bimestre', '1 Bimestre'), ('1_trimestre', '1 Trimestre'), ('6_meses', '6 Meses'), ('1_año', '1 Año')], max_length=20)),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('active', models.BooleanField(default=True)),
-            ],
-            options={
-                'verbose_name': 'enrollment plan',
-                'verbose_name_plural': 'enrollment plans',
-            },
-        ),
-        migrations.CreateModel(
-            name='TransportService',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('type', models.CharField(choices=[('full', 'full service'), ('medium', 'medium service (Only morning or afternoon)'), ('no_service', 'no service')], max_length=20)),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10)),
-            ],
-            options={
-                'verbose_name': 'transport service',
-                'verbose_name_plural': 'transport services',
-            },
-        ),
-        migrations.CreateModel(
-            name='InternalUser',
-            fields=[
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, related_name='internal_profile', serialize=False, to=settings.AUTH_USER_MODEL)),
-                ('role', models.CharField(choices=[('ADMIN', 'Administrator'), ('DIRECTOR', 'Director'), ('ADVISOR', 'Advisor'), ('COACH', 'Coach')], default='COACH', max_length=10)),
-                ('birthdate', models.DateField(blank=True, null=True)),
-                ('date_joined', models.DateField(blank=True, null=True)),
-                ('photo', models.ImageField(blank=True, null=True, upload_to='internal_profile_photos/')),
-            ],
-            options={
-                'verbose_name': 'Internal User',
-                'verbose_name_plural': 'Internal Users',
-            },
-        ),
-        migrations.CreateModel(
-            name='Client',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='client_profile', to=settings.AUTH_USER_MODEL)),
-            ],
-            options={
-                'verbose_name': 'client',
-                'verbose_name_plural': 'clients',
-                'ordering': ['-user__registration_date'],
-            },
-        ),
-        migrations.CreateModel(
-            name='Canine',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('breed', models.CharField(max_length=100)),
-                ('age', models.IntegerField()),
-                ('size', models.CharField(choices=[('mini', 'Mini'), ('small', 'Small'), ('medium', 'Medium'), ('big', 'Big')], max_length=20)),
-                ('photo', models.ImageField(blank=True, null=True, upload_to='canines/')),
-                ('creation_date', models.DateTimeField(auto_now_add=True)),
-                ('status', models.BooleanField(default=True)),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='canines', to='api.client')),
-            ],
-            options={
-                'verbose_name': 'canine',
-                'verbose_name_plural': 'canines',
-                'ordering': ['name'],
-            },
-        ),
-        migrations.CreateModel(
-            name='Enrollment',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('enrollment_date', models.DateField()),
-                ('expiration_date', models.DateField()),
-                ('total_price', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('status', models.BooleanField(default=True)),
-                ('creation_date', models.DateTimeField(auto_now_add=True)),
-                ('canine', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='api.canine')),
-                ('plan', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='enrollments', to='api.enrollmentplan')),
-                ('transport_service', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='enrollments', to='api.transportservice')),
-            ],
-            options={
-                'verbose_name': 'enrollment',
-                'verbose_name_plural': 'enrollments',
-                'ordering': ['-creation_date'],
-            },
-        ),
-        migrations.CreateModel(
-            name='Attendance',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('arrival_time', models.TimeField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('present', 'Present'), ('advance_withdrawal', 'Advance withdrawal'), ('dispatched', 'Dispatched'), ('absent', 'Absent')], default='present', max_length=20)),
-                ('departure_time', models.TimeField(blank=True, null=True)),
-                ('withdrawal_reason', models.TextField(blank=True)),
-                ('observations', models.TextField(blank=True)),
-                ('enrollment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendances', to='api.enrollment')),
-            ],
-            options={
-                'verbose_name': 'attendance',
-                'verbose_name_plural': 'attendances',
-                'ordering': ['-date', '-arrival_time'],
-                'unique_together': {('enrollment', 'date')},
-            },
-        ),
-    ]
+	operations = [
+		migrations.CreateModel(
+			name="User",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("password", models.CharField(max_length=128, verbose_name="password")),
+				(
+					"last_login",
+					models.DateTimeField(blank=True, null=True, verbose_name="last login"),
+				),
+				(
+					"is_superuser",
+					models.BooleanField(
+						default=False,
+						help_text="Designates that this user has all permissions without explicitly assigning them.",
+						verbose_name="superuser status",
+					),
+				),
+				(
+					"username",
+					models.CharField(
+						error_messages={"unique": "A user with that username already exists."},
+						help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.",
+						max_length=150,
+						unique=True,
+						validators=[django.contrib.auth.validators.UnicodeUsernameValidator()],
+						verbose_name="username",
+					),
+				),
+				(
+					"first_name",
+					models.CharField(blank=True, max_length=150, verbose_name="first name"),
+				),
+				(
+					"last_name",
+					models.CharField(blank=True, max_length=150, verbose_name="last name"),
+				),
+				(
+					"email",
+					models.EmailField(blank=True, max_length=254, verbose_name="email address"),
+				),
+				(
+					"is_staff",
+					models.BooleanField(
+						default=False,
+						help_text="Designates whether the user can log into this admin site.",
+						verbose_name="staff status",
+					),
+				),
+				(
+					"is_active",
+					models.BooleanField(
+						default=True,
+						help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+						verbose_name="active",
+					),
+				),
+				(
+					"date_joined",
+					models.DateTimeField(
+						default=django.utils.timezone.now, verbose_name="date joined"
+					),
+				),
+				("phone_number", models.CharField(blank=True, max_length=15)),
+				("address", models.TextField(blank=True)),
+				("status", models.BooleanField(default=True)),
+				("document_id", models.CharField(blank=True, max_length=50, unique=True)),
+				("registration_date", models.DateField(default=django.utils.timezone.now)),
+				(
+					"groups",
+					models.ManyToManyField(
+						blank=True,
+						help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
+						related_name="user_set",
+						related_query_name="user",
+						to="auth.group",
+						verbose_name="groups",
+					),
+				),
+				(
+					"user_permissions",
+					models.ManyToManyField(
+						blank=True,
+						help_text="Specific permissions for this user.",
+						related_name="user_set",
+						related_query_name="user",
+						to="auth.permission",
+						verbose_name="user permissions",
+					),
+				),
+			],
+			options={
+				"verbose_name": "user",
+				"verbose_name_plural": "users",
+			},
+			managers=[
+				("objects", django.contrib.auth.models.UserManager()),
+			],
+		),
+		migrations.CreateModel(
+			name="EnrollmentPlan",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("name", models.CharField(max_length=100)),
+				(
+					"duration",
+					models.CharField(
+						choices=[
+							("1_mes", "1 Mes"),
+							("1_bimestre", "1 Bimestre"),
+							("1_trimestre", "1 Trimestre"),
+							("6_meses", "6 Meses"),
+							("1_año", "1 Año"),
+						],
+						max_length=20,
+					),
+				),
+				("price", models.DecimalField(decimal_places=2, max_digits=10)),
+				("active", models.BooleanField(default=True)),
+			],
+			options={
+				"verbose_name": "enrollment plan",
+				"verbose_name_plural": "enrollment plans",
+			},
+		),
+		migrations.CreateModel(
+			name="TransportService",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("name", models.CharField(max_length=100)),
+				(
+					"type",
+					models.CharField(
+						choices=[
+							("full", "full service"),
+							("medium", "medium service (Only morning or afternoon)"),
+							("no_service", "no service"),
+						],
+						max_length=20,
+					),
+				),
+				("price", models.DecimalField(decimal_places=2, max_digits=10)),
+			],
+			options={
+				"verbose_name": "transport service",
+				"verbose_name_plural": "transport services",
+			},
+		),
+		migrations.CreateModel(
+			name="InternalUser",
+			fields=[
+				(
+					"user",
+					models.OneToOneField(
+						on_delete=django.db.models.deletion.CASCADE,
+						primary_key=True,
+						related_name="internal_profile",
+						serialize=False,
+						to=settings.AUTH_USER_MODEL,
+					),
+				),
+				(
+					"role",
+					models.CharField(
+						choices=[
+							("ADMIN", "Administrator"),
+							("DIRECTOR", "Director"),
+							("ADVISOR", "Advisor"),
+							("COACH", "Coach"),
+						],
+						default="COACH",
+						max_length=10,
+					),
+				),
+				("birthdate", models.DateField(blank=True, null=True)),
+				("date_joined", models.DateField(blank=True, null=True)),
+				(
+					"photo",
+					models.ImageField(blank=True, null=True, upload_to="internal_profile_photos/"),
+				),
+			],
+			options={
+				"verbose_name": "Internal User",
+				"verbose_name_plural": "Internal Users",
+			},
+		),
+		migrations.CreateModel(
+			name="Client",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				(
+					"user",
+					models.OneToOneField(
+						on_delete=django.db.models.deletion.CASCADE,
+						related_name="client_profile",
+						to=settings.AUTH_USER_MODEL,
+					),
+				),
+			],
+			options={
+				"verbose_name": "client",
+				"verbose_name_plural": "clients",
+				"ordering": ["-user__registration_date"],
+			},
+		),
+		migrations.CreateModel(
+			name="Canine",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("name", models.CharField(max_length=100)),
+				("breed", models.CharField(max_length=100)),
+				("age", models.IntegerField()),
+				(
+					"size",
+					models.CharField(
+						choices=[
+							("mini", "Mini"),
+							("small", "Small"),
+							("medium", "Medium"),
+							("big", "Big"),
+						],
+						max_length=20,
+					),
+				),
+				("photo", models.ImageField(blank=True, null=True, upload_to="canines/")),
+				("creation_date", models.DateTimeField(auto_now_add=True)),
+				("status", models.BooleanField(default=True)),
+				(
+					"client",
+					models.ForeignKey(
+						on_delete=django.db.models.deletion.CASCADE,
+						related_name="canines",
+						to="api.client",
+					),
+				),
+			],
+			options={
+				"verbose_name": "canine",
+				"verbose_name_plural": "canines",
+				"ordering": ["name"],
+			},
+		),
+		migrations.CreateModel(
+			name="Enrollment",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("enrollment_date", models.DateField()),
+				("expiration_date", models.DateField()),
+				("total_price", models.DecimalField(decimal_places=2, max_digits=10)),
+				("status", models.BooleanField(default=True)),
+				("creation_date", models.DateTimeField(auto_now_add=True)),
+				(
+					"canine",
+					models.ForeignKey(
+						on_delete=django.db.models.deletion.CASCADE,
+						related_name="enrollments",
+						to="api.canine",
+					),
+				),
+				(
+					"plan",
+					models.ForeignKey(
+						on_delete=django.db.models.deletion.PROTECT,
+						related_name="enrollments",
+						to="api.enrollmentplan",
+					),
+				),
+				(
+					"transport_service",
+					models.ForeignKey(
+						on_delete=django.db.models.deletion.PROTECT,
+						related_name="enrollments",
+						to="api.transportservice",
+					),
+				),
+			],
+			options={
+				"verbose_name": "enrollment",
+				"verbose_name_plural": "enrollments",
+				"ordering": ["-creation_date"],
+			},
+		),
+		migrations.CreateModel(
+			name="Attendance",
+			fields=[
+				(
+					"id",
+					models.BigAutoField(
+						auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+					),
+				),
+				("date", models.DateField()),
+				("arrival_time", models.TimeField(blank=True, null=True)),
+				(
+					"status",
+					models.CharField(
+						choices=[
+							("present", "Present"),
+							("advance_withdrawal", "Advance withdrawal"),
+							("dispatched", "Dispatched"),
+							("absent", "Absent"),
+						],
+						default="present",
+						max_length=20,
+					),
+				),
+				("departure_time", models.TimeField(blank=True, null=True)),
+				("withdrawal_reason", models.TextField(blank=True)),
+				("observations", models.TextField(blank=True)),
+				(
+					"enrollment",
+					models.ForeignKey(
+						on_delete=django.db.models.deletion.CASCADE,
+						related_name="attendances",
+						to="api.enrollment",
+					),
+				),
+			],
+			options={
+				"verbose_name": "attendance",
+				"verbose_name_plural": "attendances",
+				"ordering": ["-date", "-arrival_time"],
+				"unique_together": {("enrollment", "date")},
+			},
+		),
+	]
