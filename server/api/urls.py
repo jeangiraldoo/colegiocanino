@@ -9,6 +9,7 @@ from .views import (
 	EnrollmentViewSet,
 	AttendanceViewSet,
 	DashboardStatsView,
+	InternalUserViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ router.register(r"enrollment-plans", EnrollmentPlanViewSet, basename="enrollment
 router.register(r"transport-services", TransportServiceViewSet, basename="transport-service")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
 router.register(r"attendances", AttendanceViewSet, basename="attendance")
+router.register(r"internal-users", InternalUserViewSet, basename="internal-user")
 
 urlpatterns = [
 	path("", include(router.urls)),
