@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Client, Canine, EnrollmentPlan, TransportService, Enrollment, Attendance
+from .models import Client, Canine, EnrollmentPlan, TransportService, Enrollment, Attendance, InternalUser
 
 User = get_user_model()
 
@@ -42,6 +42,41 @@ class UserSerializer(serializers.ModelSerializer):
 			setattr(instance, attr, value)
 		if password:
 			instance.set_password(password)
+		instance.save()
+		return instance
+
+
+class InternalUserSerializer(serializers.ModelSerializer):
+	"""Internal user profile serializer with nested user creation/update"""
+
+	user = UserSerializer()
+
+	class Meta:
+		model = InternalUser
+		fields = [
+			"user",
+			"role",
+			"birthdate",
+			"date_joined",
+			"photo",
+		]
+
+	def create(self, validated_data):
+		user_data = validated_data.pop("user")
+		# Create the underlying auth user
+		user = UserSerializer().create(user_data)
+		# Create internal profile
+		internal_user = InternalUser.objects.create(user=user, **validated_data)
+		return internal_user
+
+	def update(self, instance, validated_data):
+		user_data = validated_data.pop("user", None)
+		# Update nested user if provided
+		if user_data:
+			UserSerializer().update(instance.user, user_data)
+		# Update internal user fields
+		for attr, value in validated_data.items():
+			setattr(instance, attr, value)
 		instance.save()
 		return instance
 

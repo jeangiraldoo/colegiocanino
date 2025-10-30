@@ -15,4 +15,5 @@ urlpatterns = [
 		name="swagger-ui",
 	),
 	path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path('api-auth/', include('rest_framework.urls')),
 ]
