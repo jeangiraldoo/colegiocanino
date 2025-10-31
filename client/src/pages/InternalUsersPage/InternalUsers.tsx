@@ -32,14 +32,7 @@ export const InternalUsersPage = () => {
 					style={{ borderColor: "rgba(15,23,32,0.06)" }}
 				>
 					<div className="flex items-center gap-3 w-full">
-						<div className="logo-wrap">
-							<img
-								src={logoSrc}
-								alt="Logo"
-								className="sidebar-logo"
-								style={{ width: 180 }}
-							/>
-						</div>
+						<img src={logoSrc} alt="Logo" className="sidebar-logo" />
 					</div>
 
 					<div className="last-login-box font-montserrat">
@@ -113,7 +106,7 @@ export const InternalUsersPage = () => {
 					<button
 						type="button"
 						onClick={() => {}}
-						className="sidebar-logout has-hover-indicator mt-3 w-full text-left px-3 py-2 rounded text-sm font-montserrat"
+						className="sidebar-logout has-hover-indicator mt-3 w-full text-left rounded text-sm font-montserrat"
 					>
 						<LogoutIcon className="sidebar-icon-logout" />
 						<span className="sidebar-text-logout">Cerrar sesión</span>

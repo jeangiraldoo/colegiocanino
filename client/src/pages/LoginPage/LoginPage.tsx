@@ -45,11 +45,11 @@ export const LoginPage = () => {
 	};
 
 	return (
-		<div className="h-screen w-screen flex">
+		<div className="h-screen w-screen flex login-page">
+			{" "}
 			<div className="absolute left-4 top-4 z-20">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
 			</div>
-
 			<div className="w-1/2 bg-white flex items-center justify-center p-8">
 				<div className="max-w-md w-full">
 					<div className="relative inline-block w-full">
@@ -167,7 +167,6 @@ export const LoginPage = () => {
 					</form>
 				</div>
 			</div>
-
 			<div className="w-1/2 relative">
 				<img
 					src={rightImage}
@@ -191,7 +190,6 @@ export const LoginPage = () => {
 					</h2>
 				</div>
 			</div>
-
 			<div className="fixed left-4 bottom-4 text-sm font-lekton-italic subtittle-primary">
 				¿No tienes una cuenta?{" "}
 				<a

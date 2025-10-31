@@ -20,40 +20,44 @@ type FormState = {
 	birthdate: Date | null;
 	password: string;
 	is_active: boolean;
+	photo?: string | null;
 };
 
-// TIP: define a narrow interface for the DatePicker ref (we only call setOpen)
+const INITIAL: FormState = {
+	document_id: "",
+	username: "",
+	internal_user_type_id: "DIRECTOR",
+	name: "",
+	last_name: "",
+	email: "",
+	birthdate: null,
+	password: "",
+	is_active: true,
+	photo: null,
+};
+
 interface DatePickerRef {
 	setOpen?: (open: boolean) => void;
 }
 
-export default function RegisterUser() {
+export const RegisterUser = () => {
 	const navigate = useNavigate();
 	const datePickerRef = useRef<DatePickerRef | null>(null);
 	const today = new Date();
 
-	const [form, setForm] = useState<FormState>({
-		document_id: "",
-		username: "",
-		internal_user_type_id: "1",
-		name: "",
-		last_name: "",
-		email: "",
-		birthdate: null,
-		password: "",
-		is_active: true,
-	});
-
+	const [form, setForm] = useState<FormState>(INITIAL);
 	const [errors, setErrors] = useState<
 		Partial<Record<keyof FormState, string>>
 	>({});
 	const [success, setSuccess] = useState<string | null>(null);
 	const [showPassword, setShowPassword] = useState(false);
+	const [preview, setPreview] = useState<string | null>(null);
+	const [fileName, setFileName] = useState<string>("");
 
 	const validate = (): boolean => {
 		const e: typeof errors = {};
 		if (!/^\d{6,12}$/.test(form.document_id.trim()))
-			e.document_id = "Cédula inválida (solo números, 6-12 dígitos)";
+			e.document_id = "Cédula inválida (6-12 dígitos)";
 		if (!form.username.trim()) e.username = "Nombre de usuario requerido";
 		if (!form.name.trim()) e.name = "Nombre requerido";
 		if (!form.last_name.trim()) e.last_name = "Apellido requerido";
@@ -65,14 +69,26 @@ export default function RegisterUser() {
 		return Object.keys(e).length === 0;
 	};
 
-	// strongly-typed handler: v must be the correct type for the key K
 	function handleChange<K extends keyof FormState>(k: K, v: FormState[K]) {
 		setForm((s) => ({ ...s, [k]: v }));
 		setErrors((prev) => ({ ...prev, [k]: undefined }));
 		setSuccess(null);
 	}
 
-	const handleSubmit = (ev: React.FormEvent) => {
+	const handleFile = (ev: React.ChangeEvent<HTMLInputElement>) => {
+		const f = ev.target.files?.[0];
+		if (!f) return;
+		setFileName(f.name);
+		const reader = new FileReader();
+		reader.onload = () => {
+			const base64 = String(reader.result || "");
+			setPreview(base64);
+			setForm((s) => ({ ...s, photo: base64 }));
+		};
+		reader.readAsDataURL(f);
+	};
+
+	const handleSubmit = async (ev: React.FormEvent) => {
 		ev.preventDefault();
 		if (!validate()) return;
 		const payload = {
@@ -81,27 +97,116 @@ export default function RegisterUser() {
 				? form.birthdate.toISOString().slice(0, 10)
 				: null,
 		};
-		console.log("Nuevo usuario interno (simulado):", payload);
-		setSuccess("Usuario creado (simulado). Integra la API para persistir.");
+
+		try {
+			const key = "mockInternalUsers_v1";
+			const existing = JSON.parse(localStorage.getItem(key) || "[]");
+			const newUser = {
+				...payload,
+				id: "u-" + Date.now().toString(36),
+			};
+			existing.unshift(newUser);
+			localStorage.setItem(key, JSON.stringify(existing));
+			setSuccess("Usuario registrado localmente (mock).");
+			setForm(INITIAL);
+			setPreview(null);
+			setTimeout(() => navigate("/internal-users/administrar-usuarios"), 700);
+		} catch (err) {
+			console.error(err);
+			setError("No se pudo registrar el usuario. Intenta de nuevo.");
+		}
 	};
 
 	return (
 		<PageTransition>
-			<div className="form-card">
-				<header className="form-header font-montserrat">
-					<div className="form-header-icon">
-						<PersonIcon />
-					</div>
-
-					<div style={{ flex: 1 }}>
-						<h2 className="form-header-title">Registrar usuario interno</h2>
-						<p className="text-sm text-gray-500">
-							Rellena los datos para crear el usuario
-						</p>
+			<div className="form-card" style={{ position: "relative" }}>
+				<header
+					className="form-header font-montserrat"
+					style={{
+						display: "flex",
+						gap: 12,
+						alignItems: "center",
+					}}
+				>
+					<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+						<div className="form-header-icon">
+							<PersonIcon />
+						</div>
+						<div>
+							<h2 className="form-header-title">Registrar usuario interno</h2>
+							<p className="text-sm text-gray-500">
+								Rellena los datos para crear el usuario
+							</p>
+						</div>
 					</div>
 				</header>
 
-				<form onSubmit={handleSubmit} className="form-body font-montserrat">
+				<div
+					className="form-photo"
+					aria-hidden={false}
+					style={{
+						position: "absolute",
+						right: 20,
+						top: 20,
+						display: "flex",
+						gap: 12,
+						alignItems: "center",
+					}}
+				>
+					<div
+						style={{
+							width: 72,
+							height: 72,
+							borderRadius: 8,
+							overflow: "hidden",
+							background: "#F3F4F6",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+						}}
+					>
+						{preview ? (
+							<img
+								src={preview}
+								alt="preview"
+								style={{ width: "100%", height: "100%", objectFit: "cover" }}
+							/>
+						) : (
+							<div style={{ color: "#9CA3AF", fontSize: 13 }}>Sin foto</div>
+						)}
+					</div>
+
+					<input
+						id="user-photo-input"
+						type="file"
+						accept="image/*"
+						className="file-input-hidden"
+						onChange={handleFile}
+						style={{ display: "none" }}
+					/>
+
+					<label
+						htmlFor="user-photo-input"
+						className="file-input-control btn-ghost"
+						style={{
+							cursor: "pointer",
+							padding: "8px 12px",
+							borderRadius: 8,
+						}}
+					>
+						Seleccionar foto
+					</label>
+
+					<span style={{ color: "#9CA3AF", fontSize: 13 }}>
+						{fileName ? fileName : "Ningún archivo"}
+					</span>
+				</div>
+
+				<form
+					onSubmit={handleSubmit}
+					className="form-body font-montserrat"
+					style={{ paddingTop: 12 }}
+				>
 					<div className="form-row">
 						<label className="form-label">Cédula de ciudadanía</label>
 						<input
@@ -141,9 +246,10 @@ export default function RegisterUser() {
 								handleChange("internal_user_type_id", e.target.value)
 							}
 						>
-							<option value="director">Director</option>
-							<option value="asesor_ventas">Asesor de ventas</option>
-							<option value="entrenador">Entrenador</option>
+							<option value="DIRECTOR">Director</option>
+							<option value="ADVISOR">Asesor de ventas</option>
+							<option value="COACH">Entrenador</option>
+							<option value="ADMIN">Admin</option>
 						</select>
 					</div>
 
@@ -249,7 +355,7 @@ export default function RegisterUser() {
 							Cancelar
 						</button>
 						<button type="submit" className="btn-primary font-montserrat">
-							Guardar usuario
+							Registrar
 						</button>
 					</div>
 
@@ -260,4 +366,6 @@ export default function RegisterUser() {
 			</div>
 		</PageTransition>
 	);
-}
+};
+
+export default RegisterUser;
