@@ -187,7 +187,6 @@ class AttendanceSerializer(serializers.ModelSerializer):
 			"status",
 			"departure_time",
 			"withdrawal_reason",
-			"observations",
 		]
 
 
