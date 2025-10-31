@@ -2,6 +2,8 @@ import { useState } from "react";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PetsIcon from "@mui/icons-material/Pets";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
 
@@ -11,6 +13,7 @@ export const LoginPage = () => {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
 
 	const validate = () => {
 		if (!email) return "Ingresa un correo.";
@@ -42,11 +45,11 @@ export const LoginPage = () => {
 	};
 
 	return (
-		<div className="h-screen w-screen flex">
+		<div className="h-screen w-screen flex login-page">
+			{" "}
 			<div className="absolute left-4 top-4 z-20">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
 			</div>
-
 			<div className="w-1/2 bg-white flex items-center justify-center p-8">
 				<div className="max-w-md w-full">
 					<div className="relative inline-block w-full">
@@ -82,7 +85,7 @@ export const LoginPage = () => {
 									type="email"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
 									placeholder="nombre@ejemplo.com"
 									required
 									aria-required="true"
@@ -98,14 +101,25 @@ export const LoginPage = () => {
 							<div className="relative mt-1">
 								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
-									type="password"
+									type={showPassword ? "text" : "password"}
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
 									placeholder="••••••••"
 									required
 									aria-required="true"
 								/>
+								<button
+									type="button"
+									className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
+									onClick={() => setShowPassword((s) => !s)}
+									aria-label={
+										showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+									}
+									title={showPassword ? "Ocultar" : "Mostrar"}
+								>
+									{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+								</button>
 							</div>
 						</label>
 
@@ -153,7 +167,6 @@ export const LoginPage = () => {
 					</form>
 				</div>
 			</div>
-
 			<div className="w-1/2 relative">
 				<img
 					src={rightImage}
@@ -177,7 +190,6 @@ export const LoginPage = () => {
 					</h2>
 				</div>
 			</div>
-
 			<div className="fixed left-4 bottom-4 text-sm font-lekton-italic subtittle-primary">
 				¿No tienes una cuenta?{" "}
 				<a
