@@ -1022,3 +1022,193 @@ input:focus {
 /* ----------------------------
    End of file — kept all functional rules
    ---------------------------- */
+
+/* Status badges used in attendance table */
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	white-space: nowrap;
+	padding: 6px 10px;
+	border-radius: 8px;
+	font-weight: 700;
+	font-size: 0.9rem;
+	line-height: 1;
+	box-sizing: border-box;
+}
+
+.status-badge--on {
+	background: rgba(16, 185, 129, 0.08);
+	color: #065f46;
+}
+
+.status-badge--late {
+	background: rgba(250, 204, 21, 0.14);
+	color: #b45309;
+}
+
+.status-badge--absent {
+	background: rgba(239, 68, 68, 0.08);
+	color: #991b1b;
+}
+
+.custom-datepicker .react-datepicker__header {
+	background: var(--amber-400);
+	color: var(--primary-contrast);
+	border-bottom: none;
+}
+
+.custom-datepicker .react-datepicker__current-month,
+.custom-datepicker .react-datepicker__day-name {
+	color: var(--primary-contrast);
+	font-weight: 700;
+}
+
+.custom-datepicker .react-datepicker__day {
+	border-radius: 8px;
+}
+
+/* Make day names and numbers visible and clear in the custom DatePicker */
+.custom-datepicker .react-datepicker__day-name {
+	background: transparent !important;
+	color: var(--muted-color) !important;
+	font-weight: 700;
+	padding: 6px 6px;
+	text-transform: none;
+}
+
+.custom-datepicker .react-datepicker__day {
+	color: var(--text-color) !important;
+	background: transparent !important;
+}
+
+.custom-datepicker .react-datepicker__day--outside-month {
+	color: rgba(17, 24, 39, 0.28) !important;
+}
+
+.custom-datepicker .react-datepicker__day--disabled {
+	color: rgba(17, 24, 39, 0.18) !important;
+	opacity: 1;
+}
+
+.custom-datepicker .react-datepicker__day--selected,
+.custom-datepicker .react-datepicker__day--keyboard-selected {
+	background: var(--amber-400) !important;
+	color: var(--primary-contrast) !important;
+}
+
+.custom-datepicker .react-datepicker__week {
+	gap: 0;
+}
+
+.custom-datepicker .react-datepicker {
+	border-radius: 10px;
+	box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+	overflow: hidden;
+}
+
+.custom-datepicker .react-datepicker__year-dropdown,
+.custom-datepicker .react-datepicker__year-dropdown--scrollable,
+.custom-datepicker .react-datepicker__year-dropdown-menu,
+.custom-datepicker .react-datepicker__year-dropdown ul {
+	background: #ffffff;
+	color: var(--text-color);
+	border: 1px solid rgba(16, 24, 40, 0.06);
+	border-radius: 8px;
+	box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+	padding: 6px;
+}
+
+.custom-datepicker .react-datepicker__year-option,
+.custom-datepicker .react-datepicker__year-dropdown__option,
+.custom-datepicker .react-datepicker__year-dropdown ul li,
+.custom-datepicker .react-datepicker__year-dropdown-menu div {
+	padding: 8px 10px;
+	border-radius: 6px;
+	color: var(--muted-color);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.custom-datepicker .react-datepicker__year-option:hover,
+.custom-datepicker .react-datepicker__year-option--selected,
+.custom-datepicker .react-datepicker__year-dropdown__option:hover,
+.custom-datepicker .react-datepicker__year-dropdown__option--selected,
+.custom-datepicker .react-datepicker__year-dropdown ul li:hover {
+	background: rgba(245, 158, 11, 0.08);
+	color: var(--text-color);
+	font-weight: 700;
+}
+
+.custom-datepicker .react-datepicker__year-dropdown-menu::-webkit-scrollbar {
+	width: 8px;
+}
+.custom-datepicker
+	.react-datepicker__year-dropdown-menu::-webkit-scrollbar-thumb {
+	background: rgba(15, 23, 42, 0.06);
+	border-radius: 6px;
+}
+.custom-datepicker
+	.react-datepicker__year-dropdown-menu::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.custom-datepicker,
+.custom-datepicker * {
+	font-family:
+		"Montserrat",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		"Helvetica Neue",
+		Arial !important;
+}
+
+.custom-datepicker .react-datepicker__year-read-view,
+.custom-datepicker .react-datepicker__year-read-view button,
+.custom-datepicker .react-datepicker__current-month {
+	background: rgba(255, 255, 255, 0.12);
+	color: var(--primary-contrast);
+	border: none;
+	box-shadow: none;
+	border-radius: 8px;
+	padding: 6px 8px;
+}
+
+.custom-datepicker .react-datepicker__year-read-view button {
+	background: rgba(255, 255, 255, 0.12);
+	color: var(--primary-contrast);
+	border: none;
+	cursor: pointer;
+}
+
+.custom-datepicker .react-datepicker__year-read-view button:focus,
+.custom-datepicker .react-datepicker__current-month:focus {
+	outline: none;
+	box-shadow: 0 6px 20px rgba(245, 158, 11, 0.12);
+}
+
+.custom-datepicker .react-datepicker__navigation,
+.custom-datepicker .react-datepicker__navigation::before {
+	color: var(--primary-contrast);
+	fill: currentColor;
+}
+
+.custom-datepicker .react-datepicker__year-dropdown,
+.custom-datepicker .react-datepicker__year-option,
+.custom-datepicker .react-datepicker__year-dropdown__option {
+	background: #ffffff;
+	color: var(--text-color);
+}
+
+.custom-datepicker .react-datepicker__year-option--selected,
+.custom-datepicker .react-datepicker__year-dropdown__option--selected {
+	background: rgba(245, 158, 11, 0.12);
+	color: var(--text-color);
+	font-weight: 700;
+}
+
+/* ----------------------------
+   End of file — kept all functional rules
+   ---------------------------- */
