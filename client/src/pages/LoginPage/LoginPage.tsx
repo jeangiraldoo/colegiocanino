@@ -1,10 +1,13 @@
+// client/src/pages/LoginPage/LoginPage.tsx
+
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PetsIcon from "@mui/icons-material/Pets";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import logoSrc from "../../assets/logo.png";
+import logoSrc from "../../assets/raices-caninas-logo.png";
 import rightImage from "../../assets/right-image.png";
 
 export const LoginPage = () => {
@@ -45,13 +48,16 @@ export const LoginPage = () => {
 	};
 
 	return (
-		<div className="h-screen w-screen flex login-page">
-			{" "}
-			<div className="absolute left-4 top-4 z-20">
-				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
-			</div>
-			<div className="w-1/2 bg-white flex items-center justify-center p-8">
+		<div className="min-h-screen w-full flex flex-col lg:flex-row login-page overflow-x-hidden">
+			{/* CORRECCIÓN CLAVE: El logo ya no tiene posicionamiento absoluto para evitar conflictos en el flujo. */}
+			{/* Se moverá dentro del contenedor principal. */}
+
+			<div className="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center p-8 py-12 lg:py-8 overflow-y-auto">
 				<div className="max-w-md w-full">
+					<div className="flex justify-center mb-4">
+						<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
+					</div>
+
 					<div className="relative inline-block w-full">
 						<h1 className="text-base font-jua mb-3 text-center letter-space-md">
 							<span className="text-amber-400">INICIA</span>{" "}
@@ -78,7 +84,6 @@ export const LoginPage = () => {
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Correo electrónico
 							</span>
-
 							<div className="relative mt-1">
 								<MailOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
@@ -97,7 +102,6 @@ export const LoginPage = () => {
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Contraseña
 							</span>
-
 							<div className="relative mt-1">
 								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
@@ -123,19 +127,18 @@ export const LoginPage = () => {
 							</div>
 						</label>
 
-						<label className="flex items-center gap-2 mt-3">
-							<input
-								type="checkbox"
-								checked={remember}
-								onChange={(e) => setRemember(e.target.checked)}
-								className="checkbox-primary"
-							/>
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Recordarme
-							</span>
-						</label>
-
-						<div className="mt-3 text-right">
+						<div className="flex justify-between items-center mt-3">
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={remember}
+									onChange={(e) => setRemember(e.target.checked)}
+									className="checkbox-primary"
+								/>
+								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Recordarme
+								</span>
+							</label>
 							<a
 								href="#"
 								onClick={(e) => e.preventDefault()}
@@ -164,17 +167,27 @@ export const LoginPage = () => {
 						>
 							{loading ? "INGRESANDO..." : "INGRESAR"}
 						</button>
+
+						<div className="mt-6 text-center text-sm font-lekton-italic subtittle-primary">
+							¿No tienes una cuenta?{" "}
+							<Link
+								to="/register"
+								className="link-amber underline font-lekton-bold no-italic"
+							>
+								Regístrate
+							</Link>
+						</div>
 					</form>
 				</div>
 			</div>
-			<div className="w-1/2 relative">
+
+			<div className="hidden lg:block lg:w-1/2 relative lg:h-screen lg:sticky top-0">
 				<img
 					src={rightImage}
 					alt="Decoración"
 					className="w-full h-full object-cover"
 					style={{ display: "block", objectPosition: "50% 30%" }}
 				/>
-
 				<div className="absolute top-8 left-8 right-8 z-20 right-hero">
 					<h2 className="fredoka-regular text-white text-2xl md:text-3xl leading-tight letter-space-lg drop-shadow-md">
 						Deja que tu mejor amigo aprenda jugando, nosotros lo guiamos.{" "}
@@ -189,15 +202,6 @@ export const LoginPage = () => {
 						</a>
 					</h2>
 				</div>
-			</div>
-			<div className="fixed left-4 bottom-4 text-sm font-lekton-italic subtittle-primary">
-				¿No tienes una cuenta?{" "}
-				<a
-					href="/register"
-					className="link-amber underline font-lekton-bold no-italic"
-				>
-					Regístrate
-				</a>
 			</div>
 		</div>
 	);
