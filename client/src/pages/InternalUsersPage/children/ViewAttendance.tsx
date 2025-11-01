@@ -22,12 +22,21 @@ type Attendance = {
 	status?: string | null;
 };
 
+function toLocalISO(d: Date) {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}
+
+const TODAY_ISO = toLocalISO(new Date());
+
 const MOCK_ATTENDANCES: Attendance[] = [
 	{
 		id: "m-1",
 		canine_id: 11,
 		canine_name: "Toby",
-		date: new Date().toISOString().slice(0, 10),
+		date: TODAY_ISO,
 		entry_time: "08:05:00",
 		entry_type: "normal",
 		exit_time: "17:00:00",
@@ -38,7 +47,7 @@ const MOCK_ATTENDANCES: Attendance[] = [
 		id: "m-2",
 		canine_id: 12,
 		canine_name: "Luna",
-		date: new Date().toISOString().slice(0, 10),
+		date: TODAY_ISO,
 		entry_time: "08:35:00",
 		entry_type: "late",
 		exit_time: "16:45:00",
@@ -49,7 +58,7 @@ const MOCK_ATTENDANCES: Attendance[] = [
 		id: "m-3",
 		canine_id: 13,
 		canine_name: "Koko",
-		date: new Date().toISOString().slice(0, 10),
+		date: TODAY_ISO,
 		entry_time: null,
 		entry_type: "absent",
 		exit_time: null,
@@ -60,7 +69,7 @@ const MOCK_ATTENDANCES: Attendance[] = [
 		id: "m-4",
 		canine_id: 14,
 		canine_name: "Toby Jr.",
-		date: new Date().toISOString().slice(0, 10),
+		date: TODAY_ISO,
 		entry_time: "07:50:00",
 		entry_type: "normal",
 		exit_time: "12:15:00",
@@ -71,7 +80,7 @@ const MOCK_ATTENDANCES: Attendance[] = [
 		id: "m-5",
 		canine_id: 15,
 		canine_name: "Milo",
-		date: new Date().toISOString().slice(0, 10),
+		date: TODAY_ISO,
 		entry_time: "08:10:00",
 		entry_type: "normal",
 		exit_time: "17:05:00",
@@ -79,6 +88,8 @@ const MOCK_ATTENDANCES: Attendance[] = [
 		early_departure_reason: null,
 	},
 ];
+
+const ATT_KEY = "mockAttendances_v1";
 
 export default function ViewAttendance() {
 	const today = new Date();
@@ -116,7 +127,6 @@ export default function ViewAttendance() {
 					credentials: opts.credentials || "same-origin",
 				});
 
-				// fallback if server doesn't accept date query
 				if (res.status === 404) {
 					res = await fetch(`/api/attendances/`, {
 						method: "GET",
@@ -124,62 +134,99 @@ export default function ViewAttendance() {
 						credentials: opts.credentials || "same-origin",
 					});
 				}
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-				const data = await res.json();
-				const arr = Array.isArray(data) ? (data as unknown[]) : [];
+				let list: Attendance[] = [];
+				if (res.ok) {
+					const data = await res.json();
+					const arr = Array.isArray(data) ? (data as unknown[]) : [];
+					list = arr.map((item) => {
+						const a = (item as Record<string, unknown>) || {};
+						const canineObj =
+							(a["canine"] && typeof a["canine"] === "object"
+								? (a["canine"] as Record<string, unknown>)
+								: undefined) || undefined;
+						const id = (a["id"] ?? a["pk"]) as number | string | undefined;
+						const canine_id =
+							typeof a["canine"] === "number"
+								? (a["canine"] as number)
+								: ((canineObj?.["id"] as number | string | undefined) ??
+									undefined);
+						const canine_name =
+							(a["canine_name"] as string | undefined) ??
+							(canineObj?.["name"] as string | undefined) ??
+							"";
+						const dateVal =
+							((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as
+								| string
+								| undefined) ?? "";
+						const entry_time =
+							((a["entry_time"] ?? a["llegada_time"] ?? a["arrival_time"]) as
+								| string
+								| undefined) ?? null;
+						const entry_type =
+							((a["entry_type"] ?? a["llegada_tipo"]) as string | undefined) ??
+							null;
+						const exit_time =
+							((a["exit_time"] ?? a["salida_time"]) as string | undefined) ??
+							null;
+						const exit_type =
+							((a["exit_type"] ?? a["salida_tipo"]) as string | undefined) ??
+							null;
+						const early_departure_reason =
+							((a["early_departure_reason"] ??
+								a["motivo_salida_anticipada"]) as string | undefined) ?? null;
 
-				const list: Attendance[] = arr.map((item) => {
-					const a = (item as Record<string, unknown>) || {};
-					const canineObj =
-						(a["canine"] && typeof a["canine"] === "object"
-							? (a["canine"] as Record<string, unknown>)
-							: undefined) || undefined;
+						return {
+							id: id ?? Math.random().toString(36).slice(2),
+							canine_id,
+							canine_name,
+							date: dateVal ? dateVal.slice(0, 10) : iso,
+							entry_time,
+							entry_type,
+							exit_time,
+							exit_type,
+							early_departure_reason,
+						} as Attendance;
+					});
+				}
 
-					const id = (a["id"] ?? a["pk"]) as number | string | undefined;
-					const canine_id =
-						typeof a["canine"] === "number"
-							? (a["canine"] as number)
-							: ((canineObj?.["id"] as number | string | undefined) ??
-								undefined);
-					const canine_name =
-						(a["canine_name"] as string | undefined) ??
-						(canineObj?.["name"] as string | undefined) ??
-						"";
-					const dateVal =
-						((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as
-							| string
-							| undefined) ?? "";
-					const entry_time =
-						((a["entry_time"] ?? a["llegada_time"] ?? a["arrival_time"]) as
-							| string
-							| undefined) ?? null;
-					const entry_type =
-						((a["entry_type"] ?? a["llegada_tipo"]) as string | undefined) ??
-						null;
-					const exit_time =
-						((a["exit_time"] ?? a["salida_time"]) as string | undefined) ??
-						null;
-					const exit_type =
-						((a["exit_type"] ?? a["salida_tipo"]) as string | undefined) ??
-						null;
-					const early_departure_reason =
-						((a["early_departure_reason"] ?? a["motivo_salida_anticipada"]) as
-							| string
-							| undefined) ?? null;
+				try {
+					const raw = localStorage.getItem(ATT_KEY) || "[]";
+					const localArr = (
+						JSON.parse(raw) as Array<Record<string, unknown>>
+					).filter((r) => (r.date ?? "").slice(0, 10) === iso);
+					const localMapped: Attendance[] = localArr.map((r) => ({
+						id: (r.id ?? Math.random().toString(36).slice(2)) as string,
+						canine_id:
+							(r.canineId as number | string) ??
+							(r.canine_id as number | string | undefined),
+						canine_name:
+							(r.canineName as string) ??
+							(r.canine_name as string | undefined) ??
+							"",
+						date: (r.date as string) ?? iso,
+						entry_time: (r.entryTime as string) ?? null,
+						entry_type:
+							(r.status === "on_time" ? "normal" : (r.status as string)) ??
+							null,
+						exit_time: (r.exitTime as string) ?? null,
+						exit_type: null,
+						early_departure_reason: (r.earlyDepartureReason as string) ?? null,
+					}));
 
-					return {
-						id: id ?? Math.random().toString(36).slice(2),
-						canine_id,
-						canine_name,
-						date: dateVal.slice(0, 10),
-						entry_time,
-						entry_type,
-						exit_time,
-						exit_type,
-						early_departure_reason,
-					} as Attendance;
-				});
+					const byKey = new Map<string | number, Attendance>();
+					list.forEach((l) => {
+						const key = String(l.canine_id ?? l.id);
+						byKey.set(key, l);
+					});
+					localMapped.forEach((lm) => {
+						const key = String(lm.canine_id ?? lm.id);
+						byKey.set(key, lm);
+					});
+					list = Array.from(byKey.values());
+				} catch {
+					// ignore local merge errors
+				}
 
 				const filteredByDate = list.filter(
 					(r) => (r.date || "").slice(0, 10) === iso,
@@ -191,7 +238,7 @@ export default function ViewAttendance() {
 				}
 			} catch (err) {
 				console.error(err);
-				const iso = selectedDate.toISOString().slice(0, 10);
+				const iso = toLocalISO(selectedDate);
 				setAttendances(MOCK_ATTENDANCES.filter((m) => m.date === iso));
 				setError(null);
 			} finally {
@@ -237,7 +284,7 @@ export default function ViewAttendance() {
 			boxSizing: "border-box",
 		};
 		if (!key) return <span style={{ color: "var(--muted-color)" }}>—</span>;
-		if (key.includes("late") || key.includes("tarde")) {
+		if (key.includes("late") || key.includes("tarde"))
 			return (
 				<span
 					style={{
@@ -249,8 +296,7 @@ export default function ViewAttendance() {
 					Tarde
 				</span>
 			);
-		}
-		if (key.includes("absent") || key.includes("ausente")) {
+		if (key.includes("absent") || key.includes("ausente"))
 			return (
 				<span
 					style={{
@@ -262,7 +308,6 @@ export default function ViewAttendance() {
 					Ausente
 				</span>
 			);
-		}
 		return (
 			<span
 				style={{
@@ -406,7 +451,6 @@ export default function ViewAttendance() {
 											</span>
 										</div>
 									</td>
-
 									<td
 										style={{
 											padding: "12px 16px",
@@ -425,7 +469,6 @@ export default function ViewAttendance() {
 											{a.date?.slice(0, 10) ?? "—"}
 										</div>
 									</td>
-
 									<td
 										style={{
 											padding: "12px 16px",
@@ -439,7 +482,6 @@ export default function ViewAttendance() {
 											{badgeForType(a.entry_type)}
 										</div>
 									</td>
-
 									<td
 										style={{
 											padding: "12px 16px",
@@ -453,7 +495,6 @@ export default function ViewAttendance() {
 											{badgeForType(a.exit_type)}
 										</div>
 									</td>
-
 									<td
 										style={{
 											padding: "12px 16px",
@@ -462,7 +503,6 @@ export default function ViewAttendance() {
 									>
 										{a.early_departure_reason || "—"}
 									</td>
-
 									<td style={{ padding: "12px 16px", textAlign: "right" }}>
 										{a.entry_type || a.exit_type ? (
 											badgeForType(a.entry_type ?? a.exit_type)
