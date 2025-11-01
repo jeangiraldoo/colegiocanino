@@ -99,7 +99,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
 	list_display = (
-		"enrollment",
+		"enrollment_id",
 		"date",
 		"status",
 		"arrival_time",

@@ -246,8 +246,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
 		# Filters
 		enrollment_id = self.request.query_params.get("enrollment_id", None)
-		fecha = self.request.query_params.get("fecha", None)
-		estado = self.request.query_params.get("estado", None)
+		fecha = self.request.query_params.get("date", None)
+		estado = self.request.query_params.get("status", None)
 		fecha_desde = self.request.query_params.get("fecha_desde", None)
 		fecha_hasta = self.request.query_params.get("fecha_hasta", None)
 
@@ -268,33 +268,37 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 	def today(self, request):
 		"""Get today's attendance"""
 		today = timezone.now().date()
-		attendances = Attendance.objects.filter(fecha=today)
+		attendances = Attendance.objects.filter(date=today)
 		serializer = self.get_serializer(attendances, many=True)
 		return Response(serializer.data)
 
 	@action(detail=False, methods=["post"])
-	def register_arrival(self, request):
+	def check_in(self, request):
 		"""Register canine arrival"""
-		enrollment_id = request.data.get("enrollment_id")
-		llegada_tipo = request.data.get("llegada_tipo")
+		enrollment_id = request.data.get("enrollment")
+		arrival_status = request.data.get("status")
+		print(f"AAAAAAAA: {enrollment_id}")
+		print(arrival_status)
+		# llegada_tipo = request.data.get("llegada_tipo")
 
 		try:
-			enrollment = Enrollment.objects.get(pk=enrollment_id, estado=True)
-			today = timezone.now().date()
+			enrollment = Enrollment.objects.get(pk=enrollment_id, status=True)
 
 			attendance, created = Attendance.objects.get_or_create(
 				enrollment=enrollment,
-				fecha=today,
+				# status=arrival_status,
+				# enrollment_id=enrollment,
+				date=timezone.now().date(),
 				defaults={
-					"llegada_tipo": llegada_tipo,
-					"hora_llegada": timezone.now().time(),
-					"estado": Attendance.Estado.PRESENTE,
+					# "llegada_tipo": llegada_tipo,
+					"arrival_time": timezone.now().time(),
+					"status": arrival_status,
 				},
 			)
 
 			if not created:
-				attendance.hora_llegada = timezone.now().time()
-				attendance.llegada_tipo = llegada_tipo
+				attendance.arrival_time = timezone.now().time()
+				# attendance.llegada_tipo = llegada_tipo
 				attendance.save()
 
 			serializer = self.get_serializer(attendance)
