@@ -180,7 +180,7 @@ class Attendance(models.Model):
 		verbose_name = _("attendance")
 		verbose_name_plural = _("attendances")
 		ordering = ["-date", "-arrival_time"]
-		unique_together = ["enrollment", "date"]
+		unique_together = ["enrollment_id", "date"]
 
 	def __str__(self):
 		return f"Attendance - {self.enrollment.canine.name} - {self.date}"

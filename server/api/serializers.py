@@ -1,6 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Client, Canine, EnrollmentPlan, TransportService, Enrollment, Attendance, InternalUser
+from .models import (
+	Client,
+	Canine,
+	EnrollmentPlan,
+	TransportService,
+	Enrollment,
+	Attendance,
+	InternalUser,
+)
 
 User = get_user_model()
 
@@ -179,7 +187,6 @@ class AttendanceSerializer(serializers.ModelSerializer):
 			"status",
 			"departure_time",
 			"withdrawal_reason",
-			"observations",
 		]
 
 
