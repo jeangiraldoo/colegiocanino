@@ -305,15 +305,20 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 				{"error": "Enrollment not found or inactive"}, status=status.HTTP_404_NOT_FOUND
 			)
 
-	@action(detail=True, methods=["post"])
-	def register_departure(self, request, pk=None):
+	@action(detail=False, methods=["post"])
+	def check_out(self, request, pk=None):
 		"""Register canine departure"""
-		attendance = self.get_object()
-		attendance.departure_time = timezone.now().time()
-		attendance.status = Attendance.Status.DISPATCHED
+		enrollment_id = request.data.get("enrollment")
+		withdrawal_reason = request.data.get("withdrawal_reason")
+		departure_time = request.data.get("departure_time")
+		attendance = Attendance.objects.filter(
+			enrollment_id=enrollment_id, date=timezone.now().date()
+		).first()
+		attendance.departure_time = departure_time if departure_time else timezone.now().time()
+		attendance.withdrawal_reason = withdrawal_reason
 		attendance.save()
 		serializer = self.get_serializer(attendance)
-		return Response(serializer.data)
+		return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 	@action(detail=False, methods=["get"])
 	def report_by_date(self, request):
