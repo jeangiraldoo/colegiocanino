@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PetsIcon from "@mui/icons-material/Pets";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+// CORRECCIÓN: Se vuelve a importar el logo original para esta vista
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
 
@@ -45,8 +47,9 @@ export const LoginPage = () => {
 	};
 
 	return (
+		// CORRECCIÓN: Se restaura la estructura original del layout.
 		<div className="h-screen w-screen flex login-page">
-			{" "}
+			{/* CORRECCIÓN: El logo vuelve a su posición absoluta original. */}
 			<div className="absolute left-4 top-4 z-20">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
 			</div>
@@ -78,7 +81,6 @@ export const LoginPage = () => {
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Correo electrónico
 							</span>
-
 							<div className="relative mt-1">
 								<MailOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
@@ -97,7 +99,6 @@ export const LoginPage = () => {
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Contraseña
 							</span>
-
 							<div className="relative mt-1">
 								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
@@ -174,7 +175,6 @@ export const LoginPage = () => {
 					className="w-full h-full object-cover"
 					style={{ display: "block", objectPosition: "50% 30%" }}
 				/>
-
 				<div className="absolute top-8 left-8 right-8 z-20 right-hero">
 					<h2 className="fredoka-regular text-white text-2xl md:text-3xl leading-tight letter-space-lg drop-shadow-md">
 						Deja que tu mejor amigo aprenda jugando, nosotros lo guiamos.{" "}
@@ -192,12 +192,12 @@ export const LoginPage = () => {
 			</div>
 			<div className="fixed left-4 bottom-4 text-sm font-lekton-italic subtittle-primary">
 				¿No tienes una cuenta?{" "}
-				<a
-					href="/register"
+				<Link
+					to="/register"
 					className="link-amber underline font-lekton-bold no-italic"
 				>
 					Regístrate
-				</a>
+				</Link>
 			</div>
 		</div>
 	);
