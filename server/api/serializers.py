@@ -1,6 +1,16 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Client, Canine, EnrollmentPlan, TransportService, Enrollment, Attendance
+from django.db import transaction
+from rest_framework import serializers
+
+from .models import (
+	Attendance,
+	Canine,
+	Client,
+	Enrollment,
+	EnrollmentPlan,
+	InternalUser,
+	TransportService,
+)
 
 User = get_user_model()
 
@@ -42,6 +52,41 @@ class UserSerializer(serializers.ModelSerializer):
 			setattr(instance, attr, value)
 		if password:
 			instance.set_password(password)
+		instance.save()
+		return instance
+
+
+class InternalUserSerializer(serializers.ModelSerializer):
+	"""Internal user profile serializer with nested user creation/update"""
+
+	user = UserSerializer()
+
+	class Meta:
+		model = InternalUser
+		fields = [
+			"user",
+			"role",
+			"birthdate",
+			"date_joined",
+			"photo",
+		]
+
+	def create(self, validated_data):
+		user_data = validated_data.pop("user")
+		# Create the underlying auth user
+		user = UserSerializer().create(user_data)
+		# Create internal profile
+		internal_user = InternalUser.objects.create(user=user, **validated_data)
+		return internal_user
+
+	def update(self, instance, validated_data):
+		user_data = validated_data.pop("user", None)
+		# Update nested user if provided
+		if user_data:
+			UserSerializer().update(instance.user, user_data)
+		# Update internal user fields
+		for attr, value in validated_data.items():
+			setattr(instance, attr, value)
 		instance.save()
 		return instance
 
@@ -95,7 +140,8 @@ class TransportServiceSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = TransportService
-		fields = ["id", "name", "type", "price"]
+		# TransportService model only has `type`
+		fields = ["id", "type"]
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
@@ -103,7 +149,10 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
 	canine_name = serializers.CharField(source="canine.name", read_only=True)
 	plan_name = serializers.CharField(source="plan.name", read_only=True)
-	transport_service_name = serializers.CharField(source="transport_service.name", read_only=True)
+	# Use display label for transport service type
+	transport_service_name = serializers.CharField(
+		source="transport_service.get_type_display", read_only=True
+	)
 
 	class Meta:
 		model = Enrollment
@@ -117,7 +166,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 			"transport_service_name",
 			"enrollment_date",
 			"expiration_date",
-			"total_price",
 			"status",
 			"creation_date",
 		]
@@ -144,8 +192,55 @@ class AttendanceSerializer(serializers.ModelSerializer):
 			"status",
 			"departure_time",
 			"withdrawal_reason",
-			"observations",
 		]
+
+
+# Registration serializer
+class RegisterSerializer(serializers.Serializer):
+	"""Serializer for user registration"""
+
+	username = serializers.CharField(max_length=150)
+	email = serializers.EmailField()
+	password = serializers.CharField(write_only=True, style={"input_type": "password"})
+	first_name = serializers.CharField(max_length=150)
+	last_name = serializers.CharField(max_length=150)
+	phone_number = serializers.CharField(max_length=15, required=False, allow_blank=True)
+	address = serializers.CharField(required=False, allow_blank=True)
+	document_id = serializers.CharField(max_length=50, required=False, allow_blank=True)
+
+	def validate_username(self, value):
+		if User.objects.filter(username=value).exists():
+			raise serializers.ValidationError("Este nombre de usuario ya está en uso.")
+		return value
+
+	def validate_email(self, value):
+		if User.objects.filter(email=value).exists():
+			raise serializers.ValidationError("Este correo electrónico ya está registrado.")
+		return value
+
+	def validate_document_id(self, value):
+		if value and User.objects.filter(document_id=value).exists():
+			raise serializers.ValidationError("Este documento de identidad ya está registrado.")
+		return value
+
+	@transaction.atomic
+	def create(self, validated_data):
+		user = User.objects.create(
+			username=validated_data["username"],
+			email=validated_data["email"],
+			first_name=validated_data["first_name"],
+			last_name=validated_data["last_name"],
+			phone_number=validated_data.get("phone_number", ""),
+			address=validated_data.get("address", ""),
+			document_id=validated_data.get("document_id", ""),
+		)
+		user.set_password(validated_data["password"])
+		user.save()
+
+		# Create client profile
+		client = Client.objects.create(user=user)
+
+		return client
 
 
 # Dashboard serializers

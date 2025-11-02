@@ -10,10 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-from pathlib import Path
 import os
-from dotenv import load_dotenv
+from pathlib import Path
+
 import dj_database_url
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -106,6 +107,7 @@ DATABASES = {"default": default_db}
 REST_FRAMEWORK = {
 	"DEFAULT_AUTHENTICATION_CLASSES": (
 		"rest_framework_simplejwt.authentication.JWTAuthentication",
+		"rest_framework.authentication.SessionAuthentication",
 	),
 	"DEFAULT_PERMISSION_CLASSES": [
 		"rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"

@@ -1,6 +1,6 @@
-from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -180,7 +180,7 @@ class Attendance(models.Model):
 		verbose_name = _("attendance")
 		verbose_name_plural = _("attendances")
 		ordering = ["-date", "-arrival_time"]
-		unique_together = ["enrollment", "date"]
+		unique_together = ["enrollment_id", "date"]
 
 	def __str__(self):
 		return f"Attendance - {self.enrollment.canine.name} - {self.date}"

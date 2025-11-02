@@ -37,6 +37,11 @@ include = ["server*"]
 [tool.ruff]
 line-length = 100
 indent-width = 4
+exclude = [
+    "migrations",
+    "*/migrations/*",
+    "**/*migrations*/**",
+]
 
 [tool.ruff.format]
 indent-style = "tab"
@@ -44,5 +49,15 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 preview = true
-select = ["E", "F", "B"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "T20", "SIM", "ARG", "PTH", "PL", "RUF"]
 extend-select = ["E501"]
+ignore = [
+    "W191",     # Ignore tab indentation warnings since we use tabs
+    "ARG002",   # Unused method argument (common in Django views)
+    "PLR6301",  # Method could be a function (common in Django class-based views)
+    "PLC0415",  # Import should be at top-level (Django manage.py pattern)
+    "PTH118",   # Use Path with / operator (Django settings compatibility)
+    "N806",     # Variable in function should be lowercase (Django conventions)
+    "N802",     # Function name should be lowercase (Django conventions)
+    "RUF012",   # Mutable class default (common in Django models)
+]
