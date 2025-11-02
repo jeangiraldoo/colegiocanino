@@ -1,32 +1,36 @@
-from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.views import APIView
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from datetime import timedelta
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .models import (
-	User,
-	Client,
-	Canine,
-	EnrollmentPlan,
-	TransportService,
-	Enrollment,
 	Attendance,
+	Canine,
+	Client,
+	Enrollment,
+	EnrollmentPlan,
 	InternalUser,
+	TransportService,
+	User,
 )
 from .serializers import (
-	UserSerializer,
-	ClientSerializer,
-	CanineSerializer,
-	EnrollmentPlanSerializer,
-	TransportServiceSerializer,
-	EnrollmentSerializer,
 	AttendanceSerializer,
+	CanineSerializer,
+	ClientSerializer,
 	DashboardStatsSerializer,
+	EnrollmentPlanSerializer,
+	EnrollmentSerializer,
 	InternalUserSerializer,
+	RegisterSerializer,
+	TransportServiceSerializer,
+	UserSerializer,
 )
 
 UserModel = get_user_model()
@@ -81,7 +85,7 @@ class InternalUserViewSet(viewsets.ModelViewSet):
 
 class ClientViewSet(viewsets.ModelViewSet):
 	"""
-	ViewSet for Cliente management.
+	ViewSet for Client management.
 	"""
 
 	queryset = Client.objects.all()
@@ -117,19 +121,19 @@ class CanineViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 		queryset = Canine.objects.all()
 		# Filters
-		tamaño = self.request.query_params.get("tamaño", None)
-		raza = self.request.query_params.get("raza", None)
-		cliente_id = self.request.query_params.get("cliente_id", None)
-		estado = self.request.query_params.get("estado", None)
+		size = self.request.query_params.get("size", None)
+		breed = self.request.query_params.get("breed", None)
+		client_id = self.request.query_params.get("client_id", None)
+		status_param = self.request.query_params.get("status", None)
 
-		if tamaño:
-			queryset = queryset.filter(tamaño=tamaño)
-		if raza:
-			queryset = queryset.filter(raza__icontains=raza)
-		if cliente_id:
-			queryset = queryset.filter(cliente_id=cliente_id)
-		if estado is not None:
-			queryset = queryset.filter(estado=estado.lower() == "true")
+		if size:
+			queryset = queryset.filter(size=size)
+		if breed:
+			queryset = queryset.filter(breed__icontains=breed)
+		if client_id:
+			queryset = queryset.filter(client_id=client_id)
+		if status_param is not None:
+			queryset = queryset.filter(status=status_param.lower() == "true")
 
 		return queryset
 
@@ -173,20 +177,20 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 		# Filters
 		canine_id = self.request.query_params.get("canine_id", None)
 		plan_id = self.request.query_params.get("plan_id", None)
-		tamaño = self.request.query_params.get("tamaño", None)
-		raza = self.request.query_params.get("raza", None)
-		estado = self.request.query_params.get("estado", None)
+		size = self.request.query_params.get("size", None)
+		breed = self.request.query_params.get("breed", None)
+		status = self.request.query_params.get("status", None)
 
 		if canine_id:
 			queryset = queryset.filter(canine_id=canine_id)
 		if plan_id:
 			queryset = queryset.filter(plan_id=plan_id)
-		if tamaño:
-			queryset = queryset.filter(canine__tamaño=tamaño)
-		if raza:
-			queryset = queryset.filter(canine__raza__icontains=raza)
-		if estado is not None:
-			queryset = queryset.filter(estado=estado.lower() == "true")
+		if size:
+			queryset = queryset.filter(canine__size=size)
+		if breed:
+			queryset = queryset.filter(canine__breed__icontains=breed)
+		if status is not None:
+			queryset = queryset.filter(status=status.lower() == "true")
 
 		return queryset
 
@@ -194,7 +198,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 	def report_by_plan(self, request):
 		"""Report: Enrollments by plan"""
 		enrollments = (
-			Enrollment.objects.values("plan__nombre").annotate(count=Count("id")).order_by("-count")
+			Enrollment.objects.values("plan__name").annotate(count=Count("id")).order_by("-count")
 		)
 		return Response(enrollments.data if hasattr(enrollments, "data") else list(enrollments))
 
@@ -202,9 +206,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 	def report_by_size(self, request):
 		"""Report: Enrollments by canine size"""
 		enrollments = (
-			Enrollment.objects.values("canine__tamaño")
-			.annotate(count=Count("id"))
-			.order_by("-count")
+			Enrollment.objects.values("canine__size").annotate(count=Count("id")).order_by("-count")
 		)
 		return Response(enrollments.data if hasattr(enrollments, "data") else list(enrollments))
 
@@ -212,7 +214,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 	def report_by_transport(self, request):
 		"""Report: Enrollments by transport service"""
 		enrollments = (
-			Enrollment.objects.values("transport_service__nombre")
+			Enrollment.objects.values("transport_service__type")
 			.annotate(count=Count("id"))
 			.order_by("-count")
 		)
@@ -222,7 +224,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 	def report_by_breed(self, request):
 		"""Report: Enrollments by breed (top 10)"""
 		enrollments = (
-			Enrollment.objects.values("canine__raza")
+			Enrollment.objects.values("canine__breed")
 			.annotate(count=Count("id"))
 			.order_by("-count")[:10]
 		)
@@ -246,21 +248,21 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
 		# Filters
 		enrollment_id = self.request.query_params.get("enrollment_id", None)
-		fecha = self.request.query_params.get("date", None)
-		estado = self.request.query_params.get("status", None)
-		fecha_desde = self.request.query_params.get("fecha_desde", None)
-		fecha_hasta = self.request.query_params.get("fecha_hasta", None)
+		date = self.request.query_params.get("date", None)
+		status = self.request.query_params.get("status", None)
+		date_from = self.request.query_params.get("date_from", None)
+		date_to = self.request.query_params.get("date_to", None)
 
 		if enrollment_id:
 			queryset = queryset.filter(enrollment_id=enrollment_id)
-		if fecha:
-			queryset = queryset.filter(fecha=fecha)
-		if estado:
-			queryset = queryset.filter(estado=estado)
-		if fecha_desde:
-			queryset = queryset.filter(fecha__gte=fecha_desde)
-		if fecha_hasta:
-			queryset = queryset.filter(fecha__lte=fecha_hasta)
+		if date:
+			queryset = queryset.filter(date=date)
+		if status:
+			queryset = queryset.filter(status=status)
+		if date_from:
+			queryset = queryset.filter(date__gte=date_from)
+		if date_to:
+			queryset = queryset.filter(date__lte=date_to)
 
 		return queryset
 
@@ -277,20 +279,14 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 		"""Register canine arrival"""
 		enrollment_id = request.data.get("enrollment")
 		arrival_status = request.data.get("status")
-		print(f"AAAAAAAA: {enrollment_id}")
-		print(arrival_status)
-		# llegada_tipo = request.data.get("llegada_tipo")
 
 		try:
 			enrollment = Enrollment.objects.get(pk=enrollment_id, status=True)
 
 			attendance, created = Attendance.objects.get_or_create(
 				enrollment=enrollment,
-				# status=arrival_status,
-				# enrollment_id=enrollment,
 				date=timezone.now().date(),
 				defaults={
-					# "llegada_tipo": llegada_tipo,
 					"arrival_time": timezone.now().time(),
 					"status": arrival_status,
 				},
@@ -298,7 +294,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
 			if not created:
 				attendance.arrival_time = timezone.now().time()
-				# attendance.llegada_tipo = llegada_tipo
 				attendance.save()
 
 			serializer = self.get_serializer(attendance)
@@ -314,8 +309,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 	def register_departure(self, request, pk=None):
 		"""Register canine departure"""
 		attendance = self.get_object()
-		attendance.hora_salida = timezone.now().time()
-		attendance.estado = Attendance.Estado.DESPACHADO
+		attendance.departure_time = timezone.now().time()
+		attendance.status = Attendance.Status.DISPATCHED
 		attendance.save()
 		serializer = self.get_serializer(attendance)
 		return Response(serializer.data)
@@ -323,25 +318,158 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 	@action(detail=False, methods=["get"])
 	def report_by_date(self, request):
 		"""Report: Attendance by date range"""
-		fecha_desde = request.query_params.get("fecha_desde", None)
-		fecha_hasta = request.query_params.get("fecha_hasta", None)
+		date_from = request.query_params.get("date_from", None)
+		date_to = request.query_params.get("date_to", None)
 
 		attendances = Attendance.objects.all()
 
-		if fecha_desde:
-			attendances = attendances.filter(fecha__gte=fecha_desde)
-		if fecha_hasta:
-			attendances = attendances.filter(fecha__lte=fecha_hasta)
+		if date_from:
+			attendances = attendances.filter(date__gte=date_from)
+		if date_to:
+			attendances = attendances.filter(date__lte=date_to)
 
-		data = attendances.values("fecha").annotate(count=Count("id")).order_by("fecha")
+		data = attendances.values("date").annotate(count=Count("id")).order_by("date")
 
 		return Response(list(data))
 
 	@action(detail=False, methods=["get"])
 	def report_by_status(self, request):
 		"""Report: Attendance by status"""
-		data = Attendance.objects.values("estado").annotate(count=Count("id")).order_by("-count")
+		data = Attendance.objects.values("status").annotate(count=Count("id")).order_by("-count")
 		return Response(list(data))
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_view(request):
+	"""
+	API view for client registration.
+	"""
+	serializer = RegisterSerializer(data=request.data)
+	if serializer.is_valid():
+		client = serializer.save()
+		return Response(
+			{
+				"message": "Registration successful. You can now sign in.",
+				"user_id": client.user.id,
+				"username": client.user.username,
+			},
+			status=status.HTTP_201_CREATED,
+		)
+	return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET", "PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+def profile_view(request):
+	"""
+	API view for retrieving and updating client profile data.
+	"""
+	user = request.user
+	try:
+		client = Client.objects.get(user=user)
+
+		# GET: Retrieve profile data
+		if request.method == "GET":
+			user_data = UserSerializer(user).data
+			client_data = ClientSerializer(client).data
+
+			profile_data = {
+				"user": user_data,
+				"client": client_data,
+			}
+
+			canines = Canine.objects.filter(client=client)
+			canines_data = CanineSerializer(canines, many=True).data
+			profile_data["canines"] = canines_data
+
+			return Response(profile_data)
+
+		# PUT/PATCH: Update profile data
+		elif request.method in {"PUT", "PATCH"}:
+			# Partial update is allowed for both PUT and PATCH in this case
+			partial = True
+
+			# Update user data
+			user_data = request.data.get("user", {})
+			user_serializer = UserSerializer(user, data=user_data, partial=partial)
+			if user_serializer.is_valid():
+				user_serializer.save()
+
+				# Return updated profile
+				updated_user_data = UserSerializer(user).data
+				client_data = ClientSerializer(client).data
+
+				profile_data = {
+					"user": updated_user_data,
+					"client": client_data,
+					"message": "Profile updated successfully",
+				}
+
+				canines = Canine.objects.filter(client=client)
+				canines_data = CanineSerializer(canines, many=True).data
+				profile_data["canines"] = canines_data
+
+				return Response(profile_data)
+			else:
+				return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+	except Client.DoesNotExist:
+		return Response({"error": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_type_view(request):
+	"""
+	API view for retrieving the type of user (client or internal) and role if applicable.
+	"""
+	user = request.user
+
+	# Check if it's a client
+	if hasattr(user, "client_profile"):
+		return Response({"user_type": "client", "client_id": user.client_profile.id})
+
+	# Check if it's an internal user
+	if hasattr(user, "internal_profile"):
+		return Response(
+			{
+				"user_type": "internal",
+				"role": user.internal_profile.role,
+				"role_display": user.internal_profile.get_role_display(),
+			}
+		)
+
+		# If no profile is found
+	return Response({"user_type": "unknown"})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def canine_attendance_view(request, canine_id):
+	"""
+	API view for retrieving attendance history of a specific canine.
+	Only the owner of the canine can access this information.
+	"""
+	user = request.user
+
+	try:
+		client = Client.objects.get(user=user)
+		canine = get_object_or_404(Canine, id=canine_id)
+
+		if canine.client.id != client.id:
+			return Response(
+				{"error": "You do not have permission to view attendance for this canine"},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
+		enrollments = Enrollment.objects.filter(canine=canine)
+		attendances = Attendance.objects.filter(enrollment__in=enrollments).order_by("-date")
+		attendance_data = AttendanceSerializer(attendances, many=True).data
+
+		return Response({"canine": CanineSerializer(canine).data, "attendances": attendance_data})
+
+	except Client.DoesNotExist:
+		return Response({"error": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class DashboardStatsView(APIView):

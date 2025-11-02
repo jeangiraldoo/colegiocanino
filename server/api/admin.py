@@ -2,20 +2,21 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from .models import (
-	User,
-	Client,
-	Canine,
-	EnrollmentPlan,
-	TransportService,
-	Enrollment,
 	Attendance,
+	Canine,
+	Client,
+	Enrollment,
+	EnrollmentPlan,
 	InternalUser,
+	TransportService,
+	User,
 )
 
 
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
-	fieldsets = DjangoUserAdmin.fieldsets + (
+	fieldsets = (
+		*DjangoUserAdmin.fieldsets,
 		(
 			"Additional Info",
 			{
