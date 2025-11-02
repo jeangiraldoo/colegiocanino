@@ -24,7 +24,7 @@ router.register("canines", CanineViewSet, basename="canine")
 router.register("enrollment-plans", EnrollmentPlanViewSet, basename="enrollment-plan")
 router.register("transport-services", TransportServiceViewSet, basename="transport-service")
 router.register("enrollments", EnrollmentViewSet, basename="enrollment")
-router.register("attendances", AttendanceViewSet, basename="attendance")
+router.register("attendance", AttendanceViewSet, basename="attendance")
 router.register("internal-users", InternalUserViewSet, basename="internal-user")
 
 urlpatterns = [
