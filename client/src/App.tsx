@@ -25,6 +25,8 @@ import ClientPage from "./pages/ClientPage/ClientPage";
 import ClientDashboard from "./pages/ClientPage/children/ClientDashboard";
 import MyPets from "./pages/ClientPage/children/MyPets";
 import ClientProfile from "./pages/ClientPage/children/ClientProfile";
+// --- NUEVA IMPORTACIÓN ---
+import PetDetailPage from "./pages/ClientPage/children/PetDetailPage";
 
 function App() {
 	return (
@@ -49,6 +51,8 @@ function App() {
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route path="dashboard" element={<ClientDashboard />} />
 					<Route path="mis-mascotas" element={<MyPets />} />
+					{/* --- NUEVA RUTA DINÁMICA --- */}
+					<Route path="mis-mascotas/:canineId" element={<PetDetailPage />} />
 					<Route path="perfil" element={<ClientProfile />} />
 					{/* Aquí se añadiría la ruta para la matrícula en el futuro */}
 				</Route>
