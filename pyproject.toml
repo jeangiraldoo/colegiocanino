@@ -40,9 +40,7 @@ include = ["server*"]
 line-length = 100
 indent-width = 4
 exclude = [
-    "migrations",
-    "*/migrations/*",
-    "**/*migrations*/**",
+    "**/migrations/",
 ]
 
 [tool.ruff.format]
