@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import PersonIcon from "@mui/icons-material/Person";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -12,7 +12,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import logoSrc from "../../assets/logo.png";
 
 export const InternalUsersPage = () => {
-	const username = "Admin01";
+	const [username, setUsername] = useState<string>("");
 	const lastLogin = new Date().toLocaleDateString("es-ES", {
 		day: "2-digit",
 		month: "short",
@@ -20,6 +20,148 @@ export const InternalUsersPage = () => {
 	});
 	const loc = useLocation();
 	const isActive = (p: string) => loc.pathname.endsWith(p);
+
+	const [role] = useState<string | null>(() => {
+		return localStorage.getItem("user_role") || null;
+	});
+
+	async function resolveAccessToken() {
+		const storages = [
+			{
+				name: "session",
+				access: sessionStorage.getItem("access_token"),
+				refresh: sessionStorage.getItem("refresh_token"),
+			},
+			{
+				name: "local",
+				access: localStorage.getItem("access_token"),
+				refresh: localStorage.getItem("refresh_token"),
+			},
+		];
+
+		for (const s of storages) {
+			if (s.access) {
+				try {
+					const payload = JSON.parse(atob(s.access.split(".")[1]));
+					if (
+						!payload.token_type ||
+						String(payload.token_type).toLowerCase() === "access"
+					) {
+						return { token: s.access, storage: s.name };
+					}
+				} catch {
+					return { token: s.access, storage: s.name };
+				}
+			}
+		}
+
+		for (const s of storages) {
+			if (s.refresh) {
+				try {
+					const res = await fetch("/api/token/refresh/", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Accept: "application/json",
+						},
+						body: JSON.stringify({ refresh: s.refresh }),
+					});
+					if (res.ok) {
+						const data = await res.json();
+						const newAccess = data.access;
+						if (s.name === "session")
+							sessionStorage.setItem("access_token", newAccess);
+						else localStorage.setItem("access_token", newAccess);
+						return { token: newAccess, storage: s.name };
+					}
+				} catch {
+					// ignore and continue
+				}
+			}
+		}
+		return null;
+	}
+
+	useEffect(() => {
+		(async () => {
+			const resolved = await resolveAccessToken();
+			if (!resolved) return;
+			const token = resolved.token;
+
+			try {
+				const res = await fetch("/api/users/me/", {
+					headers: {
+						Authorization: `Bearer ${token}`,
+						Accept: "application/json",
+					},
+				});
+				if (res.status === 401) {
+					const refreshed = await resolveAccessToken();
+					if (!refreshed) return;
+					const retry = await fetch("/api/users/me/", {
+						headers: {
+							Authorization: `Bearer ${refreshed.token}`,
+							Accept: "application/json",
+						},
+					});
+					if (!retry.ok) return;
+					const data = await retry.json();
+					const display =
+						[data.first_name, data.last_name].filter(Boolean).join(" ") ||
+						data.username ||
+						"";
+					setUsername(display);
+					return;
+				}
+				if (!res.ok) return;
+				const data = await res.json();
+				const display =
+					[data.first_name, data.last_name].filter(Boolean).join(" ") ||
+					data.username ||
+					"";
+				setUsername(display);
+			} catch {
+				// silent fail, keep username empty
+			}
+		})();
+	}, []);
+
+	const canAccess = {
+		ADMIN: {
+			dashboard: true,
+			registerUsers: true,
+			manageUsers: true,
+			registerAttendance: true,
+			viewAttendance: true,
+		},
+		DIRECTOR: {
+			dashboard: true,
+			registerUsers: false,
+			manageUsers: false,
+			registerAttendance: true,
+			viewAttendance: true,
+		},
+		ADVISOR: {
+			dashboard: true,
+			registerUsers: false,
+			manageUsers: false,
+			registerAttendance: false,
+			viewAttendance: false,
+		},
+		COACH: {
+			dashboard: false,
+			registerUsers: false,
+			manageUsers: false,
+			registerAttendance: true,
+			viewAttendance: true,
+		},
+	}[role ?? "ADMIN"] ?? {
+		dashboard: false,
+		registerUsers: false,
+		manageUsers: false,
+		registerAttendance: false,
+		viewAttendance: false,
+	};
 
 	return (
 		<div
@@ -46,50 +188,70 @@ export const InternalUsersPage = () => {
 						</div>
 						<div>
 							<p className="welcome-text font-montserrat">¡Bienvenido</p>
-							<p className="welcome-username font-montserrat">{username}!</p>
+							<p className="welcome-username font-montserrat">
+								{username ? `${username}!` : "¡Usuario!"}
+							</p>
+							{role && (
+								<div
+									className="text-xs"
+									style={{ color: "var(--muted-color)" }}
+								>
+									Rol: {role}
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
 				<nav className="flex-1 px-3 py-4 space-y-1 font-montserrat">
-					<Link
-						to="dashboard"
-						className={`sidebar-link has-hover-indicator ${isActive("dashboard") ? "active" : ""}`}
-					>
-						<DashboardIcon className="sidebar-icon" />
-						<span className="sidebar-text">Dashboard</span>
-					</Link>
+					{canAccess.dashboard && (
+						<Link
+							to="dashboard"
+							className={`sidebar-link has-hover-indicator ${isActive("dashboard") ? "active" : ""}`}
+						>
+							<DashboardIcon className="sidebar-icon" />
+							<span className="sidebar-text">Dashboard</span>
+						</Link>
+					)}
 
-					<Link
-						to="registrar-usuarios"
-						className="sidebar-link has-hover-indicator"
-					>
-						<PersonAddIcon className="sidebar-icon" />
-						<span className="sidebar-text">Registrar usuarios</span>
-					</Link>
+					{canAccess.registerUsers && (
+						<Link
+							to="registrar-usuarios"
+							className="sidebar-link has-hover-indicator"
+						>
+							<PersonAddIcon className="sidebar-icon" />
+							<span className="sidebar-text">Registrar usuarios</span>
+						</Link>
+					)}
 
-					<Link
-						to="administrar-usuarios"
-						className="sidebar-link has-hover-indicator"
-					>
-						<SupervisorAccountIcon className="sidebar-icon" />
-						<span className="sidebar-text">Administrar Usuarios</span>
-					</Link>
+					{canAccess.manageUsers && (
+						<Link
+							to="administrar-usuarios"
+							className="sidebar-link has-hover-indicator"
+						>
+							<SupervisorAccountIcon className="sidebar-icon" />
+							<span className="sidebar-text">Administrar Usuarios</span>
+						</Link>
+					)}
 
-					<Link
-						to="registrar-asistencia"
-						className="sidebar-link has-hover-indicator"
-					>
-						<EventAvailableIcon className="sidebar-icon" />
-						<span className="sidebar-text">Registrar asistencia</span>
-					</Link>
+					{canAccess.registerAttendance && (
+						<Link
+							to="registrar-asistencia"
+							className="sidebar-link has-hover-indicator"
+						>
+							<EventAvailableIcon className="sidebar-icon" />
+							<span className="sidebar-text">Registrar asistencia</span>
+						</Link>
+					)}
 
-					<Link
-						to="visualizar-asistencia"
-						className="sidebar-link has-hover-indicator"
-					>
-						<VisibilityIcon className="sidebar-icon" />
-						<span className="sidebar-text">Visualizar asistencia</span>
-					</Link>
+					{canAccess.viewAttendance && (
+						<Link
+							to="visualizar-asistencia"
+							className="sidebar-link has-hover-indicator"
+						>
+							<VisibilityIcon className="sidebar-icon" />
+							<span className="sidebar-text">Visualizar asistencia</span>
+						</Link>
+					)}
 				</nav>
 				<div
 					className="p-4 border-t"
@@ -105,7 +267,17 @@ export const InternalUsersPage = () => {
 
 					<button
 						type="button"
-						onClick={() => {}}
+						onClick={() => {
+							localStorage.removeItem("access_token");
+							localStorage.removeItem("refresh_token");
+							localStorage.removeItem("user_type");
+							localStorage.removeItem("user_role");
+							localStorage.removeItem("client_id");
+							sessionStorage.removeItem("access_token");
+							sessionStorage.removeItem("refresh_token");
+							sessionStorage.removeItem("client_id");
+							window.location.href = "/login";
+						}}
 						className="sidebar-logout has-hover-indicator mt-3 w-full text-left rounded text-sm font-montserrat"
 					>
 						<LogoutIcon className="sidebar-icon-logout" />
