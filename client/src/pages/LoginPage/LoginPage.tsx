@@ -1,25 +1,27 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import PersonIcon from "@mui/icons-material/Person";
 import PetsIcon from "@mui/icons-material/Pets";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-// CORRECCIÓN: Se vuelve a importar el logo original para esta vista
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
 
 export const LoginPage = () => {
-	const [email, setEmail] = useState("");
+	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [remember, setRemember] = useState(false);
+	const [remember, setRemember] = useState<boolean>(
+		() => !!localStorage.getItem("access_token"),
+	);
 	const [showPassword, setShowPassword] = useState(false);
 
+	const navigate = useNavigate();
+
 	const validate = () => {
-		if (!email) return "Ingresa un correo.";
-		if (!/^\S+@\S+\.\S+$/.test(email)) return "Correo inválido.";
+		if (!username) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
 		if (password.length < 6)
 			return "La contraseña debe tener al menos 6 caracteres.";
@@ -36,8 +38,73 @@ export const LoginPage = () => {
 		}
 		setLoading(true);
 		try {
-			await new Promise((res) => setTimeout(res, 900));
-			console.log("Enviar credenciales:", { email, password, remember });
+			const res = await fetch("/api/token/", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+				},
+				body: JSON.stringify({ username, password }),
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				setError(body.detail || "Credenciales inválidas");
+				setLoading(false);
+				return;
+			}
+			const data = await res.json();
+			const access = data.access;
+			const refresh = data.refresh;
+			if (!access || !refresh) {
+				setError("Respuesta del servidor inválida");
+				setLoading(false);
+				return;
+			}
+
+			if (remember) {
+				localStorage.setItem("access_token", access);
+				localStorage.setItem("refresh_token", refresh);
+			} else {
+				sessionStorage.setItem("access_token", access);
+				sessionStorage.setItem("refresh_token", refresh);
+			}
+
+			const userTypeRes = await fetch("/api/user-type/", {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${access}`,
+					Accept: "application/json",
+				},
+			});
+
+			if (!userTypeRes.ok) {
+				navigate("/", { replace: true });
+				return;
+			}
+
+			const ut = await userTypeRes.json();
+			if (ut.user_type) localStorage.setItem("user_type", String(ut.user_type));
+			if (ut.role) localStorage.setItem("user_role", String(ut.role));
+			if (ut.client_id) localStorage.setItem("client_id", String(ut.client_id));
+
+			if (ut.user_type === "client") {
+				navigate("/portal-cliente/dashboard", { replace: true });
+				return;
+			}
+
+			if (ut.user_type === "internal") {
+				const role = (ut.role || "").toUpperCase();
+
+				if (role === "COACH") {
+					navigate("/internal-users/registrar-asistencia", { replace: true });
+					return;
+				}
+
+				navigate("/internal-users/dashboard", { replace: true });
+				return;
+			}
+
+			navigate("/", { replace: true });
 		} catch (err: unknown) {
 			console.error(err);
 			setError("Error al iniciar sesión. Intenta de nuevo.");
@@ -47,9 +114,7 @@ export const LoginPage = () => {
 	};
 
 	return (
-		// CORRECCIÓN: Se restaura la estructura original del layout.
 		<div className="h-screen w-screen flex login-page">
-			{/* CORRECCIÓN: El logo vuelve a su posición absoluta original. */}
 			<div className="absolute left-4 top-4 z-20">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
 			</div>
@@ -79,16 +144,16 @@ export const LoginPage = () => {
 					>
 						<label className="block mb-2">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Correo electrónico
+								Usuario
 							</span>
 							<div className="relative mt-1">
-								<MailOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
+								<PersonIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
 								<input
-									type="email"
-									value={email}
-									onChange={(e) => setEmail(e.target.value)}
+									type="text"
+									value={username}
+									onChange={(e) => setUsername(e.target.value)}
 									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="nombre@ejemplo.com"
+									placeholder="usuario"
 									required
 									aria-required="true"
 								/>
@@ -202,3 +267,4 @@ export const LoginPage = () => {
 		</div>
 	);
 };
+export default LoginPage;

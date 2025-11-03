@@ -58,7 +58,6 @@ export default function RegisterAttendance() {
 
 	const isoDate = useMemo(() => toLocalISO(date), [date]);
 
-	// safe storage helpers
 	const loadAllRecords = useCallback((): AttendanceRecord[] => {
 		try {
 			const raw = localStorage.getItem(ATT_KEY);
