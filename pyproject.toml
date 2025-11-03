@@ -9,7 +9,9 @@ dependencies = [
     "drf-spectacular>=0.28,<0.29",
     "djangorestframework-simplejwt>=2.8",
     "python-dotenv>=1.1.1",
-    "dj-database-url>=1.0.0"
+    "dj-database-url>=1.0.0",
+	"django-cors-headers",
+	"Pillow"
 ]
 readme = "README.md"
 authors = [
