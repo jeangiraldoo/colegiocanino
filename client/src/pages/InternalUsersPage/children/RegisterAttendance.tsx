@@ -1,3 +1,5 @@
+// client/src/pages/InternalUsersPage/children/RegisterAttendance.tsx
+
 import React, {
 	useCallback,
 	useEffect,
@@ -5,9 +7,12 @@ import React, {
 	useRef,
 	useState,
 } from "react";
+
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import NotesIcon from "@mui/icons-material/Notes";
 
 type Canine = {
 	id: number | string;
@@ -24,6 +29,7 @@ type AttendanceRecord = {
 	status: "on_time" | "late" | "absent";
 	exitTime?: string | null;
 	earlyDepartureReason?: string | null;
+	enrollmentId?: number; // Añadido para el backend
 };
 
 const MOCK_CANINES: Canine[] = [
@@ -56,18 +62,19 @@ export default function RegisterAttendance() {
 	const [records, setRecords] = useState<AttendanceRecord[]>([]);
 	const datePickerRef = useRef<HTMLInputElement | null>(null);
 
+	const [showExitModal, setShowExitModal] = useState(false);
+	const [selectedCanine, setSelectedCanine] = useState<Canine | null>(null);
+	const [exitTime, setExitTime] = useState(nowHHMM());
+	const [exitReason, setExitReason] = useState("");
+
 	const isoDate = useMemo(() => toLocalISO(date), [date]);
 
-	// safe storage helpers
 	const loadAllRecords = useCallback((): AttendanceRecord[] => {
 		try {
 			const raw = localStorage.getItem(ATT_KEY);
 			if (!raw) return [];
 			const parsed = JSON.parse(raw);
-			if (!Array.isArray(parsed)) return [];
-			return parsed.filter(
-				(p) => p && typeof p === "object",
-			) as AttendanceRecord[];
+			return Array.isArray(parsed) ? (parsed as AttendanceRecord[]) : [];
 		} catch {
 			return [];
 		}
@@ -84,25 +91,10 @@ export default function RegisterAttendance() {
 	const loadCanines = useCallback(async () => {
 		setLoadingCanines(true);
 		try {
-			const res = await fetch("/api/canines/");
-			if (res.ok) {
-				const data = await res.json();
-				if (Array.isArray(data)) {
-					const mapped = data.map((c: Record<string, unknown>) => ({
-						id: (c.id ?? c.pk) as number | string,
-						name: (c.name ?? c.nickname ?? c.title) as string,
-						photo: (c.photo as string | undefined) ?? null,
-					}));
-					setCanines(mapped);
-					return;
-				}
-			}
-		} catch {
-			// ignore, fallback below
+			setCanines(MOCK_CANINES);
 		} finally {
 			setLoadingCanines(false);
 		}
-		setCanines(MOCK_CANINES);
 	}, []);
 
 	const loadRecordsForDate = useCallback(() => {
@@ -113,12 +105,8 @@ export default function RegisterAttendance() {
 
 	useEffect(() => {
 		void loadCanines();
-	}, [loadCanines]);
-
-	useEffect(() => {
 		loadRecordsForDate();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isoDate]);
+	}, [isoDate, loadCanines, loadRecordsForDate]);
 
 	const makeId = (dateStr: string, canineId: number | string) =>
 		`${dateStr}::${String(canineId)}`;
@@ -132,7 +120,9 @@ export default function RegisterAttendance() {
 			if (rec.date === isoDate) {
 				setRecords((prev) => {
 					const without = prev.filter((p) => p.id !== rec.id);
-					return [rec, ...without];
+					return [...without, rec].sort((a, b) =>
+						a.canineName.localeCompare(b.canineName),
+					);
 				});
 			}
 		},
@@ -159,9 +149,6 @@ export default function RegisterAttendance() {
 			? {
 					...existing,
 					status,
-					date: isoDate,
-					canineName: c.name,
-					canineId: c.id,
 				}
 			: {
 					id,
@@ -194,24 +181,6 @@ export default function RegisterAttendance() {
 		upsertRecord(rec);
 	}
 
-	function handleSetReason(c: Canine, reason: string) {
-		const id = makeId(isoDate, c.id);
-		const existing = loadAllRecords().find((r) => r.id === id);
-		const rec: AttendanceRecord = existing
-			? { ...existing, earlyDepartureReason: reason || null }
-			: {
-					id,
-					canineId: c.id,
-					canineName: c.name,
-					date: isoDate,
-					entryTime: null,
-					status: "on_time",
-					exitTime: null,
-					earlyDepartureReason: reason || null,
-				};
-		upsertRecord(rec);
-	}
-
 	function handleClear(c: Canine) {
 		if (!confirm("Eliminar registro de este perro para la fecha?")) return;
 		clearRecordFor(isoDate, c.id);
@@ -220,6 +189,41 @@ export default function RegisterAttendance() {
 	function setNowTimeFor(c: Canine) {
 		handleSetEntryTime(c, nowHHMM());
 	}
+
+	const openExitModal = (canine: Canine) => {
+		setSelectedCanine(canine);
+		setExitTime(nowHHMM());
+		setExitReason("");
+		setShowExitModal(true);
+	};
+
+	const handleRegisterExit = async () => {
+		if (!selectedCanine) return;
+
+		const id = makeId(isoDate, selectedCanine.id);
+		const existingRecord = loadAllRecords().find((r) => r.id === id);
+		if (!existingRecord) return;
+
+		const updatedRecord = {
+			...existingRecord,
+			exitTime: exitTime,
+			earlyDepartureReason: exitReason || null,
+		};
+
+		try {
+			console.log("Enviando a /api/attendance/check-out/:", {
+				enrollment: existingRecord.enrollmentId,
+				departure_time: exitTime,
+				withdrawal_reason: exitReason || null,
+			});
+			// await axios.post("/api/attendance/check_out/", payload);
+
+			upsertRecord(updatedRecord);
+			setShowExitModal(false);
+		} catch (error) {
+			console.error("Error al registrar la salida:", error);
+		}
+	};
 
 	const cardStyle: React.CSSProperties = {
 		display: "flex",
@@ -330,8 +334,8 @@ export default function RegisterAttendance() {
 									<th style={{ width: 56 }}></th>
 									<th>Perro</th>
 									<th style={{ width: 240 }}>Estado</th>
-									<th style={{ width: 320 }}>Llegada</th>
-									<th style={{ width: 240 }}>Motivo</th>
+									<th style={{ width: 180 }}>Llegada</th>
+									<th style={{ width: 180 }}>Salida</th>
 									<th style={{ width: 80 }}></th>
 								</tr>
 							</thead>
@@ -341,6 +345,7 @@ export default function RegisterAttendance() {
 										(r) => String(r.canineId) === String(c.id),
 									);
 									const currentStatus = rec?.status ?? "on_time";
+
 									return (
 										<tr key={c.id}>
 											<td style={{ padding: 12 }}>
@@ -448,19 +453,20 @@ export default function RegisterAttendance() {
 												</button>
 											</td>
 
-											<td
-												style={{
-													padding: "12px 16px",
-													color: "var(--muted-color)",
-												}}
-											>
-												<input
-													className="input-primary reason-input"
-													placeholder="Motivo (opcional)"
-													value={rec?.earlyDepartureReason ?? ""}
-													onChange={(e) => handleSetReason(c, e.target.value)}
-													onBlur={(e) => handleSetReason(c, e.target.value)}
-												/>
+											<td style={{ padding: "12px 16px" }}>
+												{rec?.entryTime && !rec.exitTime && (
+													<button
+														className="btn-primary btn-sm"
+														onClick={() => openExitModal(c)}
+													>
+														Registrar Salida
+													</button>
+												)}
+												{rec?.exitTime && (
+													<div className="font-bold text-gray-700">
+														{rec.exitTime}
+													</div>
+												)}
 											</td>
 
 											<td style={{ padding: "12px 16px", textAlign: "right" }}>
@@ -507,6 +513,57 @@ export default function RegisterAttendance() {
 					</div>
 				</div>
 			</div>
+
+			{showExitModal && selectedCanine && (
+				<div className="time-modal-overlay">
+					<div className="time-modal-card">
+						<h3 className="text-lg font-bold mb-4">
+							Registrar Salida de {selectedCanine.name}
+						</h3>
+
+						<div className="form-row">
+							<label className="form-label">Hora de Salida</label>
+							<div className="input-with-icon">
+								<AccessTimeIcon className="input-icon" />
+								<input
+									type="time"
+									className="input-primary input-lg w-full"
+									value={exitTime}
+									onChange={(e) => setExitTime(e.target.value)}
+								/>
+							</div>
+						</div>
+
+						<div className="form-row mt-4">
+							<label className="form-label">
+								Motivo de Salida Anticipada (Opcional)
+							</label>
+							<div className="input-with-icon">
+								<NotesIcon className="input-icon" />
+								<input
+									type="text"
+									className="input-primary input-lg w-full"
+									value={exitReason}
+									onChange={(e) => setExitReason(e.target.value)}
+									placeholder="Ej: Cita veterinaria"
+								/>
+							</div>
+						</div>
+
+						<div className="flex justify-end gap-4 mt-6">
+							<button
+								className="btn-ghost"
+								onClick={() => setShowExitModal(false)}
+							>
+								Cancelar
+							</button>
+							<button className="btn-primary" onClick={handleRegisterExit}>
+								Confirmar Salida
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</PageTransition>
 	);
 }
