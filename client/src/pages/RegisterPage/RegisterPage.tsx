@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios"; // 1. Importamos axios
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -10,6 +11,13 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import logoSrc from "../../assets/raices-caninas-logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
+
+// CAMBIO CLAVE 2: Se define un tipo para la estructura de los errores de la API.
+type ApiErrorResponse = {
+	email?: string[];
+	username?: string[];
+	document_id?: string[];
+};
 
 export const RegisterPage = () => {
 	const navigate = useNavigate();
@@ -23,7 +31,8 @@ export const RegisterPage = () => {
 		password: "",
 		confirmPassword: "",
 	});
-	const [error, setError] = useState("");
+	const [error, setError] = useState<string | null>(null);
+	const [success, setSuccess] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [agreeTerms, setAgreeTerms] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +40,8 @@ export const RegisterPage = () => {
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		setForm((prev) => ({ ...prev, [name]: value }));
-		setError("");
+		setError(null);
+		setSuccess(null);
 	};
 
 	const validate = () => {
@@ -51,26 +61,57 @@ export const RegisterPage = () => {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		setError(null);
+		setSuccess(null);
+
 		const validationError = validate();
 		if (validationError) {
 			setError(validationError);
 			return;
 		}
 		setLoading(true);
+
 		try {
-			await new Promise((res) => setTimeout(res, 1200));
-			console.log("Datos a enviar al backend:", {
+			const payload = {
 				first_name: form.firstName,
 				last_name: form.lastName,
 				document_id: form.documentId,
 				username: form.username,
 				email: form.email,
 				password: form.password,
-			});
-			navigate("/login");
+			};
+
+			const response = await axios.post(
+				"http://127.0.0.1:8000/api/register/",
+				payload,
+			);
+
+			if (response.status === 201) {
+				setSuccess("¡Registro exitoso! Serás redirigido para iniciar sesión.");
+				setTimeout(() => {
+					navigate("/login");
+				}, 2000);
+			}
 		} catch (err: unknown) {
-			console.error(err);
-			setError("Error en el registro. Por favor, intenta de nuevo.");
+			// CAMBIO CLAVE 3: Se usa `unknown` y se verifica el tipo de error.
+			console.error("Error en el registro:", err);
+			if (axios.isAxiosError(err) && err.response) {
+				const apiErrors = err.response.data as ApiErrorResponse;
+				let errorMessage = "Ocurrió un error en el registro.";
+
+				if (apiErrors.email?.[0]) {
+					errorMessage = `Correo electrónico: ${apiErrors.email[0]}`;
+				} else if (apiErrors.username?.[0]) {
+					errorMessage = `Nombre de usuario: ${apiErrors.username[0]}`;
+				} else if (apiErrors.document_id?.[0]) {
+					errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
+				}
+				setError(errorMessage);
+			} else {
+				setError(
+					"No se pudo conectar con el servidor. Intenta de nuevo más tarde.",
+				);
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -250,6 +291,15 @@ export const RegisterPage = () => {
 								{error}
 							</div>
 						)}
+						{success && (
+							<div
+								role="alert"
+								aria-live="polite"
+								className="text-green-600 mt-3 text-center font-lekton-bold"
+							>
+								{success}
+							</div>
+						)}
 
 						<button
 							type="submit"
@@ -271,7 +321,6 @@ export const RegisterPage = () => {
 					</form>
 				</div>
 			</div>
-
 			<div className="hidden lg:block lg:w-1/2 relative min-h-screen">
 				<img
 					src={rightImage}
