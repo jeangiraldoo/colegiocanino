@@ -1,16 +1,37 @@
+import contextlib
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-	Attendance,
-	Canine,
-	Client,
-	Enrollment,
-	EnrollmentPlan,
-	InternalUser,
-	TransportService,
+    Attendance,
+    Canine,
+    Client,
+    Enrollment,
+    EnrollmentPlan,
+    InternalUser,
+    TransportService,
 )
+
+MIN_PASSWORD_LENGTH = 6
+
+
+class SafeDateTimeField(serializers.Field):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("read_only", True)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value):
+        if value is None:
+            return None
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        if isinstance(value, datetime.date):
+            return value.isoformat()
+        return str(value)
+
 
 User = get_user_model()
 
@@ -19,6 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
 	"""User serializer for basic user information"""
 
 	password = serializers.CharField(write_only=True, required=False)
+	registration_date = SafeDateTimeField()
 
 	class Meta:
 		model = User
@@ -57,38 +79,145 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class InternalUserSerializer(serializers.ModelSerializer):
-	"""Internal user profile serializer with nested user creation/update"""
+    """Internal user profile serializer with nested user creation/update"""
 
-	user = UserSerializer()
+    user = UserSerializer()
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    photo = serializers.ImageField(allow_null=True, required=False)
 
-	class Meta:
-		model = InternalUser
-		fields = [
-			"user",
-			"role",
-			"birthdate",
-			"date_joined",
-			"photo",
-		]
+    class Meta:
+        model = InternalUser
+        fields = [
+            "user",
+            "user_id",
+            "role",
+            "birthdate",
+            "date_joined",
+            "photo",
+        ]
 
-	def create(self, validated_data):
-		user_data = validated_data.pop("user")
-		# Create the underlying auth user
-		user = UserSerializer().create(user_data)
-		# Create internal profile
-		internal_user = InternalUser.objects.create(user=user, **validated_data)
-		return internal_user
+    def validate(self, data):
+        """
+        Validate nested user data:
+        - On creation: validate uniqueness and require password >= MIN_PASSWORD_LENGTH.
+        - On update: validate only fields present in payload (so PATCH-only-photo won't fail).
+        """
+        user_data = data.get("user") or {}
+        errors = {}
 
-	def update(self, instance, validated_data):
-		user_data = validated_data.pop("user", None)
-		# Update nested user if provided
-		if user_data:
-			UserSerializer().update(instance.user, user_data)
-		# Update internal user fields
-		for attr, value in validated_data.items():
-			setattr(instance, attr, value)
-		instance.save()
-		return instance
+        def exists_unique(field, value):
+            if not value:
+                return False
+            qs = User.objects.filter(**{field: value})
+            if self.instance is not None:
+                # exclude current user on updates without raising
+                with contextlib.suppress(Exception):
+                    qs = qs.exclude(pk=self.instance.user.pk)
+            return qs.exists()
+
+        if self.instance is None:
+            username = user_data.get("username")
+            email = user_data.get("email")
+            document_id = user_data.get("document_id")
+            password = user_data.get("password")
+
+            if exists_unique("username", username):
+                errors.setdefault("user", {})["username"] = [
+                    "Este nombre de usuario ya está en uso."
+                ]
+            if exists_unique("email", email):
+                errors.setdefault("user", {})["email"] = [
+                    "Este correo electrónico ya está registrado."
+                ]
+            if exists_unique("document_id", document_id):
+                errors.setdefault("user", {})["document_id"] = [
+                    "Esta cédula ya está registrada."
+                ]
+            if (
+                password is None
+                or (
+                    isinstance(password, str)
+                    and len(password) < MIN_PASSWORD_LENGTH
+                )
+            ):
+                errors.setdefault("user", {})["password"] = [
+                    f"Contraseña mínimo {MIN_PASSWORD_LENGTH} caracteres."
+                ]
+        else:
+            if (
+                "username" in user_data
+                and exists_unique("username", user_data.get("username"))
+            ):
+                errors.setdefault("user", {})["username"] = [
+                    "Este nombre de usuario ya está en uso."
+                ]
+            if (
+                "email" in user_data
+                and exists_unique("email", user_data.get("email"))
+            ):
+                errors.setdefault("user", {})["email"] = [
+                    "Este correo electrónico ya está registrado."
+                ]
+            if (
+                "document_id" in user_data
+                and exists_unique("document_id", user_data.get("document_id"))
+            ):
+                errors.setdefault("user", {})["document_id"] = [
+                    "Esta cédula ya está registrada."
+                ]
+            if "password" in user_data:
+                pwd = user_data.get("password")
+                if (
+                    pwd is None
+                    or (isinstance(pwd, str) and len(pwd) < MIN_PASSWORD_LENGTH)
+                ):
+                    errors.setdefault("user", {})["password"] = [
+                        f"Contraseña mínimo {MIN_PASSWORD_LENGTH} caracteres."
+                    ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return data
+
+    def create(self, validated_data):
+        user_data = validated_data.pop("user")
+        photo = validated_data.pop("photo", None)
+        password = user_data.pop("password", None)
+
+        allowed_field_names = [f.name for f in User._meta.fields]
+        user_kwargs = {k: v for k, v in user_data.items() if k in allowed_field_names}
+        user = User.objects.create(**user_kwargs)
+
+        if password:
+            user.set_password(password)
+        if validated_data.get("role") == InternalUser.Roles.ADMIN:
+            user.is_staff = True
+        user.save()
+
+        internal_user = InternalUser.objects.create(user=user, **validated_data)
+        if photo is not None:
+            internal_user.photo = photo
+            internal_user.save()
+        return internal_user
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop("user", None)
+        photo = validated_data.pop("photo", None)
+        if user_data:
+            UserSerializer().update(instance.user, user_data)
+
+        role = validated_data.get("role", None)
+        if role is not None:
+            instance.user.is_staff = role == InternalUser.Roles.ADMIN
+            instance.user.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if photo is not None:
+            instance.photo = photo
+        instance.save()
+        return instance
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -98,7 +227,7 @@ class ClientSerializer(serializers.ModelSerializer):
 	user_id = serializers.PrimaryKeyRelatedField(
 		queryset=User.objects.all(), write_only=True, source="user"
 	)
-	registration_date = serializers.DateField(source="user.registration_date", read_only=True)
+	registration_date = SafeDateTimeField(source="user.registration_date", read_only=True)
 
 	class Meta:
 		model = Client
@@ -148,8 +277,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 	"""Enrollment serializer with nested relations"""
 
 	canine_name = serializers.CharField(source="canine.name", read_only=True)
+    # Use display label for transport service type
 	plan_name = serializers.CharField(source="plan.name", read_only=True)
-	# Use display label for transport service type
 	transport_service_name = serializers.CharField(
 		source="transport_service.get_type_display", read_only=True
 	)
