@@ -74,66 +74,66 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class InternalUserViewSet(viewsets.ModelViewSet):
-    """Admin-only endpoints to create, list and update internal users"""
+	"""Admin-only endpoints to create, list and update internal users"""
 
-    queryset = InternalUser.objects.all()
-    serializer_class = InternalUserSerializer
-    permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["user__username", "user__email", "role"]
-    ordering_fields = ["user__date_joined"]
-    ordering = ["-user__date_joined"]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+	queryset = InternalUser.objects.all()
+	serializer_class = InternalUserSerializer
+	permission_classes = [IsAdminUser]
+	filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+	search_fields = ["user__username", "user__email", "role"]
+	ordering_fields = ["user__date_joined"]
+	ordering = ["-user__date_joined"]
+	parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def _coerce_user_field(self, data):
-        """
-        Build a plain mutable dict from request.data without deep-copying file objects.
-        If 'user' is a JSON string (common when sending FormData), parse it.
-        """
-        plain = {}
-        try:
-            for key in getattr(data, "keys", lambda: [])():
-                val = data.get(key)
-                if key == "user" and isinstance(val, str):
-                    try:
-                        plain["user"] = json.loads(val)
-                        continue
-                    except Exception:
-                        pass
-                plain[key] = val
-        except Exception:
-            try:
-                plain = dict(data)
-            except Exception:
-                plain = {}
-        return plain
+	def _coerce_user_field(self, data):
+		"""
+		Build a plain mutable dict from request.data without deep-copying file objects.
+		If 'user' is a JSON string (common when sending FormData), parse it.
+		"""
+		plain = {}
+		try:
+			for key in getattr(data, "keys", lambda: [])():
+				val = data.get(key)
+				if key == "user" and isinstance(val, str):
+					try:
+						plain["user"] = json.loads(val)
+						continue
+					except Exception:
+						pass
+				plain[key] = val
+		except Exception:
+			try:
+				plain = dict(data)
+			except Exception:
+				plain = {}
+		return plain
 
-    def create(self, request, *args, **kwargs):
-        data = self._coerce_user_field(request.data)
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+	def create(self, request, *args, **kwargs):
+		data = self._coerce_user_field(request.data)
+		serializer = self.get_serializer(data=data)
+		serializer.is_valid(raise_exception=True)
+		self.perform_create(serializer)
+		headers = self.get_success_headers(serializer.data)
+		return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    def partial_update(self, request, *args, **kwargs):
-        partial = True
-        instance = self.get_object()
-        data = self._coerce_user_field(request.data)
-        serializer = self.get_serializer(instance, data=data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
+	def partial_update(self, request, *args, **kwargs):
+		partial = True
+		instance = self.get_object()
+		data = self._coerce_user_field(request.data)
+		serializer = self.get_serializer(instance, data=data, partial=partial)
+		serializer.is_valid(raise_exception=True)
+		self.perform_update(serializer)
+		return Response(serializer.data)
 
-    def destroy(self, request, *args, **kwargs):
-        from django.db import transaction
+	def destroy(self, request, *args, **kwargs):
+		from django.db import transaction
 
-        instance = self.get_object()
-        user = instance.user
-        with transaction.atomic():
-            self.perform_destroy(instance)
-            user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+		instance = self.get_object()
+		user = instance.user
+		with transaction.atomic():
+			self.perform_destroy(instance)
+			user.delete()
+		return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
