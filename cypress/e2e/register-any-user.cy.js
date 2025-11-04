@@ -3,10 +3,11 @@ describe("E2E: Register any user", () => {
 
 	it("fills the register form and is redirected to login", () => {
 		const ts = Date.now();
+		const rand = Math.floor(Math.random() * 90000) + 10000;
 		const firstName = "Test";
 		const lastName = "User";
-		const username = `e2e_user_1762234319559`;
-		const email = `e2e_user_${ts}@test.local`;
+		const username = `e2e_user_${ts}_${rand}`; // randomized username
+		const email = `e2e_user_${ts}_${rand}@test.local`;
 		const documentId = String(Math.floor(1e6 + Math.random() * 9e6));
 		const password = "StrongPass1!";
 
