@@ -1,3 +1,6 @@
+from datetime import date as date_type
+from datetime import datetime
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
@@ -56,10 +59,38 @@ class UserSerializer(serializers.ModelSerializer):
 		return instance
 
 
+class FlexibleDateField(serializers.DateField):
+	"""DateField that accepts both date and datetime ISO strings"""
+
+	def to_internal_value(self, data):
+		if data is None:
+			return None
+		if isinstance(data, date_type):
+			return data
+		if isinstance(data, datetime):
+			return data.date()
+		if isinstance(data, str):
+			# Try to parse as datetime ISO first
+			try:
+				# Handle Z suffix (UTC)
+				if data.endswith("Z"):
+					data = data.replace("Z", "+00:00")
+				# Try datetime ISO format
+				dt = datetime.fromisoformat(data)
+				return dt.date()
+			except (ValueError, AttributeError):
+				# Fall back to standard date parsing
+				pass
+		# Use parent class for standard date format (YYYY-MM-DD)
+		return super().to_internal_value(data)
+
+
 class InternalUserSerializer(serializers.ModelSerializer):
 	"""Internal user profile serializer with nested user creation/update"""
 
 	user = UserSerializer()
+	birthdate = FlexibleDateField(required=False, allow_null=True)
+	date_joined = FlexibleDateField(required=False, allow_null=True)
 
 	class Meta:
 		model = InternalUser
@@ -71,10 +102,43 @@ class InternalUserSerializer(serializers.ModelSerializer):
 			"photo",
 		]
 
+	def _convert_to_date(self, value):
+		"""Convert datetime to date if necessary"""
+		if value is None:
+			return None
+		if isinstance(value, datetime):
+			return value.date()
+		if isinstance(value, str):
+			# Try to parse as datetime first, then extract date
+			try:
+				dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+				return dt.date()
+			except (ValueError, AttributeError):
+				pass
+		return value
+
+	def validate_birthdate(self, value):
+		"""Ensure birthdate is a date object, not datetime"""
+		return self._convert_to_date(value)
+
+	def validate_date_joined(self, value):
+		"""Ensure date_joined is a date object, not datetime"""
+		return self._convert_to_date(value)
+
 	def create(self, validated_data):
 		user_data = validated_data.pop("user")
 		# Create the underlying auth user
 		user = UserSerializer().create(user_data)
+		# Set user as staff for internal users
+		user.is_staff = True
+		user.save()
+
+		# Convert date fields if they are datetime objects (extra safety)
+		if "birthdate" in validated_data:
+			validated_data["birthdate"] = self._convert_to_date(validated_data["birthdate"])
+		if "date_joined" in validated_data:
+			validated_data["date_joined"] = self._convert_to_date(validated_data["date_joined"])
+
 		# Create internal profile
 		internal_user = InternalUser.objects.create(user=user, **validated_data)
 		return internal_user
@@ -84,6 +148,11 @@ class InternalUserSerializer(serializers.ModelSerializer):
 		# Update nested user if provided
 		if user_data:
 			UserSerializer().update(instance.user, user_data)
+		# Convert date fields if they are datetime objects (extra safety)
+		if "birthdate" in validated_data:
+			validated_data["birthdate"] = self._convert_to_date(validated_data["birthdate"])
+		if "date_joined" in validated_data:
+			validated_data["date_joined"] = self._convert_to_date(validated_data["date_joined"])
 		# Update internal user fields
 		for attr, value in validated_data.items():
 			setattr(instance, attr, value)

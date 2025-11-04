@@ -4,6 +4,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
+def get_default_registration_date():
+	"""Return current date (not datetime) for registration_date field"""
+	return timezone.now().date()
+
+
 class User(AbstractUser):
 	"""Custom User model extending Django's AbstractUser"""
 
@@ -11,7 +16,7 @@ class User(AbstractUser):
 	address = models.TextField(blank=True)
 	status = models.BooleanField(default=True)  # Active/Inactive
 	document_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
-	registration_date = models.DateField(default=timezone.now)
+	registration_date = models.DateField(default=get_default_registration_date)
 
 	class Meta:
 		verbose_name = _("user")
