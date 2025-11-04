@@ -1,5 +1,4 @@
 describe("E2E: Register internal user (HU-1)", () => {
-	const backendTokenUrl = "http://127.0.0.1:8000/api/token/";
 	const frontendBase = "http://localhost:5173";
 	const adminCreds = {
 		username: "ejemplo_interno",
@@ -7,29 +6,33 @@ describe("E2E: Register internal user (HU-1)", () => {
 	};
 
 	before(() => {
-		cy.request({
-			method: "POST",
-			url: backendTokenUrl,
-			body: adminCreds,
-			failOnStatusCode: false,
-		}).then((res) => {
-			if (res.status === 200 && res.body?.access) {
-				cy.window().then((win) => {
-					win.localStorage.setItem("access_token", res.body.access);
-					if (res.body.refresh)
-						win.localStorage.setItem("refresh_token", res.body.refresh);
-				});
-			} else {
-				cy.visit(`${frontendBase}/login`);
-				cy.get('input[placeholder="usuario"]')
-					.clear()
-					.type(adminCreds.username);
-				cy.get('input[type="password"], input[placeholder="••••••••"]')
-					.first()
-					.clear()
-					.type(adminCreds.password);
-				cy.get('button[type="submit"]').click();
-				cy.url({ timeout: 6000 }).should("not.include", "/login");
+		// Always login via UI (do not attempt token API first)
+		cy.visit(`${frontendBase}/login`);
+		cy.get('input[placeholder="usuario"]').clear().type(adminCreds.username);
+		cy.get('input[type="password"], input[placeholder="••••••••"]')
+			.first()
+			.clear()
+			.type(adminCreds.password);
+		cy.get('button[type="submit"]').click();
+		cy.url({ timeout: 10000 }).should("not.include", "/login");
+		cy.wait(300);
+		// ensure tokens present in storage for robustness
+		cy.window().then((win) => {
+			const acc =
+				win.localStorage.getItem("access_token") ||
+				win.sessionStorage.getItem("access_token");
+			const ref =
+				win.localStorage.getItem("refresh_token") ||
+				win.sessionStorage.getItem("refresh_token");
+			if (!acc)
+				throw new Error(
+					"No access token found after UI login. Verify credentials and app storage keys.",
+				);
+			win.localStorage.setItem("access_token", acc);
+			win.sessionStorage.setItem("access_token", acc);
+			if (ref) {
+				win.localStorage.setItem("refresh_token", ref);
+				win.sessionStorage.setItem("refresh_token", ref);
 			}
 		});
 	});
@@ -38,7 +41,6 @@ describe("E2E: Register internal user (HU-1)", () => {
 		const ts = Date.now();
 		const username = `test_user_${ts}`;
 		const email = `test_user_${ts}@test.local`;
-
 		const cedula = String(Math.floor(1e7 + Math.random() * 9e7));
 
 		cy.visit(`${frontendBase}/internal-users/registrar-usuarios`);
@@ -49,14 +51,11 @@ describe("E2E: Register internal user (HU-1)", () => {
 		cy.get('input[placeholder="Apellido(s)"]').clear().type("User");
 		cy.get('input[placeholder="email@dominio.com"]').clear().type(email);
 		cy.get("select").select("COACH");
-
 		cy.get('input[placeholder="dd/mm/yyyy"]').clear().type("01/01/1990");
 		cy.get('input[placeholder="Mínimo 6 caracteres"], input[type="password"]')
 			.last()
 			.clear()
-			.type("")
-			.invoke("val")
-			.then(console.log);
+			.type("StrongPass1!");
 
 		cy.get('button[type="submit"]').click();
 

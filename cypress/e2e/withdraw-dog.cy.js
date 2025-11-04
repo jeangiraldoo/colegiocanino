@@ -1,35 +1,36 @@
 describe("E2E: Dispatch a dog (attendance) - admin -> verify by UI search", () => {
-	const backendTokenUrl = "http://127.0.0.1:8000/api/token/";
 	const frontendBase = "http://localhost:5173";
 	const adminCreds = {
-		username: "asesor_ejemplo",
-		password: "example_pw",
+		username: "ejemplo_interno",
+		password: "example_",
 	};
 
 	before(() => {
-		cy.request({
-			method: "POST",
-			url: backendTokenUrl,
-			body: adminCreds,
-			failOnStatusCode: false,
-		}).then((res) => {
-			if (res.status === 200 && res.body?.access) {
-				cy.window().then((win) => {
-					win.localStorage.setItem("access_token", res.body.access);
-					if (res.body.refresh)
-						win.localStorage.setItem("refresh_token", res.body.refresh);
-				});
-			} else {
-				cy.visit(`${frontendBase}/login`);
-				cy.get('input[placeholder="usuario"]')
-					.clear()
-					.type(adminCreds.username);
-				cy.get('input[type="password"], input[placeholder="••••••••"]')
-					.first()
-					.clear()
-					.type(adminCreds.password);
-				cy.get('button[type="submit"]').click();
-				cy.url({ timeout: 6000 }).should("not.include", "/login");
+		cy.visit(`${frontendBase}/login`);
+		cy.get('input[placeholder="usuario"]').clear().type(adminCreds.username);
+		cy.get('input[type="password"], input[placeholder="••••••••"]')
+			.first()
+			.clear()
+			.type(adminCreds.password);
+		cy.get('button[type="submit"]').click();
+		cy.url({ timeout: 10000 }).should("not.include", "/login");
+		cy.wait(300);
+		cy.window().then((win) => {
+			const acc =
+				win.localStorage.getItem("access_token") ||
+				win.sessionStorage.getItem("access_token");
+			const ref =
+				win.localStorage.getItem("refresh_token") ||
+				win.sessionStorage.getItem("refresh_token");
+			if (!acc)
+				throw new Error(
+					"No access token found after UI login. Verify credentials and app storage keys.",
+				);
+			win.localStorage.setItem("access_token", acc);
+			win.sessionStorage.setItem("access_token", acc);
+			if (ref) {
+				win.localStorage.setItem("refresh_token", ref);
+				win.sessionStorage.setItem("refresh_token", ref);
 			}
 		});
 	});
@@ -72,9 +73,7 @@ describe("E2E: Dispatch a dog (attendance) - admin -> verify by UI search", () =
 			})
 				.clear()
 				.type(String(canineName));
-
 			cy.contains("button", /Actualizar|Update/i).click();
-
 			cy.contains(String(canineName), { timeout: 10000 })
 				.parents("tr")
 				.within(() => {
