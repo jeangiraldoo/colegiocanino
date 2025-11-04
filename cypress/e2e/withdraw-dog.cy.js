@@ -1,7 +1,7 @@
 describe("E2E: Dispatch a dog (attendance) - admin -> verify by UI search", () => {
 	const frontendBase = "http://localhost:5173";
 	const adminCreds = {
-		username: "ejemplo_interno",
+		username: "coach_ejemplo",
 		password: "example_",
 	};
 
