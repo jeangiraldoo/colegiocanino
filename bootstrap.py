@@ -28,7 +28,7 @@ def setup_backend():
 
 
 def setup_frontend():
-	subprocess.run(["npx", "--yes", "npm", "install"], cwd="./client/", shell=True)
+	subprocess.run(["npx", "--yes", "npm", "install"], check=False, cwd="./client/", shell=True)
 
 
 setup_backend()
