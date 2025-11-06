@@ -29,68 +29,6 @@ function toLocalISO(d: Date) {
 	return `${y}-${m}-${day}`;
 }
 
-const TODAY_ISO = toLocalISO(new Date());
-
-const MOCK_ATTENDANCES: Attendance[] = [
-	{
-		id: "m-1",
-		canine_id: 11,
-		canine_name: "Toby",
-		date: TODAY_ISO,
-		entry_time: "08:05:00",
-		entry_type: "normal",
-		exit_time: "17:00:00",
-		exit_type: "normal",
-		early_departure_reason: null,
-	},
-	{
-		id: "m-2",
-		canine_id: 12,
-		canine_name: "Luna",
-		date: TODAY_ISO,
-		entry_time: "08:35:00",
-		entry_type: "late",
-		exit_time: "16:45:00",
-		exit_type: "normal",
-		early_departure_reason: null,
-	},
-	{
-		id: "m-3",
-		canine_id: 13,
-		canine_name: "Koko",
-		date: TODAY_ISO,
-		entry_time: null,
-		entry_type: "absent",
-		exit_time: null,
-		exit_type: null,
-		early_departure_reason: null,
-	},
-	{
-		id: "m-4",
-		canine_id: 14,
-		canine_name: "Toby Jr.",
-		date: TODAY_ISO,
-		entry_time: "07:50:00",
-		entry_type: "normal",
-		exit_time: "12:15:00",
-		exit_type: "early",
-		early_departure_reason: "Cita veterinaria",
-	},
-	{
-		id: "m-5",
-		canine_id: 15,
-		canine_name: "Milo",
-		date: TODAY_ISO,
-		entry_time: "08:10:00",
-		entry_type: "normal",
-		exit_time: "17:05:00",
-		exit_type: "normal",
-		early_departure_reason: null,
-	},
-];
-
-const ATT_KEY = "mockAttendances_v1";
-
 export default function ViewAttendance() {
 	const today = new Date();
 	const [date, setDate] = useState<Date>(today);
@@ -114,133 +52,86 @@ export default function ViewAttendance() {
 
 	const loadAttendances = useCallback(
 		async (selectedDate: Date) => {
-			const iso = selectedDate.toISOString().slice(0, 10);
+			const iso = toLocalISO(selectedDate);
 			setLoading(true);
 			setError(null);
 			try {
 				const opts = getAuthHeader();
-				const qs = `?date=${encodeURIComponent(iso)}`;
-
-				let res = await fetch(`/api/attendances/${qs}`, {
-					method: "GET",
-					headers: { ...(opts.headers || {}), Accept: "application/json" },
-					credentials: opts.credentials || "same-origin",
-				});
-
-				if (res.status === 404) {
-					res = await fetch(`/api/attendances/`, {
+				const res = await fetch(
+					`/api/attendance/?date=${encodeURIComponent(iso)}`,
+					{
 						method: "GET",
 						headers: { ...(opts.headers || {}), Accept: "application/json" },
 						credentials: opts.credentials || "same-origin",
-					});
-				}
-
-				let list: Attendance[] = [];
-				if (res.ok) {
-					const data = await res.json();
-					const arr = Array.isArray(data) ? (data as unknown[]) : [];
-					list = arr.map((item) => {
-						const a = (item as Record<string, unknown>) || {};
-						const canineObj =
-							(a["canine"] && typeof a["canine"] === "object"
-								? (a["canine"] as Record<string, unknown>)
-								: undefined) || undefined;
-						const id = (a["id"] ?? a["pk"]) as number | string | undefined;
-						const canine_id =
-							typeof a["canine"] === "number"
-								? (a["canine"] as number)
-								: ((canineObj?.["id"] as number | string | undefined) ??
-									undefined);
-						const canine_name =
-							(a["canine_name"] as string | undefined) ??
-							(canineObj?.["name"] as string | undefined) ??
-							"";
-						const dateVal =
-							((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as
-								| string
-								| undefined) ?? "";
-						const entry_time =
-							((a["entry_time"] ?? a["llegada_time"] ?? a["arrival_time"]) as
-								| string
-								| undefined) ?? null;
-						const entry_type =
-							((a["entry_type"] ?? a["llegada_tipo"]) as string | undefined) ??
-							null;
-						const exit_time =
-							((a["exit_time"] ?? a["salida_time"]) as string | undefined) ??
-							null;
-						const exit_type =
-							((a["exit_type"] ?? a["salida_tipo"]) as string | undefined) ??
-							null;
-						const early_departure_reason =
-							((a["early_departure_reason"] ??
-								a["motivo_salida_anticipada"]) as string | undefined) ?? null;
-
-						return {
-							id: id ?? Math.random().toString(36).slice(2),
-							canine_id,
-							canine_name,
-							date: dateVal ? dateVal.slice(0, 10) : iso,
-							entry_time,
-							entry_type,
-							exit_time,
-							exit_type,
-							early_departure_reason,
-						} as Attendance;
-					});
-				}
-
-				try {
-					const raw = localStorage.getItem(ATT_KEY) || "[]";
-					const localArr = (
-						JSON.parse(raw) as Array<Record<string, unknown>>
-					).filter((r) => (r.date ?? "").slice(0, 10) === iso);
-					const localMapped: Attendance[] = localArr.map((r) => ({
-						id: (r.id ?? Math.random().toString(36).slice(2)) as string,
-						canine_id:
-							(r.canineId as number | string) ??
-							(r.canine_id as number | string | undefined),
-						canine_name:
-							(r.canineName as string) ??
-							(r.canine_name as string | undefined) ??
-							"",
-						date: (r.date as string) ?? iso,
-						entry_time: (r.entryTime as string) ?? null,
-						entry_type:
-							(r.status === "on_time" ? "normal" : (r.status as string)) ??
-							null,
-						exit_time: (r.exitTime as string) ?? null,
-						exit_type: null,
-						early_departure_reason: (r.earlyDepartureReason as string) ?? null,
-					}));
-
-					const byKey = new Map<string | number, Attendance>();
-					list.forEach((l) => {
-						const key = String(l.canine_id ?? l.id);
-						byKey.set(key, l);
-					});
-					localMapped.forEach((lm) => {
-						const key = String(lm.canine_id ?? lm.id);
-						byKey.set(key, lm);
-					});
-					list = Array.from(byKey.values());
-				} catch {
-					// ignore local merge errors
-				}
-
-				const filteredByDate = list.filter(
-					(r) => (r.date || "").slice(0, 10) === iso,
+					},
 				);
-				if (filteredByDate.length === 0) {
-					setAttendances(MOCK_ATTENDANCES.filter((m) => m.date === iso));
-				} else {
-					setAttendances(filteredByDate);
+
+				if (!res.ok) {
+					if (res.status === 401) {
+						setError("Unauthorized. Please log in.");
+					} else {
+						setError("No data available for this date.");
+					}
+					setAttendances([]);
+					return;
 				}
+
+				const data = await res.json();
+				const arr = Array.isArray(data) ? (data as unknown[]) : [];
+				const list = arr.map((item) => {
+					const a = (item as Record<string, unknown>) || {};
+					const canineObj =
+						a["enrollment"] && typeof a["enrollment"] === "object"
+							? (a["enrollment"] as Record<string, unknown>)["canine"]
+							: undefined;
+					const id = (a["id"] ?? a["pk"]) as number | string | undefined;
+					const canine_id =
+						typeof a["canine"] === "number"
+							? (a["canine"] as number)
+							: ((canineObj?.["id"] as number | string | undefined) ??
+								undefined);
+					const canine_name =
+						(a["canine_name"] as string | undefined) ??
+						(canineObj?.["name"] as string | undefined) ??
+						"";
+					const dateVal =
+						((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as
+							| string
+							| undefined) ?? iso;
+					const entry_time =
+						((a["arrival_time"] ?? a["entry_time"] ?? a["llegada_time"]) as
+							| string
+							| undefined) ?? null;
+					const exit_time =
+						((a["departure_time"] ?? a["exit_time"] ?? a["salida_time"]) as
+							| string
+							| undefined) ?? null;
+					const early_departure_reason =
+						((a["withdrawal_reason"] ??
+							a["early_departure_reason"] ??
+							a["motivo_salida_anticipada"]) as string | undefined) ?? null;
+
+					const status = (a["status"] as string | undefined) ?? "present";
+
+					return {
+						id: id ?? Math.random().toString(36).slice(2),
+						canine_id,
+						canine_name,
+						date: dateVal ? dateVal.slice(0, 10) : iso,
+						entry_time,
+						entry_type: null,
+						exit_time,
+						exit_type: null,
+						early_departure_reason,
+						status,
+					} as Attendance;
+				});
+
+				setAttendances(list);
 			} catch (err) {
 				console.error(err);
-				const iso = toLocalISO(selectedDate);
-				setAttendances(MOCK_ATTENDANCES.filter((m) => m.date === iso));
-				setError(null);
+				setAttendances([]);
+				setError("Error loading attendances");
 			} finally {
 				setLoading(false);
 			}
@@ -284,7 +175,26 @@ export default function ViewAttendance() {
 			boxSizing: "border-box",
 		};
 		if (!key) return <span style={{ color: "var(--muted-color)" }}>—</span>;
-		if (key.includes("late") || key.includes("tarde"))
+
+		if (key.includes("present") || key.includes("presente")) {
+			return (
+				<span
+					style={{
+						...baseStyle,
+						background: "rgba(16,185,129,0.08)",
+						color: "#065f46",
+					}}
+				>
+					Presente
+				</span>
+			);
+		}
+
+		if (
+			key.includes("advance_withdrawal") ||
+			key.includes("retir") ||
+			key.includes("retiro")
+		) {
 			return (
 				<span
 					style={{
@@ -293,10 +203,26 @@ export default function ViewAttendance() {
 						color: "#b45309",
 					}}
 				>
-					Tarde
+					Retiro anticipado
 				</span>
 			);
-		if (key.includes("absent") || key.includes("ausente"))
+		}
+
+		if (key.includes("dispatched") || key.includes("despach")) {
+			return (
+				<span
+					style={{
+						...baseStyle,
+						background: "rgba(96,165,250,0.08)",
+						color: "#1e3a8a",
+					}}
+				>
+					Despachado
+				</span>
+			);
+		}
+
+		if (key.includes("absent") || key.includes("ausente")) {
 			return (
 				<span
 					style={{
@@ -308,6 +234,8 @@ export default function ViewAttendance() {
 					Ausente
 				</span>
 			);
+		}
+
 		return (
 			<span
 				style={{
@@ -316,7 +244,7 @@ export default function ViewAttendance() {
 					color: "#065f46",
 				}}
 			>
-				A tiempo
+				Presente
 			</span>
 		);
 	}
@@ -424,7 +352,7 @@ export default function ViewAttendance() {
 								<th>Perro</th>
 								<th style={{ width: 140 }}>Llegada</th>
 								<th style={{ width: 140 }}>Salida</th>
-								<th style={{ width: 200 }}>Motivo salida anticipada</th>
+								<th style={{ width: 200 }}>Observaciones</th>
 								<th style={{ width: 120, textAlign: "right" }}>Estado</th>
 							</tr>
 						</thead>
@@ -479,7 +407,7 @@ export default function ViewAttendance() {
 											{fmtTime(a.entry_time)}
 										</div>
 										<div style={{ marginTop: 6 }}>
-											{badgeForType(a.entry_type)}
+											{badgeForType(a.entry_type ?? a.status)}
 										</div>
 									</td>
 									<td
@@ -504,8 +432,8 @@ export default function ViewAttendance() {
 										{a.early_departure_reason || "—"}
 									</td>
 									<td style={{ padding: "12px 16px", textAlign: "right" }}>
-										{a.entry_type || a.exit_type ? (
-											badgeForType(a.entry_type ?? a.exit_type)
+										{a.entry_type || a.exit_type || a.status ? (
+											badgeForType(a.entry_type ?? a.status)
 										) : (
 											<span style={{ color: "var(--muted-color)" }}>—</span>
 										)}

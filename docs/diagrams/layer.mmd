@@ -4,21 +4,27 @@ flowchart TD
     end
 
     subgraph SERVER_RENDER
+		subgraph BACKEND
+			BE_FRAMEWORKS[Django REST]
+			BE_BASE[Python, Django]
+
+		end
+	end
+	subgraph SERVER_VERCEL
 		subgraph FRONTEND
 			FE_FRAMEWORKS[React, Tailwind, JWT]
 			FE_BASE[HTML, CSS, TypeScript]
 		end
+	end
 
-		subgraph BACKEND
-			BE_FRAMEWORKS[Django REST]
-			BE_BASE[Python, Django]
-		end
-
+	subgraph SUPABASE
 		DATABASE[(PostgreSQL)]
 	end
 
     CLIENT -->|"Interactúa"| FRONTEND
-	FRONTEND -->|"Llamadas a la API (REST)"| BACKEND
-    BACKEND -->|"Recupera/almacena datos"| DATABASE
-    DATABASE -->|"Retorna datos"| BACKEND
-    BACKEND -->|"Respuestas JSON"| FRONTEND
+	FRONTEND -->|"Llamadas a la API (REST)"| BE_FRAMEWORKS
+	BE_FRAMEWORKS -->|"Llamadas de bajo nivel"| BE_BASE
+    BE_BASE -->|"Recupera/almacena datos"| DATABASE
+    DATABASE -->|"Retorna datos"| BE_BASE
+	BE_BASE -->|"Retorna datos serializados"| BE_FRAMEWORKS
+    BE_FRAMEWORKS -->|"Respuestas JSON"| FRONTEND

@@ -10,6 +10,13 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
 
+const getAuthHeader = () => {
+	const token =
+		localStorage.getItem("access_token") ||
+		sessionStorage.getItem("access_token");
+	return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 type FormState = {
 	document_id: string;
 	username: string;
@@ -50,9 +57,11 @@ export const RegisterUser = () => {
 		Partial<Record<keyof FormState, string>>
 	>({});
 	const [success, setSuccess] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 	const [showPassword, setShowPassword] = useState(false);
 	const [preview, setPreview] = useState<string | null>(null);
 	const [fileName, setFileName] = useState<string>("");
+	const [fileObj, setFileObj] = useState<File | null>(null);
 
 	const validate = (): boolean => {
 		const e: typeof errors = {};
@@ -73,12 +82,14 @@ export const RegisterUser = () => {
 		setForm((s) => ({ ...s, [k]: v }));
 		setErrors((prev) => ({ ...prev, [k]: undefined }));
 		setSuccess(null);
+		setError(null);
 	}
 
 	const handleFile = (ev: React.ChangeEvent<HTMLInputElement>) => {
 		const f = ev.target.files?.[0];
 		if (!f) return;
 		setFileName(f.name);
+		setFileObj(f);
 		const reader = new FileReader();
 		reader.onload = () => {
 			const base64 = String(reader.result || "");
@@ -88,32 +99,204 @@ export const RegisterUser = () => {
 		reader.readAsDataURL(f);
 	};
 
+	const formatDate = (d: Date | null) =>
+		d ? d.toISOString().slice(0, 10) : "";
+
 	const handleSubmit = async (ev: React.FormEvent) => {
 		ev.preventDefault();
 		if (!validate()) return;
-		const payload = {
-			...form,
-			birthdate: form.birthdate
-				? form.birthdate.toISOString().slice(0, 10)
-				: null,
-		};
+
+		setError(null);
+		setSuccess(null);
 
 		try {
-			const key = "mockInternalUsers_v1";
-			const existing = JSON.parse(localStorage.getItem(key) || "[]");
-			const newUser = {
-				...payload,
-				id: "u-" + Date.now().toString(36),
+			// prepare user payload (used for JSON creation)
+			const userPayload = {
+				username: form.username,
+				email: form.email,
+				first_name: form.name,
+				last_name: form.last_name,
+				document_id: form.document_id,
+				password: form.password,
 			};
-			existing.unshift(newUser);
-			localStorage.setItem(key, JSON.stringify(existing));
-			setSuccess("Usuario registrado localmente (mock).");
+
+			const createPayload = {
+				user: userPayload,
+				role: form.internal_user_type_id,
+			};
+
+			const createRes = await fetch("/api/internal-users/", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...getAuthHeader(),
+				},
+				body: JSON.stringify(createPayload),
+			});
+
+			if (!createRes.ok) {
+				const bodyText = await createRes.text().catch(() => "");
+				try {
+					const jsonErr = JSON.parse(bodyText || "{}") as Record<
+						string,
+						unknown
+					>;
+					const newErrors: typeof errors = {};
+					if (jsonErr && typeof jsonErr === "object") {
+						for (const k of Object.keys(jsonErr)) {
+							const v = jsonErr[k];
+							if (k === "user" && typeof v === "object" && v !== null) {
+								const userObj = v as Record<string, unknown>;
+								for (const uk of Object.keys(userObj)) {
+									const msgsVal = userObj[uk];
+									const msgs = Array.isArray(msgsVal)
+										? (msgsVal as string[]).join(" ")
+										: String(msgsVal);
+									if (uk === "username") newErrors.username = msgs;
+									else if (uk === "email") newErrors.email = msgs;
+									else if (uk === "password") newErrors.password = msgs;
+									else if (uk === "document_id" || uk === "documentId")
+										newErrors.document_id = msgs;
+									else newErrors[uk as keyof typeof newErrors] = msgs;
+								}
+							} else {
+								const msgs = Array.isArray(v)
+									? (v as string[]).join(" ")
+									: String(v);
+								if (k === "photo") newErrors.photo = String(msgs);
+								else newErrors[k as keyof typeof newErrors] = String(msgs);
+							}
+						}
+					}
+					if (Object.keys(newErrors).length) {
+						setErrors((s) => ({ ...s, ...newErrors }));
+						return;
+					}
+				} catch {
+					/* not JSON, fallthrough */
+				}
+
+				// fallback: plain text / html
+				console.error("create internal user failed", bodyText);
+				setError(`Failed to register user: ${createRes.status}`);
+				return;
+			}
+
+			const created = await createRes.json().catch(() => null);
+			console.log("created internal user response:", created);
+			setSuccess("Usuario interno creado correctamente.");
+
+			const internalId =
+				(created && (created.id ?? created.pk)) ??
+				(created && created.internal_user?.id) ??
+				(created && created.internal_user?.pk) ??
+				(created && created.user && (created.user.id ?? created.user.pk)) ??
+				(created && created.user_id) ??
+				null;
+
+			if (!internalId) {
+				console.warn(
+					"Could not determine internal user id from response:",
+					created,
+				);
+			}
+
+			if (fileObj && internalId) {
+				try {
+					const fd = new FormData();
+					fd.append("photo", fileObj);
+					fd.append("role", form.internal_user_type_id);
+
+					const patchRes = await fetch(
+						`/api/internal-users/${encodeURIComponent(String(internalId))}/`,
+						{
+							method: "PATCH",
+							headers: {
+								...getAuthHeader(),
+								Accept: "application/json",
+							},
+							body: fd,
+						},
+					);
+
+					if (!patchRes.ok) {
+						console.warn(
+							"photo upload failed",
+							await patchRes.text().catch(() => ""),
+						);
+					} else {
+						const patched = await patchRes.json().catch(() => null);
+						console.log("photo upload result:", patched);
+						setSuccess("Usuario interno y foto registrados correctamente.");
+					}
+				} catch (e) {
+					console.warn("photo upload error", e);
+				}
+			} else if (fileObj && !internalId) {
+				console.warn("Skipping photo upload because internalId is missing.");
+			}
+
+			if (created && form.birthdate && internalId) {
+				try {
+					const birthdatePatch = { birthdate: formatDate(form.birthdate) };
+					const bdRes = await fetch(
+						`/api/internal-users/${encodeURIComponent(String(internalId))}/`,
+						{
+							method: "PATCH",
+							headers: {
+								"Content-Type": "application/json",
+								...getAuthHeader(),
+							},
+							body: JSON.stringify(birthdatePatch),
+						},
+					);
+					if (!bdRes.ok) {
+						console.warn(
+							"birthdate patch failed (ignored):",
+							await bdRes.text().catch(() => ""),
+						);
+					}
+				} catch (e) {
+					console.warn("birthdate patch error (ignored):", e);
+				}
+			}
+
+			try {
+				const createdUserId =
+					(created && created.user && (created.user.id ?? created.user.pk)) ||
+					null;
+				if (createdUserId && form.internal_user_type_id === "ADMIN") {
+					const patchRes = await fetch(
+						`/api/users/${encodeURIComponent(createdUserId)}/`,
+						{
+							method: "PATCH",
+							headers: {
+								"Content-Type": "application/json",
+								...getAuthHeader(),
+							},
+							body: JSON.stringify({ is_staff: true }),
+						},
+					);
+					if (!patchRes.ok) {
+						console.warn(
+							"could not mark user is_staff (backend may ignore):",
+							await patchRes.text().catch(() => ""),
+						);
+					}
+				}
+			} catch (e) {
+				console.warn("is_staff patch attempt failed", e);
+			}
+
+			// reset form and navigate
 			setForm(INITIAL);
 			setPreview(null);
+			setFileObj(null);
+			setFileName("");
 			setTimeout(() => navigate("/internal-users/administrar-usuarios"), 700);
 		} catch (err) {
 			console.error(err);
-			setError("No se pudo registrar el usuario. Intenta de nuevo.");
+			setError("Network error while creating user.");
 		}
 	};
 
@@ -122,11 +305,7 @@ export const RegisterUser = () => {
 			<div className="form-card" style={{ position: "relative" }}>
 				<header
 					className="form-header font-montserrat"
-					style={{
-						display: "flex",
-						gap: 12,
-						alignItems: "center",
-					}}
+					style={{ display: "flex", gap: 12, alignItems: "center" }}
 				>
 					<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
 						<div className="form-header-icon">
@@ -184,19 +363,13 @@ export const RegisterUser = () => {
 						onChange={handleFile}
 						style={{ display: "none" }}
 					/>
-
 					<label
 						htmlFor="user-photo-input"
 						className="file-input-control btn-ghost"
-						style={{
-							cursor: "pointer",
-							padding: "8px 12px",
-							borderRadius: 8,
-						}}
+						style={{ cursor: "pointer", padding: "8px 12px", borderRadius: 8 }}
 					>
 						Seleccionar foto
 					</label>
-
 					<span style={{ color: "#9CA3AF", fontSize: 13 }}>
 						{fileName ? fileName : "Ningún archivo"}
 					</span>
@@ -324,6 +497,7 @@ export const RegisterUser = () => {
 							<KeyIcon className="input-icon" />
 							<input
 								type={showPassword ? "text" : "password"}
+								autoComplete="new-password"
 								className="input-primary input-lg input-with-left-icon"
 								value={form.password}
 								onChange={(e) => handleChange("password", e.target.value)}
@@ -362,6 +536,7 @@ export const RegisterUser = () => {
 					{success && (
 						<div className="mt-4 text-sm text-green-700">{success}</div>
 					)}
+					{error && <div className="mt-4 text-sm text-red-700">{error}</div>}
 				</form>
 			</div>
 		</PageTransition>

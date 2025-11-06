@@ -3,8 +3,41 @@ import PersonIcon from "@mui/icons-material/Person";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import UpdateUser from "./UpdateUser";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
+
+const getAuthHeader = () => {
+	const token =
+		localStorage.getItem("access_token") ||
+		sessionStorage.getItem("access_token");
+	return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+type ApiUser = {
+	id?: number | string;
+	username?: string;
+	email?: string | null;
+	first_name?: string | null;
+	document_id?: string | null;
+	internal_profile?: unknown;
+	internal_profile_id?: unknown;
+	is_internal_user?: boolean;
+	role?: string | null;
+	photo?: string | null;
+};
+
+type ApiInternal = {
+	id?: number | string;
+	pk?: number | string;
+	user?: ApiUser | null;
+	username?: string | null;
+	email?: string | null;
+	document_id?: string | null;
+	name?: string | null;
+	last_name?: string | null;
+	role?: string | null;
+	photo?: string | null;
+};
 
 type InternalUser = {
 	id: string;
@@ -17,8 +50,6 @@ type InternalUser = {
 	photo?: string | null;
 };
 
-const STORAGE_KEY = "mockInternalUsers_v1";
-
 const ROLE_LABELS: Record<string, string> = {
 	DIRECTOR: "Director",
 	ADVISOR: "Asesor",
@@ -26,80 +57,212 @@ const ROLE_LABELS: Record<string, string> = {
 	ADMIN: "Administrador",
 };
 
+const API_BASE =
+	typeof import.meta !== "undefined" &&
+	import.meta.env &&
+	import.meta.env.VITE_API_URL
+		? String(import.meta.env.VITE_API_URL)
+		: "http://127.0.0.1:8000";
+
+const resolvePhoto = (p?: string | null): string | null => {
+	if (!p) return null;
+	if (p.startsWith("http://") || p.startsWith("https://")) return p;
+	if (p.startsWith("/")) return API_BASE.replace(/\/$/, "") + p;
+	return API_BASE.replace(/\/$/, "") + "/" + p;
+};
+
 export default function ManageUsers() {
 	const [users, setUsers] = useState<InternalUser[]>([]);
 	const [query, setQuery] = useState("");
 	const [editing, setEditing] = useState<InternalUser | null>(null);
 	const [panelOpen, setPanelOpen] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const navigate = useNavigate();
 
-	useEffect(() => {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		const requiredMocks: InternalUser[] = [
-			{
-				id: "u-1",
-				document_id: "12345678",
-				username: "jlopez",
-				name: "Juan",
-				last_name: "López",
-				email: "juan.lopez@example.com",
-				role: "DIRECTOR",
-				photo: null,
-			},
-			{
-				id: "u-3",
-				document_id: "20345678",
-				username: "ana.mart",
-				name: "Ana",
-				last_name: "Martínez",
-				email: "ana.martinez@example.com",
-				role: "ADVISOR",
-				photo: "https://i.pravatar.cc/150?img=12",
-			},
-		];
-
-		if (raw) {
-			try {
-				const parsed: InternalUser[] = JSON.parse(raw);
-				const merged = [...parsed];
-				requiredMocks.forEach((m) => {
-					if (!merged.find((x) => x.id === m.id)) merged.unshift(m);
-				});
-				Promise.resolve().then(() => setUsers(merged));
-				return;
-			} catch (e) {
-				console.error(e);
-			}
-		}
-		Promise.resolve().then(() => setUsers(requiredMocks));
-	}, []);
-
-	useEffect(() => {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-	}, [users]);
-
+	// load real internal-users from API (handle missing token / forbidden)
 	useEffect(() => {
 		(async () => {
-			try {
-				const res = await fetch("/api/internal-users");
-				const data = await res.json();
+			const token =
+				localStorage.getItem("access_token") ||
+				sessionStorage.getItem("access_token");
+			if (!token) {
+				setError("Not authenticated. Redirecting to login...");
+				setTimeout(() => navigate("/login"), 700);
+				return;
+			}
 
-				if (Array.isArray(data)) {
-					Promise.resolve().then(() =>
-						setUsers((prev = []) => {
-							const merged = [...prev];
-							(data as InternalUser[]).forEach((m) => {
-								if (!merged.find((x) => x.id === m.id)) merged.unshift(m);
-							});
-							return merged;
-						}),
-					);
+			const headers = { Accept: "application/json", ...getAuthHeader() };
+
+			try {
+				let meId: string | null = null;
+				try {
+					const meRes = await fetch("/api/users/me/", { headers });
+					if (meRes.ok) {
+						const meJson = await meRes.json().catch(() => null);
+						meId =
+							meJson && (meJson.id ?? meJson.pk)
+								? String(meJson.id ?? meJson.pk)
+								: null;
+					}
+				} catch (err) {
+					console.warn("Could not fetch current user id:", err);
+				}
+
+				const [intResp, usersResp] = await Promise.allSettled([
+					fetch("/api/internal-users/", { headers }),
+					fetch("/api/users/", { headers }),
+				]);
+
+				const intOk = intResp.status === "fulfilled" && intResp.value.ok;
+				const usersOk = usersResp.status === "fulfilled" && usersResp.value.ok;
+
+				if (!intOk && !usersOk) {
+					if (intResp.status === "fulfilled" && intResp.value.status === 401) {
+						setError(
+							"Access denied. Admin privileges are required to manage internal users.",
+						);
+						return;
+					}
+					setError("Failed to load internal users.");
 					return;
 				}
-			} catch (e) {
-				console.error(e);
+
+				const intData: ApiInternal[] = intOk
+					? ((await (intResp as PromiseFulfilledResult<Response>).value
+							.json()
+							.catch(() => [])) ?? [])
+					: [];
+				const usersData: ApiUser[] = usersOk
+					? ((await (usersResp as PromiseFulfilledResult<Response>).value
+							.json()
+							.catch(() => [])) ?? [])
+					: [];
+
+				const userById = new Map<string, ApiUser>();
+				const userByUsername = new Map<string, ApiUser>();
+				if (Array.isArray(usersData)) {
+					for (const u of usersData) {
+						if (!u) continue;
+						const isInternal =
+							u.internal_profile != null ||
+							u.internal_profile_id != null ||
+							u.is_internal_user === true;
+						if (!isInternal) continue;
+						if (u.id != null) userById.set(String(u.id), u);
+						if (u.username) userByUsername.set(String(u.username), u);
+					}
+				}
+
+				const source = Array.isArray(intData) ? intData : [];
+				const normalized = source.map((d) => {
+					const nestedUser = d.user ?? null;
+
+					let fullUser: ApiUser | null = null;
+					if (nestedUser && nestedUser.id != null)
+						fullUser = userById.get(String(nestedUser.id)) ?? null;
+					if (!fullUser && nestedUser && nestedUser.username)
+						fullUser = userByUsername.get(String(nestedUser.username)) ?? null;
+					if (!fullUser) fullUser = nestedUser ?? {};
+
+					const username = fullUser?.username ?? d?.username ?? "";
+					const email = fullUser?.email ?? d?.email ?? "";
+					const document_id =
+						fullUser?.document_id ??
+						(fullUser as unknown as Record<string, unknown>)["documentId"] ??
+						d?.document_id ??
+						d?.documentId ??
+						"";
+					const firstName =
+						fullUser?.first_name ??
+						(fullUser as unknown as Record<string, unknown>)["firstName"] ??
+						d?.name ??
+						"";
+					const lastName =
+						fullUser?.last_name ??
+						(fullUser as unknown as Record<string, unknown>)["lastName"] ??
+						d?.last_name ??
+						"";
+					const rawPhoto =
+						d?.photo ??
+						(fullUser as unknown as Record<string, unknown>)["photo"] ??
+						null;
+
+					return {
+						id: String(
+							d?.id ??
+								d?.pk ??
+								(fullUser && (fullUser.id ?? null)) ??
+								username ??
+								"",
+						),
+						document_id: String(document_id ?? ""),
+						username: String(username ?? ""),
+						name: String(firstName ?? ""),
+						last_name: String(lastName ?? ""),
+						email: String(email ?? ""),
+						role: d?.role ?? (fullUser && (fullUser.role ?? "")) ?? "",
+						photo: resolvePhoto(rawPhoto),
+					};
+				});
+
+				const resolved = (normalized.length ? normalized : []).filter((r) =>
+					meId ? String(r.id) !== String(meId) : true,
+				);
+
+				const needProfile = resolved
+					.map((r: InternalUser) => ({
+						id: r.id,
+						missing: !r.email || !r.document_id,
+					}))
+					.filter((x) => x.missing)
+					.map((x) => x.id);
+
+				if (needProfile.length > 0) {
+					try {
+						const profilePromises = needProfile.map((uid) =>
+							fetch(`/api/users/${encodeURIComponent(uid)}/profile/`, {
+								headers,
+							}).then((res) => (res.ok ? res.json().catch(() => null) : null)),
+						);
+						const profiles = (await Promise.all(
+							profilePromises,
+						)) as Array<Record<string, unknown> | null>;
+						for (let i = 0; i < needProfile.length; i++) {
+							const uid = needProfile[i];
+							const p = profiles[i];
+							if (!p) continue;
+							const pUser =
+								(p["user"] as Record<string, unknown> | undefined) ?? undefined;
+							if (!pUser) continue;
+							const idx = resolved.findIndex(
+								(r) => String(r.id) === String(uid),
+							);
+							if (idx === -1) continue;
+							resolved[idx] = {
+								...resolved[idx],
+								email: (pUser["email"] as string) ?? resolved[idx].email,
+								document_id:
+									(pUser["document_id"] as string) ?? resolved[idx].document_id,
+								name: (pUser["first_name"] as string) ?? resolved[idx].name,
+								last_name:
+									(pUser["last_name"] as string) ?? resolved[idx].last_name,
+								username:
+									(pUser["username"] as string) ?? resolved[idx].username,
+							};
+						}
+					} catch (e) {
+						console.warn("profile enrichment failed", e);
+					}
+				}
+
+				setUsers(resolved);
+				setError(null);
+			} catch (err) {
+				console.error("load internal users", err);
+				setError("Network error while loading users.");
 			}
 		})();
-	}, []);
+	}, [navigate]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -115,8 +278,26 @@ export default function ManageUsers() {
 	}, [users, query]);
 
 	function handleDelete(id: string) {
-		if (!confirm("¿Eliminar usuario?")) return;
-		setUsers((s) => s.filter((u) => u.id !== id));
+		if (!confirm("Delete user?")) return;
+		(async () => {
+			try {
+				const headers = { ...getAuthHeader(), Accept: "application/json" };
+				const res = await fetch(
+					`/api/internal-users/${encodeURIComponent(id)}/`,
+					{
+						method: "DELETE",
+						headers,
+					},
+				);
+				if (!res.ok) {
+					console.error("delete failed", await res.text().catch(() => ""));
+					return;
+				}
+				setUsers((s) => s.filter((u) => u.id !== id));
+			} catch (e) {
+				console.error("delete error", e);
+			}
+		})();
 	}
 
 	function openEditor(u: InternalUser) {
@@ -125,7 +306,9 @@ export default function ManageUsers() {
 	}
 
 	function handleSave(updated: InternalUser) {
-		setUsers((s) => s.map((x) => (x.id === updated.id ? updated : x)));
+		setUsers((s) =>
+			s.map((x) => (String(x.id) === String(updated.id) ? updated : x)),
+		);
 		setPanelOpen(false);
 		setEditing(null);
 	}
@@ -134,6 +317,27 @@ export default function ManageUsers() {
 		<PageTransition>
 			<div className="font-montserrat" style={{ display: "flex", gap: 20 }}>
 				<div style={{ flex: 1 }}>
+					{error && (
+						<div
+							style={{
+								padding: 12,
+								background: "#FEF3F2",
+								color: "#B91C1C",
+								borderRadius: 8,
+								marginBottom: 12,
+							}}
+						>
+							{error}{" "}
+							{error.includes("Redirecting") ? null : (
+								<Link
+									to="/login"
+									style={{ marginLeft: 8, textDecoration: "underline" }}
+								>
+									Login
+								</Link>
+							)}
+						</div>
+					)}
 					<header
 						style={{
 							display: "flex",
@@ -209,111 +413,128 @@ export default function ManageUsers() {
 								</tr>
 							</thead>
 							<tbody>
-								{filtered.map((u) => (
-									<tr key={u.id}>
-										<td style={{ padding: 12 }}>
-											<div
+								{filtered.map((u, idx) => {
+									const rowKey = String(
+										u.id ?? u.username ?? u.document_id ?? `user-${idx}`,
+									);
+									return (
+										<tr key={rowKey}>
+											<td style={{ padding: 12 }}>
+												<div
+													style={{
+														width: 44,
+														height: 44,
+														borderRadius: 8,
+														overflow: "hidden",
+														background: "#F3F4F6",
+														display: "flex",
+														alignItems: "center",
+														justifyContent: "center",
+													}}
+												>
+													{u.photo ? (
+														<img
+															src={u.photo}
+															alt="avatar"
+															style={{
+																width: "100%",
+																height: "100%",
+																objectFit: "cover",
+															}}
+															onError={(e) => {
+																const img = e.currentTarget as HTMLImageElement;
+																// use dataset safely without `as any`
+																if (img.dataset?.tried) return;
+																if (img.dataset) img.dataset.tried = "1";
+																console.warn(
+																	"User photo not found, falling back to placeholder:",
+																	u.photo,
+																);
+																img.src =
+																	"https://via.placeholder.com/150?text=avatar";
+															}}
+														/>
+													) : (
+														<PersonIcon style={{ color: "#6B7280" }} />
+													)}
+												</div>
+											</td>
+
+											<td
 												style={{
-													width: 44,
-													height: 44,
-													borderRadius: 8,
-													overflow: "hidden",
-													background: "#F3F4F6",
-													display: "flex",
-													alignItems: "center",
-													justifyContent: "center",
-												}}
-											>
-												{u.photo ? (
-													<img
-														src={u.photo}
-														alt="avatar"
-														style={{
-															width: "100%",
-															height: "100%",
-															objectFit: "cover",
-														}}
-													/>
-												) : (
-													<PersonIcon style={{ color: "#6B7280" }} />
-												)}
-											</div>
-										</td>
-
-										<td
-											style={{
-												padding: "12px 16px",
-												color: "var(--text-color)",
-												fontWeight: 700,
-											}}
-										>
-											{u.name} {u.last_name}
-											<div
-												style={{
-													fontSize: 12,
-													color: "var(--muted-color)",
-													fontWeight: 500,
-												}}
-											>
-												@{u.username}
-											</div>
-										</td>
-
-										<td
-											style={{
-												padding: "12px 16px",
-												color: "var(--muted-color)",
-											}}
-										>
-											{u.email}
-										</td>
-
-										<td
-											style={{
-												padding: "12px 16px",
-												color: "var(--muted-color)",
-											}}
-										>
-											{u.document_id}
-										</td>
-
-										<td
-											style={{
-												padding: "12px 16px",
-												color: "var(--text-color)",
-											}}
-										>
-											<span
-												style={{
-													background: "rgba(14,165,233,0.06)",
+													padding: "12px 16px",
 													color: "var(--text-color)",
-													padding: "6px 10px",
-													borderRadius: 10,
 													fontWeight: 700,
 												}}
 											>
-												{ROLE_LABELS[u.role] ?? u.role}
-											</span>
-										</td>
+												{u.name} {u.last_name}
+												<div
+													style={{
+														fontSize: 12,
+														color: "var(--muted-color)",
+														fontWeight: 500,
+													}}
+												>
+													@{u.username}
+												</div>
+											</td>
 
-										<td style={{ padding: "12px 16px", textAlign: "right" }}>
-											<button
-												className="icon-btn"
-												onClick={() => openEditor(u)}
-												title="Editar"
+											<td
+												style={{
+													padding: "12px 16px",
+													color: "var(--muted-color)",
+												}}
 											>
-												<EditIcon fontSize="small" />
-											</button>
-											<button
-												className="icon-btn delete"
-												onClick={() => handleDelete(u.id)}
-												title="Eliminar"
+												{u.email}
+											</td>
+
+											<td
+												style={{
+													padding: "12px 16px",
+													color: "var(--muted-color)",
+												}}
 											>
-												<DeleteIcon fontSize="small" />
-											</button>
-										</td>
-									</tr>
-								))}
+												{u.document_id}
+											</td>
+
+											<td
+												style={{
+													padding: "12px 16px",
+													color: "var(--text-color)",
+												}}
+											>
+												<span
+													style={{
+														background: "rgba(14,165,233,0.06)",
+														color: "var(--text-color)",
+														padding: "6px 10px",
+														borderRadius: 10,
+														fontWeight: 700,
+													}}
+												>
+													{ROLE_LABELS[u.role] ?? u.role}
+												</span>
+											</td>
+
+											<td style={{ padding: "12px 16px", textAlign: "right" }}>
+												<button
+													className="icon-btn"
+													onClick={() => openEditor(u)}
+													title="Editar"
+												>
+													<EditIcon fontSize="small" />
+												</button>
+												<button
+													className="icon-btn delete"
+													onClick={() => handleDelete(u.id)}
+													title="Eliminar"
+												>
+													<DeleteIcon fontSize="small" />
+												</button>
+											</td>
+										</tr>
+									);
+								})}
 							</tbody>
 						</table>
 					</div>

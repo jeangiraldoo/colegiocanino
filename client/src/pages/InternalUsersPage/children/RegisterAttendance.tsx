@@ -9,43 +9,41 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
 
-type Canine = {
-	id: number | string;
-	name: string;
-	photo?: string | null;
-};
-
-type AttendanceRecord = {
-	id: string;
-	canineId: number | string;
-	canineName: string;
-	date: string;
-	entryTime?: string | null;
-	status: "on_time" | "late" | "absent";
-	exitTime?: string | null;
-	earlyDepartureReason?: string | null;
-};
-
-const MOCK_CANINES: Canine[] = [
-	{ id: 11, name: "Toby" },
-	{ id: 12, name: "Luna" },
-	{ id: 13, name: "Koko" },
-	{ id: 14, name: "Toby Jr." },
-	{ id: 15, name: "Milo" },
-];
-
-const ATT_KEY = "mockAttendances_v1";
-
 function toLocalISO(d: Date) {
 	const y = d.getFullYear();
 	const m = String(d.getMonth() + 1).padStart(2, "0");
 	const day = String(d.getDate()).padStart(2, "0");
 	return `${y}-${m}-${day}`;
 }
-
 function nowHHMM() {
 	const n = new Date();
 	return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
+}
+
+type Canine = {
+	id: number | string;
+	name: string;
+	photo?: string | null;
+	enrollmentId?: number | string;
+};
+
+type AttendanceRecord = {
+	id?: number | string;
+	enrollment: number | string;
+	canineId: number | string;
+	canineName: string;
+	date: string;
+	entryTime?: string | null;
+	status: "present" | "advance_withdrawal" | "dispatched" | "absent";
+	exitTime?: string | null;
+	earlyDepartureReason?: string | null;
+};
+
+type RawRecord = Record<string, unknown>;
+function isLockedStatus(s: unknown): s is AttendanceRecord["status"] {
+	return (
+		typeof s === "string" && (s === "dispatched" || s === "advance_withdrawal")
+	);
 }
 
 export default function RegisterAttendance() {
@@ -56,184 +54,809 @@ export default function RegisterAttendance() {
 	const [records, setRecords] = useState<AttendanceRecord[]>([]);
 	const datePickerRef = useRef<HTMLInputElement | null>(null);
 
+	const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
+
+	const [busyEnrollments, setBusyEnrollments] = useState<
+		Record<string, boolean>
+	>({});
+	const setBusy = useCallback((enrollmentId: string | number, v: boolean) => {
+		setBusyEnrollments((p) => ({ ...p, [String(enrollmentId)]: v }));
+	}, []);
+
+	const [unlockedByAdmin, setUnlockedByAdmin] = useState<
+		Record<string, boolean>
+	>({});
+
+	const role = useMemo(() => {
+		return (
+			localStorage.getItem("user_role") ||
+			sessionStorage.getItem("user_role") ||
+			""
+		).toUpperCase();
+	}, []);
+	const isAdmin = role === "ADMIN";
+
 	const isoDate = useMemo(() => toLocalISO(date), [date]);
 
-	// safe storage helpers
-	const loadAllRecords = useCallback((): AttendanceRecord[] => {
-		try {
-			const raw = localStorage.getItem(ATT_KEY);
-			if (!raw) return [];
-			const parsed = JSON.parse(raw);
-			if (!Array.isArray(parsed)) return [];
-			return parsed.filter(
-				(p) => p && typeof p === "object",
-			) as AttendanceRecord[];
-		} catch {
-			return [];
-		}
+	const getAuthHeader = useCallback(() => {
+		const access =
+			localStorage.getItem("access_token") ||
+			sessionStorage.getItem("access_token");
+		if (access) return { Authorization: `Bearer ${access}` };
+		return {};
 	}, []);
 
-	const saveAllRecords = useCallback((arr: AttendanceRecord[]) => {
-		try {
-			localStorage.setItem(ATT_KEY, JSON.stringify(arr));
-		} catch (err) {
-			console.error("Failed saving attendance records", err);
-		}
-	}, []);
-
-	const loadCanines = useCallback(async () => {
+	const loadEnrollments = useCallback(async () => {
 		setLoadingCanines(true);
 		try {
-			const res = await fetch("/api/canines/");
-			if (res.ok) {
-				const data = await res.json();
-				if (Array.isArray(data)) {
-					const mapped = data.map((c: Record<string, unknown>) => ({
-						id: (c.id ?? c.pk) as number | string,
-						name: (c.name ?? c.nickname ?? c.title) as string,
-						photo: (c.photo as string | undefined) ?? null,
-					}));
-					setCanines(mapped);
-					return;
-				}
-			}
-		} catch {
-			// ignore, fallback below
+			const headers = { ...getAuthHeader(), Accept: "application/json" };
+			const res = await fetch(
+				"/api/enrollments/?status=true&ordering=-creation_date",
+				{
+					method: "GET",
+					headers,
+				},
+			);
+			if (!res.ok) throw new Error("Failed to load enrollments");
+			const data = await res.json();
+			if (!Array.isArray(data)) throw new Error("Invalid enrollments response");
+			const mapped = data.map((e: RawRecord) => {
+				const canine = e["canine"];
+				const canineName =
+					e["canine_name"] ??
+					(e["canine"] && (e["canine"] as RawRecord)["name"]);
+				const photo =
+					(e["canine"] && (e["canine"] as RawRecord)["photo"]) ?? null;
+				return {
+					id: (canine ?? e["pk"]) as number | string,
+					name: (canineName as string) ?? `#${String(canine ?? e["pk"])}`,
+					photo: (photo as string) ?? null,
+					enrollmentId: (e["id"] ?? e["pk"]) as number | string,
+				} as Canine;
+			}) as Canine[];
+			setCanines(mapped);
+			return;
+		} catch (err) {
+			console.error("loadEnrollments error", err);
+			setCanines([]);
 		} finally {
 			setLoadingCanines(false);
 		}
-		setCanines(MOCK_CANINES);
-	}, []);
+	}, [getAuthHeader]);
 
-	const loadRecordsForDate = useCallback(() => {
-		const all = loadAllRecords();
-		const filtered = all.filter((r) => r.date === isoDate);
-		setRecords(filtered);
-	}, [isoDate, loadAllRecords]);
+	const loadAttendancesForDate = useCallback(
+		async (selectedDate: Date) => {
+			const iso = toLocalISO(selectedDate);
+			try {
+				const headers = { ...getAuthHeader(), Accept: "application/json" };
+				const res = await fetch(
+					`/api/attendance/?date=${encodeURIComponent(iso)}`,
+					{
+						method: "GET",
+						headers,
+					},
+				);
+				if (!res.ok) {
+					setRecords([]);
+					return;
+				}
+				const data = await res.json();
+				if (!Array.isArray(data)) {
+					setRecords([]);
+					return;
+				}
+				const mapped: AttendanceRecord[] = data.map((a: RawRecord) => ({
+					id: (a["id"] ?? a["pk"]) as number | string,
+					enrollment:
+						(a["enrollment"] as number | string) ?? a["enrollment_id"],
+					canineId:
+						((a["enrollment"] && (a["enrollment"] as RawRecord)["canine"]) as
+							| number
+							| string) ??
+						(a["enrollment"] as number | string) ??
+						null,
+					canineName:
+						((a["enrollment"] &&
+							(a["enrollment"] as RawRecord)["canine"] &&
+							((a["enrollment"] as RawRecord)["canine"] as RawRecord)[
+								"name"
+							]) as string) ??
+						(a["canine_name"] as string) ??
+						"",
+					date: (a["date"] as string) ?? iso,
+					entryTime: (a["arrival_time"] as string) ?? null,
+					status: ((a["status"] as string) ??
+						"present") as AttendanceRecord["status"],
+					exitTime: (a["departure_time"] as string) ?? null,
+					earlyDepartureReason: (a["withdrawal_reason"] as string) ?? null,
+				}));
+				setRecords(mapped);
+			} catch (err) {
+				console.error("loadAttendancesForDate", err);
+				setRecords([]);
+			}
+		},
+		[getAuthHeader],
+	);
+
+	const refreshAttendancesPerEnrollment = useCallback(
+		async (selectedDate: Date) => {
+			const iso = toLocalISO(selectedDate);
+			const headersBase = { ...getAuthHeader(), Accept: "application/json" };
+			const updatedRecords: AttendanceRecord[] = [];
+			await Promise.all(
+				canines.map(async (c) => {
+					const enrollmentId = c.enrollmentId ?? c.id;
+					try {
+						const res = await fetch(
+							`/api/attendance/?date=${encodeURIComponent(iso)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+							{ method: "GET", headers: headersBase },
+						);
+						if (!res.ok) return;
+						const arr = await res.json().catch(() => []);
+						if (!Array.isArray(arr) || arr.length === 0) return;
+						const a = arr[0] as RawRecord;
+						updatedRecords.push({
+							id: (a["id"] ?? a["pk"]) as number | string,
+							enrollment: (a["enrollment"] as number | string) ?? enrollmentId,
+							canineId:
+								((a["enrollment"] &&
+									(a["enrollment"] as RawRecord)["canine"]) as
+									| number
+									| string) ?? enrollmentId,
+							canineName:
+								((a["enrollment"] &&
+									(a["enrollment"] as RawRecord)["canine"] &&
+									((a["enrollment"] as RawRecord)["canine"] as RawRecord)[
+										"name"
+									]) as string) ??
+								(a["canine_name"] as string) ??
+								c.name ??
+								"",
+							date: (a["date"] as string) ?? iso,
+							entryTime: (a["arrival_time"] as string) ?? null,
+							status: ((a["status"] as string) ??
+								"present") as AttendanceRecord["status"],
+							exitTime: (a["departure_time"] as string) ?? null,
+							earlyDepartureReason: (a["withdrawal_reason"] as string) ?? null,
+						});
+					} catch (e) {
+						console.error("refresh per enrollment error", e);
+					}
+				}),
+			);
+
+			setRecords((prev) => {
+				const m = new Map<string, AttendanceRecord>();
+				for (const r of prev) m.set(String(r.enrollment), r);
+				for (const u of updatedRecords) m.set(String(u.enrollment), u);
+				return Array.from(m.values());
+			});
+		},
+		[canines, getAuthHeader],
+	);
 
 	useEffect(() => {
-		void loadCanines();
-	}, [loadCanines]);
+		void loadEnrollments();
+	}, [loadEnrollments]);
 
 	useEffect(() => {
-		loadRecordsForDate();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isoDate]);
+		void loadAttendancesForDate(date);
+	}, [date, loadAttendancesForDate]);
 
-	const makeId = (dateStr: string, canineId: number | string) =>
-		`${dateStr}::${String(canineId)}`;
+	useEffect(() => {
+		setReasonDrafts((prev) => {
+			const copy = { ...prev };
+			for (const r of records) {
+				const key = String(r.enrollment);
+				if (copy[key] === undefined) copy[key] = r.earlyDepartureReason ?? "";
+			}
+			return copy;
+		});
+	}, [records]);
 
-	const upsertRecord = useCallback(
-		(rec: AttendanceRecord) => {
-			const all = loadAllRecords();
-			const others = all.filter((r) => r.id !== rec.id);
-			others.unshift(rec);
-			saveAllRecords(others);
-			if (rec.date === isoDate) {
-				setRecords((prev) => {
-					const without = prev.filter((p) => p.id !== rec.id);
-					return [rec, ...without];
+	const findRecordByEnrollment = useCallback(
+		(enrollmentId: number | string) =>
+			records.find((r) => String(r.enrollment) === String(enrollmentId)),
+		[records],
+	);
+
+	function handleSetReasonLocal(enrollmentId: number | string, value: string) {
+		setReasonDrafts((p) => ({ ...p, [String(enrollmentId)]: value }));
+	}
+
+	async function upsertAttendance(
+		enrollmentId: number | string,
+		status: AttendanceRecord["status"],
+		entryTime?: string | null,
+		reason?: string | null,
+	) {
+		setBusy(enrollmentId, true);
+		const iso = isoDate;
+		const headers = {
+			...getAuthHeader(),
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		};
+		try {
+			const qRes = await fetch(
+				`/api/attendance/?date=${encodeURIComponent(iso)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+				{
+					method: "GET",
+					headers,
+				},
+			);
+			const qData = (await qRes.json().catch(() => null)) as unknown;
+			const existing =
+				Array.isArray(qData) && (qData as unknown[]).length
+					? ((qData as unknown[])[0] as RawRecord)
+					: null;
+
+			if (existing && isLockedStatus(existing["status"])) {
+				console.warn(
+					"Attempt to modify locked attendance",
+					enrollmentId,
+					existing["status"],
+				);
+				return;
+			}
+
+			const payload: Record<string, unknown> = {
+				enrollment: enrollmentId,
+				date: iso,
+				status,
+			};
+
+			if (status === "absent") {
+				payload.arrival_time = null;
+				payload.departure_time = null;
+			} else if (status === "present") {
+				if (entryTime) payload.arrival_time = entryTime;
+			} else if (status === "advance_withdrawal") {
+				payload.departure_time = nowHHMM() + ":00";
+				if (reason !== undefined) payload.withdrawal_reason = reason;
+			} else if (status === "dispatched") {
+				payload.departure_time = nowHHMM() + ":00";
+				if (reason !== undefined) payload.withdrawal_reason = reason;
+			}
+
+			let res: Response;
+			if (existing && existing["id"]) {
+				res = await fetch(`/api/attendance/${existing["id"]}/`, {
+					method: "PATCH",
+					headers,
+					body: JSON.stringify(payload),
+				});
+			} else {
+				res = await fetch("/api/attendance/", {
+					method: "POST",
+					headers,
+					body: JSON.stringify(payload),
 				});
 			}
-		},
-		[isoDate, loadAllRecords, saveAllRecords],
-	);
 
-	const clearRecordFor = useCallback(
-		(dateStr: string, canineId: number | string) => {
-			const id = makeId(dateStr, canineId);
-			const all = loadAllRecords();
-			const filtered = all.filter((r) => r.id !== id);
-			saveAllRecords(filtered);
-			if (dateStr === isoDate) {
-				setRecords((prev) => prev.filter((r) => r.id !== id));
+			if (!res.ok) {
+				const txt = await res.text().catch(() => "");
+				console.error("upsert failed", res.status, txt);
+				return;
+			}
+			const savedRaw = (await res.json().catch(() => null)) as RawRecord | null;
+
+			const updated: AttendanceRecord = {
+				id: (savedRaw && (savedRaw["id"] ?? (existing && existing["id"]))) as
+					| number
+					| string
+					| undefined,
+				enrollment:
+					(savedRaw && (savedRaw["enrollment"] as number | string)) ??
+					enrollmentId,
+				canineId:
+					(savedRaw &&
+						savedRaw["enrollment"] &&
+						(((savedRaw["enrollment"] as RawRecord)["canine"] as number) ??
+							enrollmentId)) ??
+					enrollmentId,
+				canineName: (savedRaw && (savedRaw["canine_name"] as string)) ?? "",
+				date: (savedRaw && (savedRaw["date"] as string)) ?? iso,
+				entryTime:
+					(savedRaw && (savedRaw["arrival_time"] as string)) ??
+					(existing ? (existing["arrival_time"] as string | null) : null),
+				status: ((savedRaw && (savedRaw["status"] as string)) ??
+					status) as AttendanceRecord["status"],
+				exitTime: (savedRaw && (savedRaw["departure_time"] as string)) ?? null,
+				earlyDepartureReason:
+					(savedRaw && (savedRaw["withdrawal_reason"] as string)) ??
+					reason ??
+					null,
+			};
+
+			setRecords((prev) => {
+				const without = prev.filter(
+					(p) => String(p.enrollment) !== String(enrollmentId),
+				);
+				return [updated, ...without];
+			});
+			setReasonDrafts((prev) => ({
+				...prev,
+				[String(enrollmentId)]:
+					(savedRaw && (savedRaw["withdrawal_reason"] as string)) ?? "",
+			}));
+		} catch (err) {
+			console.error("upsertAttendance error", err);
+		} finally {
+			setBusy(enrollmentId, false);
+		}
+	}
+
+	const checkInApi = useCallback(
+		async (enrollmentId: number | string, status = "present") => {
+			setBusy(enrollmentId, true);
+			try {
+				const headers = {
+					...getAuthHeader(),
+					"Content-Type": "application/json",
+					Accept: "application/json",
+				};
+				const res = await fetch("/api/attendance/check_in/", {
+					method: "POST",
+					headers,
+					body: JSON.stringify({ enrollment: enrollmentId, status }),
+				});
+				if (!res.ok) {
+					const txt = await res.text().catch(() => "");
+					console.error("check_in failed", res.status, txt);
+					return null;
+				}
+				const saved = (await res.json().catch(() => null)) as RawRecord | null;
+
+				// patch to set local arrival time (so UI reflects local hours)
+				if (saved && saved["id"]) {
+					try {
+						const p = await fetch(`/api/attendance/${saved["id"]}/`, {
+							method: "PATCH",
+							headers,
+							body: JSON.stringify({ arrival_time: nowHHMM() + ":00", status }),
+						});
+						if (p.ok) {
+							const patched = (await p
+								.json()
+								.catch(() => null)) as RawRecord | null;
+							if (patched) {
+								setRecords((prev) => {
+									const without = prev.filter(
+										(r) => String(r.enrollment) !== String(enrollmentId),
+									);
+									const updated: AttendanceRecord = {
+										id: (patched["id"] ?? patched["pk"]) as number | string,
+										enrollment:
+											(patched["enrollment"] as number | string) ??
+											enrollmentId,
+										canineId:
+											(patched["enrollment"] &&
+												((patched["enrollment"] as RawRecord)["canine"] as
+													| number
+													| string)) ??
+											enrollmentId,
+										canineName: (patched["canine_name"] as string) ?? "",
+										date: (patched["date"] as string) ?? isoDate,
+										entryTime:
+											(patched["arrival_time"] as string) ?? nowHHMM() + ":00",
+										status: ((patched["status"] as string) ??
+											"present") as AttendanceRecord["status"],
+										exitTime: (patched["departure_time"] as string) ?? null,
+										earlyDepartureReason:
+											(patched["withdrawal_reason"] as string) ?? "",
+									};
+									return [updated, ...without];
+								});
+							}
+						}
+					} catch (e) {
+						console.error("patch arrival_time failed", e);
+					}
+				}
+
+				await refreshAttendancesPerEnrollment(new Date());
+				return saved;
+			} catch (e) {
+				console.error("checkInApi error", e);
+				return null;
+			} finally {
+				setBusy(enrollmentId, false);
 			}
 		},
-		[isoDate, loadAllRecords, saveAllRecords],
+		[getAuthHeader, refreshAttendancesPerEnrollment, isoDate, setBusy],
 	);
 
-	function handleSetStatus(c: Canine, status: AttendanceRecord["status"]) {
-		const id = makeId(isoDate, c.id);
-		const existing = loadAllRecords().find((r) => r.id === id);
-		const rec: AttendanceRecord = existing
-			? {
-					...existing,
-					status,
-					date: isoDate,
-					canineName: c.name,
-					canineId: c.id,
+	// handle status change: locked states (dispatched, advance_withdrawal) are immutable until admin reverts
+	function handleSetStatusFor(
+		enrollmentId: number | string,
+		canineName: string,
+		newStatus: AttendanceRecord["status"],
+	) {
+		const existing = findRecordByEnrollment(enrollmentId);
+
+		if (existing && isLockedStatus(existing.status)) {
+			alert(
+				"Registro bloqueado — sólo un administrador puede revertirlo con el botón de deshacer.",
+			);
+			return;
+		}
+
+		// confirmation for dispatch / early withdrawal
+		if (newStatus === "dispatched") {
+			if (
+				!confirm(
+					`Confirmar la salida de ${canineName}? Esto bloqueará las modificaciones para este registro.`,
+				)
+			)
+				return;
+		}
+		if (newStatus === "advance_withdrawal") {
+			if (
+				!confirm(
+					`Confirmar la salida anticipada de ${canineName}? Esto bloqueará las modificaciones para este registro.`,
+				)
+			)
+				return;
+		}
+
+		if (!isAdmin) {
+			if (newStatus === "present") {
+				void checkInApi(enrollmentId, "present");
+				return;
+			}
+
+			const entryTime = existing?.entryTime ?? nowHHMM();
+			const reason =
+				reasonDrafts[String(enrollmentId)] ??
+				existing?.earlyDepartureReason ??
+				"";
+			void upsertAttendance(
+				enrollmentId,
+				newStatus,
+				entryTime ?? null,
+				reason ?? "",
+			);
+			return;
+		}
+
+		const entryTime =
+			existing?.entryTime ?? (newStatus === "absent" ? null : nowHHMM());
+		const reason =
+			reasonDrafts[String(enrollmentId)] ??
+			existing?.earlyDepartureReason ??
+			"";
+		void upsertAttendance(
+			enrollmentId,
+			newStatus,
+			entryTime ?? null,
+			reason ?? "",
+		);
+	}
+
+	function handleSetEntryTime(enrollmentId: number | string, t: string | null) {
+		const existing = findRecordByEnrollment(enrollmentId);
+		const locked =
+			existing?.status === "dispatched" ||
+			existing?.status === "advance_withdrawal";
+		if (locked) {
+			alert("Registro bloqueado — sólo un administrador puede revertirlo.");
+			return;
+		}
+		if (!isAdmin) {
+			void checkInApi(enrollmentId, "present");
+			return;
+		}
+		const status =
+			(existing?.status as AttendanceRecord["status"]) ?? "present";
+		void upsertAttendance(
+			enrollmentId,
+			status,
+			t ?? null,
+			existing?.earlyDepartureReason ?? "",
+		);
+	}
+
+	async function commitReason(enrollmentId: number | string) {
+		setBusy(enrollmentId, true);
+		const draft = reasonDrafts[String(enrollmentId)] ?? "";
+
+		const existingLocal = findRecordByEnrollment(enrollmentId);
+		const existingVal = existingLocal?.earlyDepartureReason ?? "";
+		if ((draft || "") === (existingVal || "")) {
+			setBusy(enrollmentId, false);
+			return;
+		}
+
+		const headers = {
+			...getAuthHeader(),
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		};
+
+		try {
+			const q = await fetch(
+				`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+				{ method: "GET", headers },
+			);
+			const serverArr = q.ok
+				? ((await q.json().catch(() => [])) as unknown[])
+				: [];
+			const serverRec =
+				Array.isArray(serverArr) && serverArr.length
+					? (serverArr[0] as RawRecord)
+					: null;
+
+			if (serverRec && isLockedStatus(serverRec["status"])) {
+				setReasonDrafts((p) => ({
+					...p,
+					[String(enrollmentId)]:
+						(serverRec["withdrawal_reason"] as string) ?? "",
+				}));
+				alert(
+					"No se pueden modificar las observaciones: el registro está bloqueado. Sólo un administrador puede revertirlo.",
+				);
+				return;
+			}
+
+			if (serverRec && serverRec["id"]) {
+				const payload: Record<string, unknown> = { withdrawal_reason: draft };
+				const p = await fetch(`/api/attendance/${serverRec["id"]}/`, {
+					method: "PATCH",
+					headers,
+					body: JSON.stringify(payload),
+				});
+				if (!p.ok) {
+					console.error(
+						"patch withdrawal_reason failed",
+						p.status,
+						await p.text().catch(() => ""),
+					);
+					const r = await fetch(
+						`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+						{ method: "GET", headers },
+					);
+					const a = r.ok ? ((await r.json().catch(() => [])) as unknown[]) : [];
+					const srv = Array.isArray(a) && a.length ? (a[0] as RawRecord) : null;
+					setReasonDrafts((p) => ({
+						...p,
+						[String(enrollmentId)]:
+							(srv && (srv["withdrawal_reason"] as string)) ?? existingVal,
+					}));
+					return;
 				}
-			: {
-					id,
-					canineId: c.id,
-					canineName: c.name,
-					date: isoDate,
-					entryTime: null,
-					status,
-					exitTime: null,
-					earlyDepartureReason: null,
+				const saved = (await p.json().catch(() => null)) as RawRecord | null;
+
+				const updated: AttendanceRecord = {
+					id:
+						(saved && (saved["id"] as number | string)) ??
+						(serverRec["id"] as number | string),
+					enrollment:
+						(saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
+					canineId:
+						(saved &&
+							((saved["enrollment"] as RawRecord)["canine"] as
+								| number
+								| string)) ??
+						enrollmentId,
+					canineName:
+						(saved && (saved["canine_name"] as string)) ??
+						existingLocal?.canineName ??
+						"",
+					date: (saved && (saved["date"] as string)) ?? isoDate,
+					entryTime:
+						(saved && (saved["arrival_time"] as string)) ??
+						existingLocal?.entryTime ??
+						null,
+					status: ((saved && (saved["status"] as string)) ??
+						existingLocal?.status ??
+						"present") as AttendanceRecord["status"],
+					exitTime:
+						(saved && (saved["departure_time"] as string)) ??
+						existingLocal?.exitTime ??
+						null,
+					earlyDepartureReason:
+						(saved && (saved["withdrawal_reason"] as string)) ?? draft,
 				};
-		upsertRecord(rec);
+				setRecords((prev) => {
+					const without = prev.filter(
+						(r) => String(r.enrollment) !== String(enrollmentId),
+					);
+					return [updated, ...without];
+				});
+				setReasonDrafts((p) => ({
+					...p,
+					[String(enrollmentId)]: updated.earlyDepartureReason ?? "",
+				}));
+				return;
+			}
+
+			{
+				const payload: Record<string, unknown> = {
+					enrollment: enrollmentId,
+					date: isoDate,
+					status: "present",
+					arrival_time: existingLocal?.entryTime ?? null,
+					withdrawal_reason: draft,
+				};
+				const createRes = await fetch("/api/attendance/", {
+					method: "POST",
+					headers,
+					body: JSON.stringify(payload),
+				});
+				if (!createRes.ok) {
+					console.error(
+						"create attendance failed",
+						createRes.status,
+						await createRes.text().catch(() => ""),
+					);
+					return;
+				}
+				const saved = (await createRes
+					.json()
+					.catch(() => null)) as RawRecord | null;
+				const updated: AttendanceRecord = {
+					id:
+						(saved && (saved["id"] as number | string)) ??
+						(saved && (saved["pk"] as number | string)),
+					enrollment:
+						(saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
+					canineId:
+						(saved &&
+							((saved["enrollment"] as RawRecord)["canine"] as
+								| number
+								| string)) ??
+						enrollmentId,
+					canineName:
+						(saved && (saved["canine_name"] as string)) ??
+						existingLocal?.canineName ??
+						"",
+					date: (saved && (saved["date"] as string)) ?? isoDate,
+					entryTime:
+						(saved && (saved["arrival_time"] as string)) ??
+						existingLocal?.entryTime ??
+						null,
+					status:
+						(saved && (saved["status"] as AttendanceRecord["status"])) ??
+						"present",
+					exitTime: (saved && (saved["departure_time"] as string)) ?? null,
+					earlyDepartureReason:
+						(saved && (saved["withdrawal_reason"] as string)) ?? draft,
+				};
+				setRecords((prev) => {
+					const without = prev.filter(
+						(r) => String(r.enrollment) !== String(enrollmentId),
+					);
+					return [updated, ...without];
+				});
+				setReasonDrafts((p) => ({
+					...p,
+					[String(enrollmentId)]: updated.earlyDepartureReason ?? "",
+				}));
+			}
+		} catch (err) {
+			console.error("commitReason error", err);
+		} finally {
+			setBusy(enrollmentId, false);
+		}
 	}
 
-	function handleSetEntryTime(c: Canine, t: string | null) {
-		const id = makeId(isoDate, c.id);
-		const existing = loadAllRecords().find((r) => r.id === id);
-		const rec: AttendanceRecord = existing
-			? { ...existing, entryTime: t || null }
-			: {
-					id,
-					canineId: c.id,
-					canineName: c.name,
-					date: isoDate,
-					entryTime: t || null,
-					status: "on_time",
-					exitTime: null,
-					earlyDepartureReason: null,
-				};
-		upsertRecord(rec);
+	async function adminUndoDispatch(enrollmentId: number | string) {
+		const existing = await (async () => {
+			const headers = { ...getAuthHeader(), Accept: "application/json" };
+			const res = await fetch(
+				`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+				{ headers },
+			);
+			if (!res.ok) return null;
+			const arr = await res.json().catch(() => null);
+			return Array.isArray(arr) && arr.length ? arr[0] : null;
+		})();
+		if (!existing) {
+			alert("No attendance record found to undo.");
+			return;
+		}
+		try {
+			const headers = {
+				...getAuthHeader(),
+				"Content-Type": "application/json",
+				Accept: "application/json",
+			};
+
+			const payload: Record<string, unknown> = {
+				status: "present",
+				departure_time: null,
+			};
+			const res = await fetch(`/api/attendance/${existing.id}/`, {
+				method: "PATCH",
+				headers,
+				body: JSON.stringify(payload),
+			});
+			if (!res.ok) {
+				const t = await res.text().catch(() => null);
+				console.error("undo dispatch failed", res.status, t);
+				alert("Failed to undo dispatch. Check console.");
+				return;
+			}
+			await res.json().catch(() => null);
+
+			void refreshAttendancesPerEnrollment(date);
+
+			setUnlockedByAdmin((p) => {
+				const copy = { ...p };
+				delete copy[String(enrollmentId)];
+				return copy;
+			});
+		} catch (e) {
+			console.error("adminUndoDispatch error", e);
+		}
 	}
 
-	function handleSetReason(c: Canine, reason: string) {
-		const id = makeId(isoDate, c.id);
-		const existing = loadAllRecords().find((r) => r.id === id);
-		const rec: AttendanceRecord = existing
-			? { ...existing, earlyDepartureReason: reason || null }
-			: {
-					id,
-					canineId: c.id,
-					canineName: c.name,
-					date: isoDate,
-					entryTime: null,
-					status: "on_time",
-					exitTime: null,
-					earlyDepartureReason: reason || null,
-				};
-		upsertRecord(rec);
-	}
-
-	function handleClear(c: Canine) {
+	function handleClear(enrollmentId: number | string) {
+		const existing = findRecordByEnrollment(enrollmentId);
+		const locked =
+			existing?.status === "dispatched" ||
+			existing?.status === "advance_withdrawal";
+		if (locked) {
+			alert(
+				"No se puede eliminar: registro bloqueado. Deshacer bloqueo con un admin.",
+			);
+			return;
+		}
 		if (!confirm("Eliminar registro de este perro para la fecha?")) return;
-		clearRecordFor(isoDate, c.id);
-	}
 
-	function setNowTimeFor(c: Canine) {
-		handleSetEntryTime(c, nowHHMM());
+		(async () => {
+			try {
+				const headers = { ...getAuthHeader(), Accept: "application/json" };
+				const resQuery = await fetch(
+					`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
+					{ headers },
+				);
+				if (!resQuery.ok) {
+					setRecords((prev) =>
+						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
+					);
+					return;
+				}
+				const arr = await resQuery.json().catch(() => null);
+				const a = Array.isArray(arr) && arr.length ? arr[0] : null;
+				if (!a) {
+					setRecords((prev) =>
+						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
+					);
+					return;
+				}
+				const del = await fetch(`/api/attendance/${a.id}/`, {
+					method: "DELETE",
+					headers,
+				});
+				if (del.ok) {
+					setRecords((prev) =>
+						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
+					);
+				} else {
+					console.error("delete failed", del.status);
+				}
+			} catch (err) {
+				console.error("clear error", err);
+			}
+		})();
 	}
-
-	const cardStyle: React.CSSProperties = {
-		display: "flex",
-		flexDirection: "column",
-		gap: 16,
-		minHeight: "calc(100vh - 64px)",
-		width: "calc(100% - 64px)",
-		maxWidth: "none",
-		margin: "24px auto",
-	};
 
 	return (
 		<PageTransition>
-			<div className="form-card font-montserrat" style={cardStyle}>
+			<div
+				className="form-card font-montserrat"
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					gap: 16,
+					minHeight: "calc(100vh - 64px)",
+					width: "calc(100% - 64px)",
+					margin: "24px auto",
+				}}
+			>
 				<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 					<div
 						style={{
@@ -247,24 +870,41 @@ export default function RegisterAttendance() {
 							<label className="form-label" style={{ marginBottom: 6 }}>
 								Fecha
 							</label>
-							<DatePicker
-								ref={datePickerRef}
-								selected={date}
-								onChange={(d: Date) => setDate(d)}
-								dateFormat="dd/MM/yyyy"
-								className="input-primary input-lg input-with-left-icon"
-								calendarClassName="custom-datepicker"
-								maxDate={new Date()}
-								showYearDropdown
-								scrollableYearDropdown
-								yearDropdownItemNumber={100}
-							/>
+
+							{isAdmin ? (
+								<DatePicker
+									ref={datePickerRef}
+									selected={date}
+									onChange={(d: Date) => setDate(d)}
+									dateFormat="dd/MM/yyyy"
+									className="input-primary input-lg input-with-left-icon"
+									calendarClassName="custom-datepicker"
+									maxDate={new Date()}
+									showYearDropdown
+									scrollableYearDropdown
+									yearDropdownItemNumber={100}
+								/>
+							) : (
+								<div
+									style={{
+										padding: "10px 12px",
+										borderRadius: 8,
+										background: "#fff",
+										border: "1px solid #e5e7eb",
+									}}
+								>
+									{toLocalISO(new Date())}
+									<div style={{ fontSize: 12, color: "var(--muted-color)" }}>
+										Sólo marcación para el día de hoy
+									</div>
+								</div>
+							)}
 						</div>
 
 						<div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
 							<button
 								className="btn-ghost action-btn"
-								onClick={() => loadRecordsForDate()}
+								onClick={() => void refreshAttendancesPerEnrollment(date)}
 							>
 								Actualizar
 							</button>
@@ -273,11 +913,29 @@ export default function RegisterAttendance() {
 								onClick={() => {
 									if (!confirm(`Eliminar todos los registros de ${isoDate}?`))
 										return;
-									const all = loadAllRecords().filter(
-										(r) => r.date !== isoDate,
-									);
-									saveAllRecords(all);
-									loadRecordsForDate();
+									(async () => {
+										try {
+											const headers = {
+												...getAuthHeader(),
+												Accept: "application/json",
+											};
+											const res = await fetch(
+												`/api/attendance/?date=${encodeURIComponent(isoDate)}`,
+												{ headers },
+											);
+											if (!res.ok) return;
+											const arr = await res.json().catch(() => []);
+											for (const a of arr) {
+												await fetch(`/api/attendance/${a.id}/`, {
+													method: "DELETE",
+													headers,
+												});
+											}
+											void loadAttendancesForDate(date);
+										} catch (e) {
+											console.error(e);
+										}
+									})();
 								}}
 							>
 								Limpiar fecha
@@ -303,7 +961,7 @@ export default function RegisterAttendance() {
 						}}
 					>
 						<div>
-							<h3 style={{ margin: 0, fontSize: 16 }}>Perros registrados</h3>
+							<h3 style={{ margin: 0, fontSize: 16 }}>Perros matriculados</h3>
 							<div style={{ color: "var(--muted-color)", fontSize: 13 }}>
 								{loadingCanines ? "Cargando..." : `${canines.length} perros`}
 							</div>
@@ -331,18 +989,25 @@ export default function RegisterAttendance() {
 									<th>Perro</th>
 									<th style={{ width: 240 }}>Estado</th>
 									<th style={{ width: 320 }}>Llegada</th>
-									<th style={{ width: 240 }}>Motivo</th>
+									<th style={{ width: 240 }}>Observaciones</th>
 									<th style={{ width: 80 }}></th>
 								</tr>
 							</thead>
 							<tbody>
 								{canines.map((c) => {
+									const enrollmentId = c.enrollmentId ?? c.id;
 									const rec = records.find(
-										(r) => String(r.canineId) === String(c.id),
+										(r) => String(r.enrollment) === String(enrollmentId),
 									);
-									const currentStatus = rec?.status ?? "on_time";
+
+									const wasUnlocked = !!unlockedByAdmin[String(enrollmentId)];
+									const currentStatus =
+										(rec?.status as AttendanceRecord["status"]) ?? "present";
+
+									const locked = !!rec && isLockedStatus(rec.status);
+
 									return (
-										<tr key={c.id}>
+										<tr key={String(enrollmentId)}>
 											<td style={{ padding: 12 }}>
 												<div
 													style={{
@@ -379,6 +1044,22 @@ export default function RegisterAttendance() {
 													}}
 												>
 													{isoDate}
+													{wasUnlocked && (
+														<span
+															style={{
+																marginLeft: 8,
+																fontSize: 11,
+																color: "#0f172a",
+																background: "rgba(59,130,246,0.08)",
+																padding: "4px 8px",
+																borderRadius: 8,
+																display: "inline-block",
+																marginTop: 6,
+															}}
+														>
+															Desbloqueado por admin
+														</span>
+													)}
 												</div>
 											</td>
 
@@ -387,24 +1068,74 @@ export default function RegisterAttendance() {
 													<button
 														type="button"
 														className={
-															currentStatus === "on_time"
+															currentStatus === "present"
 																? "btn-success btn-sm"
 																: "btn-ghost btn-sm"
 														}
-														onClick={() => handleSetStatus(c, "on_time")}
+														disabled={
+															(locked && !isAdmin) ||
+															!!busyEnrollments[String(enrollmentId)]
+														}
+														onClick={() =>
+															handleSetStatusFor(
+																enrollmentId,
+																c.name,
+																"present",
+															)
+														}
 													>
-														A tiempo
+														{busyEnrollments[String(enrollmentId)]
+															? "..."
+															: "Presente"}
 													</button>
 													<button
 														type="button"
 														className={
-															currentStatus === "late"
+															currentStatus === "advance_withdrawal"
 																? "btn-warning btn-sm"
 																: "btn-ghost btn-sm"
 														}
-														onClick={() => handleSetStatus(c, "late")}
+														disabled={
+															(locked && !isAdmin) ||
+															!!busyEnrollments[String(enrollmentId)]
+														}
+														onClick={() =>
+															handleSetStatusFor(
+																enrollmentId,
+																c.name,
+																"advance_withdrawal",
+															)
+														}
 													>
-														Tarde
+														Retiro anticipado
+													</button>
+													<button
+														type="button"
+														className={
+															currentStatus === "dispatched"
+																? "btn-ghost btn-sm"
+																: "btn-ghost btn-sm"
+														}
+														disabled={
+															(locked && !isAdmin) ||
+															!!busyEnrollments[String(enrollmentId)]
+														}
+														onClick={() =>
+															handleSetStatusFor(
+																enrollmentId,
+																c.name,
+																"dispatched",
+															)
+														}
+														style={
+															currentStatus === "dispatched"
+																? { background: "#bfdbfe", color: "#1e3a8a" }
+																: undefined
+														}
+													>
+														{busyEnrollments[String(enrollmentId)]
+															? "..."
+															: "Despachado"}
 													</button>
 													<button
 														type="button"
@@ -413,7 +1144,13 @@ export default function RegisterAttendance() {
 																? "btn-danger btn-sm"
 																: "btn-ghost btn-sm"
 														}
-														onClick={() => handleSetStatus(c, "absent")}
+														disabled={
+															(locked && !isAdmin) ||
+															!!busyEnrollments[String(enrollmentId)]
+														}
+														onClick={() =>
+															handleSetStatusFor(enrollmentId, c.name, "absent")
+														}
 													>
 														Ausente
 													</button>
@@ -433,16 +1170,29 @@ export default function RegisterAttendance() {
 													className="input-primary"
 													value={rec?.entryTime ?? ""}
 													onChange={(e) =>
-														handleSetEntryTime(c, e.target.value || null)
+														handleSetEntryTime(
+															enrollmentId,
+															e.target.value || null,
+														)
 													}
 													step={60}
 													style={{ minWidth: 120, borderRadius: 10 }}
+													disabled={
+														(locked && !isAdmin) ||
+														!!busyEnrollments[String(enrollmentId)]
+													}
 												/>
 												<button
 													type="button"
 													className="btn-small"
-													onClick={() => setNowTimeFor(c)}
+													onClick={() =>
+														handleSetEntryTime(enrollmentId, nowHHMM())
+													}
 													title="Set now"
+													disabled={
+														(locked && !isAdmin) ||
+														!!busyEnrollments[String(enrollmentId)]
+													}
 												>
 													🕒
 												</button>
@@ -456,23 +1206,58 @@ export default function RegisterAttendance() {
 											>
 												<input
 													className="input-primary reason-input"
-													placeholder="Motivo (opcional)"
-													value={rec?.earlyDepartureReason ?? ""}
-													onChange={(e) => handleSetReason(c, e.target.value)}
-													onBlur={(e) => handleSetReason(c, e.target.value)}
+													placeholder="Observaciones (opcional)"
+													value={
+														reasonDrafts[String(enrollmentId)] ??
+														rec?.earlyDepartureReason ??
+														""
+													}
+													onChange={(e) =>
+														handleSetReasonLocal(enrollmentId, e.target.value)
+													}
+													onBlur={() => commitReason(enrollmentId)}
+													spellCheck={true}
+													disabled={
+														(locked && !isAdmin) ||
+														!!busyEnrollments[String(enrollmentId)]
+													}
 												/>
 											</td>
 
 											<td style={{ padding: "12px 16px", textAlign: "right" }}>
 												{rec ? (
-													<button
-														className="icon-btn delete-btn"
-														onClick={() => handleClear(c)}
-														title="Eliminar"
-														aria-label={`Eliminar registro ${c.name}`}
-													>
-														🗑
-													</button>
+													rec.status === "dispatched" ||
+													rec.status === "advance_withdrawal" ? (
+														isAdmin ? (
+															<button
+																className="icon-btn delete-btn"
+																onClick={() => adminUndoDispatch(enrollmentId)}
+																title="Undo dispatch/withdrawal (admin)"
+																aria-label={`Undo dispatch ${c.name}`}
+															>
+																↩
+															</button>
+														) : (
+															<span
+																style={{
+																	color: "var(--muted-color)",
+																	fontSize: 13,
+																}}
+															>
+																Locked
+															</span>
+														)
+													) : (
+														<button
+															className="icon-btn delete-btn"
+															onClick={() => handleClear(enrollmentId)}
+															title="Eliminar"
+															aria-label={`Eliminar registro ${c.name}`}
+															disabled={locked}
+														>
+															🗑
+														</button>
+													)
 												) : (
 													<span
 														style={{
@@ -498,7 +1283,7 @@ export default function RegisterAttendance() {
 												color: "var(--muted-color)",
 											}}
 										>
-											No hay perros registrados.
+											No hay perros matriculados.
 										</td>
 									</tr>
 								)}
