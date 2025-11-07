@@ -1,0 +1,30 @@
+# https://taskfile.dev
+
+version: "3"
+
+tasks:
+  setup-backend:
+    dir: server
+    cmds:
+      - uv sync
+  setup-frontend:
+    dir: client
+    cmds:
+      - npm install
+  backend:
+    dir: server
+    cmds:
+      - uv run manage.py runserver
+  frontend:
+    dir: client
+    cmds:
+      - npm run dev
+  setup:
+    deps:
+      - setup-backend
+      - setup-frontend
+  dev:
+    deps:
+      - backend
+      - frontend
+    parallel: true
