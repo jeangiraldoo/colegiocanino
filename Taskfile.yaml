@@ -3,13 +3,23 @@
 version: "3"
 
 tasks:
+  test:
+    cmds:
+      - task: test:{{.TYPE}}
+    vars:
+      TYPE: '{{default "unit" .CLI_ARGS}}'
+  test:e2e:
+    dir: tests/e2e
+    cmds:
+      - npx cypress open
+
   setup-backend:
-    # dir: server
     cmds:
       - uv sync
   setup-frontend:
     cmds:
       - npm install
+
   backend:
     dir: server
     cmds:
@@ -17,10 +27,12 @@ tasks:
   frontend:
     cmds:
       - npm run dev
+
   setup:
     deps:
       - setup-backend
       - setup-frontend
+
   dev:
     deps:
       - backend
