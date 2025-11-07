@@ -55,20 +55,13 @@ Posteriormente ejecuta `task setup` para instalar las dependencias del Frontend 
 ### Configurar la BD
 
 - La base de datos del proyecto está alojada en Render. Para conectarse se necesitan credenciales
-  pero por motivos de seguridad no se incluyen en el codigo.
-
-- Crea el archivo: Dentro de la carpeta server/, crea un archivo llamado .env. Pega el contenido:
-  Pega las credenciales que te proporcionaron dentro de server/.env. El archivo se verá así:
-
-DATABASE_URL='postgres://user:password@host/database'
+  que siguen la estructura del [.env.example](./.env.example). Solo debes crear una copia de dicho
+  archivo con el nombre `.env`, y llenar los campos con los valores apropiados.
 
 ### Gestión de la Base de Datos
 
 La base de datos de desarrollo es una instancia de PostgreSQL alojada en Render. Todos trabajamos
 sobre esta misma base de datos para mantener la consistencia.
-
-Seguridad: La conexión se maneja a través del archivo server/.env, que está excluido del repositorio
-por .gitignore.
 
 Conexión Directa (con DBeaver, PgAdmin, etc.) Si necesitas inspeccionar la base de datos
 directamente, puedes conectarte usando un cliente de escritorio.
