@@ -1,0 +1,8 @@
+site_name: Colegio canino - Internal documentation
+docs_dir: internal
+nav:
+  - Home: index.md
+  - Project information: project_info.md
+  - Getting started: getting_started.md
+  - Daily Workflow: daily_workflow.md
+theme: readthedocs
