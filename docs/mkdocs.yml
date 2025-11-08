@@ -5,4 +5,21 @@ nav:
   - Project information: project_info.md
   - Getting started: getting_started.md
   - Daily Workflow: daily_workflow.md
-theme: readthedocs
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: pink
+      accent: pink
+      toggle:
+        name: Switch to system preference
+        icon: material/lightbulb
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: pink
+      accent: pink
+      toggle:
+        name: Switch to dark mode
+        icon: material/lightbulb-outline
