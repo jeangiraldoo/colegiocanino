@@ -1,47 +1,34 @@
-describe("Login as user 'jeanpi'", () => {
-	beforeEach(() => {
-		cy.visit("/login")
+import { TEST_DATA } from "./_test_data";
+import { login } from "./_utils";
 
-		cy.get('input[type="text"]').type("jeanpi")
-		cy.get('input[type="password"]').type("superjean")
+const NEW_USER_PROFILE_DATA = [{ name: "nuevousuario" }, { name: "jeanpi" }];
 
-		cy.get('button[type="submit"]').click()
+function update_user_profile(new_name) {
+	cy.visit("/portal-cliente/perfil");
+	cy.contains("button", "Editar Perfil").click();
+	cy.get('input[name="first_name"]').clear().type(new_name);
+	cy.contains("button", "Guardar Cambios").click();
+}
 
-		cy.url().should("include", "/portal-cliente/dashboard")
-		cy.contains("¡Bienvenido")
-		cy.contains("Jean Giraldo!")
-	})
+function test_user_on_new_profile_data(user) {
+	NEW_USER_PROFILE_DATA.forEach((newData) => {
+		it(`should update profile name to ${newData.name} and reset`, () => {
+			update_user_profile(newData.name);
+			cy.get('input[name="first_name"]').should("have.value", newData.name);
 
-	it("Should update Jean's profile", () => {
-		cy.visit("/portal-cliente/perfil")
-		cy.contains("button", "Editar Perfil").click()
-		cy.get('input[name="first_name"]').type("notjean")
-		cy.contains("button", "Guardar Cambios").click()
-		cy.get('input[name="first_name"]').should("have.value", "Jeannotjean") // Technically appends "notjean" to the current name
-	})
-})
+			update_user_profile(user.name);
+			cy.get('input[name="first_name"]').should("have.value", user.name);
+		});
+	});
+}
 
-describe("Login as user 'superclient'", () => {
-	beforeEach(() => {
-		cy.visit("/login")
-
-		cy.get('input[type="text"]').type("superclient")
-		cy.get('input[type="password"]').type("jeanclient")
-
-		cy.get('button[type="submit"]').click()
-
-		cy.url().should("include", "/portal-cliente/dashboard")
-		cy.contains("¡Bienvenido")
-		cy.contains("supername superlast!")
-	})
-
-	it("Should update superclient's profile", () => {
-		cy.visit("/portal-cliente/perfil")
-		cy.contains("button", "Editar Perfil").click()
-		cy.get('input[name="first_name"]').type("notsuperclient")
-		cy.contains("button", "Guardar Cambios").click()
-
-		// Technically appends "notsuperclient" to the current name
-		cy.get('input[name="first_name"]').should("have.value", "supernamenotsuperclient")
-	})
-})
+describe("Updating profile", () => {
+	TEST_DATA.forEach((user) => {
+		describe(`Profile modification for ${user.username}`, () => {
+			beforeEach(() => {
+				login(user);
+			});
+			test_user_on_new_profile_data(user);
+		});
+	});
+});
