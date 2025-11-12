@@ -25,6 +25,8 @@
 		"react-time-picker": "^8.0.2"
 	},
 	"devDependencies": {
+		"@commitlint/cli": "^20.1.0",
+		"@commitlint/config-conventional": "^20.0.0",
 		"@eslint/js": "^9.36.0",
 		"@types/node": "^24.6.0",
 		"@types/react": "^19.1.16",
