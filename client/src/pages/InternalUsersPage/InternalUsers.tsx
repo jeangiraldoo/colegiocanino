@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import apiClient from "../../api/axiosConfig";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import PersonIcon from "@mui/icons-material/Person";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -43,10 +44,7 @@ export const InternalUsersPage = () => {
 			if (s.access) {
 				try {
 					const payload = JSON.parse(atob(s.access.split(".")[1]));
-					if (
-						!payload.token_type ||
-						String(payload.token_type).toLowerCase() === "access"
-					) {
+					if (!payload.token_type || String(payload.token_type).toLowerCase() === "access") {
 						return { token: s.access, storage: s.name };
 					}
 				} catch {
@@ -58,19 +56,18 @@ export const InternalUsersPage = () => {
 		for (const s of storages) {
 			if (s.refresh) {
 				try {
-					const res = await fetch("/api/token/refresh/", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Accept: "application/json",
+					const res = await apiClient.post(
+						"/api/token/refresh/",
+						{ refresh: s.refresh },
+						{
+							headers: { "Content-Type": "application/json", Accept: "application/json" },
+							validateStatus: () => true,
 						},
-						body: JSON.stringify({ refresh: s.refresh }),
-					});
-					if (res.ok) {
-						const data = await res.json();
+					);
+					if (res.status >= 200 && res.status < 300) {
+						const data = res.data ?? {};
 						const newAccess = data.access;
-						if (s.name === "session")
-							sessionStorage.setItem("access_token", newAccess);
+						if (s.name === "session") sessionStorage.setItem("access_token", newAccess);
 						else localStorage.setItem("access_token", newAccess);
 						return { token: newAccess, storage: s.name };
 					}
@@ -89,36 +86,28 @@ export const InternalUsersPage = () => {
 			const token = resolved.token;
 
 			try {
-				const res = await fetch("/api/users/me/", {
-					headers: {
-						Authorization: `Bearer ${token}`,
-						Accept: "application/json",
-					},
+				const res = await apiClient.get("/api/users/me/", {
+					headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+					validateStatus: () => true,
 				});
 				if (res.status === 401) {
 					const refreshed = await resolveAccessToken();
 					if (!refreshed) return;
-					const retry = await fetch("/api/users/me/", {
-						headers: {
-							Authorization: `Bearer ${refreshed.token}`,
-							Accept: "application/json",
-						},
+					const retry = await apiClient.get("/api/users/me/", {
+						headers: { Authorization: `Bearer ${refreshed.token}`, Accept: "application/json" },
+						validateStatus: () => true,
 					});
-					if (!retry.ok) return;
-					const data = await retry.json();
+					if (!(retry.status >= 200 && retry.status < 300)) return;
+					const data = retry.data ?? {};
 					const display =
-						[data.first_name, data.last_name].filter(Boolean).join(" ") ||
-						data.username ||
-						"";
+						[data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "";
 					setUsername(display);
 					return;
 				}
-				if (!res.ok) return;
-				const data = await res.json();
+				if (!(res.status >= 200 && res.status < 300)) return;
+				const data = res.data ?? {};
 				const display =
-					[data.first_name, data.last_name].filter(Boolean).join(" ") ||
-					data.username ||
-					"";
+					[data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "";
 				setUsername(display);
 			} catch {
 				// silent fail, keep username empty
@@ -192,10 +181,7 @@ export const InternalUsersPage = () => {
 								{username ? `${username}!` : "¡Usuario!"}
 							</p>
 							{role && (
-								<div
-									className="text-xs"
-									style={{ color: "var(--muted-color)" }}
-								>
+								<div className="text-xs" style={{ color: "var(--muted-color)" }}>
 									Rol: {role}
 								</div>
 							)}
@@ -214,53 +200,35 @@ export const InternalUsersPage = () => {
 					)}
 
 					{canAccess.registerUsers && (
-						<Link
-							to="registrar-usuarios"
-							className="sidebar-link has-hover-indicator"
-						>
+						<Link to="registrar-usuarios" className="sidebar-link has-hover-indicator">
 							<PersonAddIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar usuarios</span>
 						</Link>
 					)}
 
 					{canAccess.manageUsers && (
-						<Link
-							to="administrar-usuarios"
-							className="sidebar-link has-hover-indicator"
-						>
+						<Link to="administrar-usuarios" className="sidebar-link has-hover-indicator">
 							<SupervisorAccountIcon className="sidebar-icon" />
 							<span className="sidebar-text">Administrar Usuarios</span>
 						</Link>
 					)}
 
 					{canAccess.registerAttendance && (
-						<Link
-							to="registrar-asistencia"
-							className="sidebar-link has-hover-indicator"
-						>
+						<Link to="registrar-asistencia" className="sidebar-link has-hover-indicator">
 							<EventAvailableIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar asistencia</span>
 						</Link>
 					)}
 
 					{canAccess.viewAttendance && (
-						<Link
-							to="visualizar-asistencia"
-							className="sidebar-link has-hover-indicator"
-						>
+						<Link to="visualizar-asistencia" className="sidebar-link has-hover-indicator">
 							<VisibilityIcon className="sidebar-icon" />
 							<span className="sidebar-text">Visualizar asistencia</span>
 						</Link>
 					)}
 				</nav>
-				<div
-					className="p-4 border-t"
-					style={{ borderColor: "rgba(15,23,32,0.06)" }}
-				>
-					<Link
-						to="configuracion"
-						className="sidebar-action has-hover-indicator font-montserrat"
-					>
+				<div className="p-4 border-t" style={{ borderColor: "rgba(15,23,32,0.06)" }}>
+					<Link to="configuracion" className="sidebar-action has-hover-indicator font-montserrat">
 						<SettingsIcon className="sidebar-icon-action" />
 						<span className="sidebar-text-action">Configuración</span>
 					</Link>

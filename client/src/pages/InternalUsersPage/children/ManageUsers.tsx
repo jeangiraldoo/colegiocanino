@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import type { AxiosResponse } from "axios";
+import apiClient from "../../../api/axiosConfig";
 import PersonIcon from "@mui/icons-material/Person";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -7,9 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
 
 const getAuthHeader = () => {
-	const token =
-		localStorage.getItem("access_token") ||
-		sessionStorage.getItem("access_token");
+	const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 	return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -58,9 +58,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const API_BASE =
-	typeof import.meta !== "undefined" &&
-	import.meta.env &&
-	import.meta.env.VITE_API_URL
+	typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL
 		? String(import.meta.env.VITE_API_URL)
 		: "http://127.0.0.1:8000";
 
@@ -79,12 +77,19 @@ export default function ManageUsers() {
 	const [error, setError] = useState<string | null>(null);
 	const navigate = useNavigate();
 
+	const filtered = useMemo(() => {
+		const q = query.trim().toLowerCase();
+		if (!q) return users;
+		return users.filter((u) => {
+			const hay = `${u.name} ${u.last_name} ${u.username} ${u.email} ${u.document_id}`;
+			return hay.toLowerCase().includes(q);
+		});
+	}, [users, query]);
+
 	// load real internal-users from API (handle missing token / forbidden)
 	useEffect(() => {
 		(async () => {
-			const token =
-				localStorage.getItem("access_token") ||
-				sessionStorage.getItem("access_token");
+			const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 			if (!token) {
 				setError("Not authenticated. Redirecting to login...");
 				setTimeout(() => navigate("/login"), 700);
@@ -96,47 +101,49 @@ export default function ManageUsers() {
 			try {
 				let meId: string | null = null;
 				try {
-					const meRes = await fetch("/api/users/me/", { headers });
-					if (meRes.ok) {
-						const meJson = await meRes.json().catch(() => null);
-						meId =
-							meJson && (meJson.id ?? meJson.pk)
-								? String(meJson.id ?? meJson.pk)
-								: null;
+					const meRes = await apiClient.get("/api/users/me/", {
+						headers,
+						validateStatus: () => true,
+					});
+					if (meRes.status >= 200 && meRes.status < 300) {
+						const meJson = meRes.data ?? null;
+						meId = meJson && (meJson.id ?? meJson.pk) ? String(meJson.id ?? meJson.pk) : null;
 					}
 				} catch (err) {
 					console.warn("Could not fetch current user id:", err);
 				}
 
 				const [intResp, usersResp] = await Promise.allSettled([
-					fetch("/api/internal-users/", { headers }),
-					fetch("/api/users/", { headers }),
+					apiClient.get("/api/internal-users/", { headers, validateStatus: () => true }),
+					apiClient.get("/api/users/", { headers, validateStatus: () => true }),
 				]);
 
-				const intOk = intResp.status === "fulfilled" && intResp.value.ok;
-				const usersOk = usersResp.status === "fulfilled" && usersResp.value.ok;
+				function isFulfilled<T>(r: PromiseSettledResult<T>): r is PromiseFulfilledResult<T> {
+					return r.status === "fulfilled";
+				}
+
+				const intOk =
+					isFulfilled(intResp) &&
+					(intResp.value as AxiosResponse).status >= 200 &&
+					(intResp.value as AxiosResponse).status < 300;
+				const usersOk =
+					isFulfilled(usersResp) &&
+					(usersResp.value as AxiosResponse).status >= 200 &&
+					(usersResp.value as AxiosResponse).status < 300;
 
 				if (!intOk && !usersOk) {
-					if (intResp.status === "fulfilled" && intResp.value.status === 401) {
-						setError(
-							"Access denied. Admin privileges are required to manage internal users.",
-						);
+					if (isFulfilled(intResp) && (intResp.value as AxiosResponse).status === 401) {
+						setError("Access denied. Admin privileges are required to manage internal users.");
 						return;
 					}
 					setError("Failed to load internal users.");
 					return;
 				}
 
-				const intData: ApiInternal[] = intOk
-					? ((await (intResp as PromiseFulfilledResult<Response>).value
-							.json()
-							.catch(() => [])) ?? [])
-					: [];
-				const usersData: ApiUser[] = usersOk
-					? ((await (usersResp as PromiseFulfilledResult<Response>).value
-							.json()
-							.catch(() => [])) ?? [])
-					: [];
+				const intData: ApiInternal[] =
+					intOk && isFulfilled(intResp) ? (intResp.value.data ?? []) : [];
+				const usersData: ApiUser[] =
+					usersOk && isFulfilled(usersResp) ? (usersResp.value.data ?? []) : [];
 
 				const userById = new Map<string, ApiUser>();
 				const userByUsername = new Map<string, ApiUser>();
@@ -167,34 +174,29 @@ export default function ManageUsers() {
 					const username = fullUser?.username ?? d?.username ?? "";
 					const email = fullUser?.email ?? d?.email ?? "";
 					const document_id =
-						fullUser?.document_id ??
-						(fullUser as unknown as Record<string, unknown>)["documentId"] ??
-						d?.document_id ??
-						d?.documentId ??
+						(fullUser &&
+							(fullUser.document_id ?? (fullUser as Record<string, unknown>)["documentId"])) ??
+						(d &&
+							((d as Record<string, unknown>)["document_id"] ??
+								(d as Record<string, unknown>)["documentId"])) ??
 						"";
 					const firstName =
-						fullUser?.first_name ??
-						(fullUser as unknown as Record<string, unknown>)["firstName"] ??
+						(fullUser &&
+							(fullUser.first_name ?? (fullUser as Record<string, unknown>)["firstName"])) ??
 						d?.name ??
 						"";
 					const lastName =
-						fullUser?.last_name ??
-						(fullUser as unknown as Record<string, unknown>)["lastName"] ??
+						((fullUser as Record<string, unknown>)["last_name"] as string | undefined) ??
+						((fullUser as Record<string, unknown>)["lastName"] as string | undefined) ??
 						d?.last_name ??
 						"";
 					const rawPhoto =
-						d?.photo ??
-						(fullUser as unknown as Record<string, unknown>)["photo"] ??
+						(d?.photo as string | null | undefined) ??
+						((fullUser as Record<string, unknown>)["photo"] as string | null | undefined) ??
 						null;
 
 					return {
-						id: String(
-							d?.id ??
-								d?.pk ??
-								(fullUser && (fullUser.id ?? null)) ??
-								username ??
-								"",
-						),
+						id: String(d?.id ?? d?.pk ?? (fullUser && (fullUser.id ?? null)) ?? username ?? ""),
 						document_id: String(document_id ?? ""),
 						username: String(username ?? ""),
 						name: String(firstName ?? ""),
@@ -210,44 +212,39 @@ export default function ManageUsers() {
 				);
 
 				const needProfile = resolved
-					.map((r: InternalUser) => ({
-						id: r.id,
-						missing: !r.email || !r.document_id,
-					}))
+					.map((r: InternalUser) => ({ id: r.id, missing: !r.email || !r.document_id }))
 					.filter((x) => x.missing)
 					.map((x) => x.id);
 
 				if (needProfile.length > 0) {
 					try {
 						const profilePromises = needProfile.map((uid) =>
-							fetch(`/api/users/${encodeURIComponent(uid)}/profile/`, {
-								headers,
-							}).then((res) => (res.ok ? res.json().catch(() => null) : null)),
+							apiClient
+								.get(`/api/users/${encodeURIComponent(uid)}/profile/`, {
+									headers,
+									validateStatus: () => true,
+								})
+								.then((r) => (r.status >= 200 && r.status < 300 ? r.data : null)),
 						);
-						const profiles = (await Promise.all(
-							profilePromises,
-						)) as Array<Record<string, unknown> | null>;
+						const profiles = (await Promise.all(profilePromises)) as Array<Record<
+							string,
+							unknown
+						> | null>;
 						for (let i = 0; i < needProfile.length; i++) {
 							const uid = needProfile[i];
 							const p = profiles[i];
 							if (!p) continue;
-							const pUser =
-								(p["user"] as Record<string, unknown> | undefined) ?? undefined;
+							const pUser = (p["user"] as Record<string, unknown> | undefined) ?? undefined;
 							if (!pUser) continue;
-							const idx = resolved.findIndex(
-								(r) => String(r.id) === String(uid),
-							);
+							const idx = resolved.findIndex((r) => String(r.id) === String(uid));
 							if (idx === -1) continue;
 							resolved[idx] = {
 								...resolved[idx],
 								email: (pUser["email"] as string) ?? resolved[idx].email,
-								document_id:
-									(pUser["document_id"] as string) ?? resolved[idx].document_id,
+								document_id: (pUser["document_id"] as string) ?? resolved[idx].document_id,
 								name: (pUser["first_name"] as string) ?? resolved[idx].name,
-								last_name:
-									(pUser["last_name"] as string) ?? resolved[idx].last_name,
-								username:
-									(pUser["username"] as string) ?? resolved[idx].username,
+								last_name: (pUser["last_name"] as string) ?? resolved[idx].last_name,
+								username: (pUser["username"] as string) ?? resolved[idx].username,
 							};
 						}
 					} catch (e) {
@@ -264,53 +261,33 @@ export default function ManageUsers() {
 		})();
 	}, [navigate]);
 
-	const filtered = useMemo(() => {
-		const q = query.trim().toLowerCase();
-		if (!q) return users;
-		return users.filter(
-			(u) =>
-				u.name.toLowerCase().includes(q) ||
-				u.last_name.toLowerCase().includes(q) ||
-				u.username.toLowerCase().includes(q) ||
-				u.email.toLowerCase().includes(q) ||
-				u.document_id.includes(q),
-		);
-	}, [users, query]);
-
-	function handleDelete(id: string) {
-		if (!confirm("Delete user?")) return;
-		(async () => {
-			try {
-				const headers = { ...getAuthHeader(), Accept: "application/json" };
-				const res = await fetch(
-					`/api/internal-users/${encodeURIComponent(id)}/`,
-					{
-						method: "DELETE",
-						headers,
-					},
-				);
-				if (!res.ok) {
-					console.error("delete failed", await res.text().catch(() => ""));
-					return;
-				}
-				setUsers((s) => s.filter((u) => u.id !== id));
-			} catch (e) {
-				console.error("delete error", e);
-			}
-		})();
-	}
-
 	function openEditor(u: InternalUser) {
 		setEditing(u);
 		setPanelOpen(true);
 	}
 
 	function handleSave(updated: InternalUser) {
-		setUsers((s) =>
-			s.map((x) => (String(x.id) === String(updated.id) ? updated : x)),
-		);
+		setUsers((s) => s.map((x) => (String(x.id) === String(updated.id) ? updated : x)));
 		setPanelOpen(false);
 		setEditing(null);
+	}
+
+	async function handleDelete(id: string) {
+		if (!confirm("¿Eliminar usuario? Esta acción no se puede deshacer.")) return;
+		try {
+			const headers = { ...getAuthHeader(), Accept: "application/json" };
+			const res = await apiClient.delete(`/api/internal-users/${encodeURIComponent(String(id))}/`, {
+				headers,
+				validateStatus: () => true,
+			});
+			if (!(res.status >= 200 && res.status < 300)) {
+				console.error("delete failed", res.data ?? "");
+				return;
+			}
+			setUsers((s) => s.filter((u) => String(u.id) !== String(id)));
+		} catch (e) {
+			console.error("delete error", e);
+		}
 	}
 
 	return (
@@ -329,10 +306,7 @@ export default function ManageUsers() {
 						>
 							{error}{" "}
 							{error.includes("Redirecting") ? null : (
-								<Link
-									to="/login"
-									style={{ marginLeft: 8, textDecoration: "underline" }}
-								>
+								<Link to="/login" style={{ marginLeft: 8, textDecoration: "underline" }}>
 									Login
 								</Link>
 							)}
@@ -347,21 +321,15 @@ export default function ManageUsers() {
 						}}
 					>
 						<div>
-							<h1
-								style={{ margin: 0, fontSize: 22, color: "var(--text-color)" }}
-							>
+							<h1 style={{ margin: 0, fontSize: 22, color: "var(--text-color)" }}>
 								Usuarios internos
 							</h1>
 							<p style={{ margin: 0, color: "var(--muted-color)" }}>
-								Lista de usuarios activos. Registra nuevos desde "Registrar
-								usuarios".
+								Lista de usuarios activos. Registra nuevos desde "Registrar usuarios".
 							</p>
 						</div>
 						<div style={{ display: "flex", gap: 8 }}>
-							<Link
-								to="/internal-users/registrar-usuarios"
-								className="btn btn-primary"
-							>
+							<Link to="/internal-users/registrar-usuarios" className="btn btn-primary">
 								+ Nuevo
 							</Link>
 						</div>
@@ -398,10 +366,7 @@ export default function ManageUsers() {
 					</div>
 
 					<div className="form-card" style={{ padding: 0 }}>
-						<table
-							style={{ width: "100%", borderCollapse: "collapse" }}
-							className="manage-table"
-						>
+						<table style={{ width: "100%", borderCollapse: "collapse" }} className="manage-table">
 							<thead>
 								<tr>
 									<th style={{ width: 60 }}></th>
@@ -414,9 +379,7 @@ export default function ManageUsers() {
 							</thead>
 							<tbody>
 								{filtered.map((u, idx) => {
-									const rowKey = String(
-										u.id ?? u.username ?? u.document_id ?? `user-${idx}`,
-									);
+									const rowKey = String(u.id ?? u.username ?? u.document_id ?? `user-${idx}`);
 									return (
 										<tr key={rowKey}>
 											<td style={{ padding: 12 }}>
@@ -450,8 +413,7 @@ export default function ManageUsers() {
 																	"User photo not found, falling back to placeholder:",
 																	u.photo,
 																);
-																img.src =
-																	"https://via.placeholder.com/150?text=avatar";
+																img.src = "https://via.placeholder.com/150?text=avatar";
 															}}
 														/>
 													) : (
@@ -517,11 +479,7 @@ export default function ManageUsers() {
 											</td>
 
 											<td style={{ padding: "12px 16px", textAlign: "right" }}>
-												<button
-													className="icon-btn"
-													onClick={() => openEditor(u)}
-													title="Editar"
-												>
+												<button className="icon-btn" onClick={() => openEditor(u)} title="Editar">
 													<EditIcon fontSize="small" />
 												</button>
 												<button

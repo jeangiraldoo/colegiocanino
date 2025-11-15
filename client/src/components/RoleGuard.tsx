@@ -14,7 +14,6 @@ export default function RoleGuard({ allowed, children }: RoleGuardProps) {
 	).toString();
 	const role = raw ? raw.toUpperCase() : "";
 	if (!role) return <Navigate to="/login" replace />;
-	if (allowed.map((r) => r.toUpperCase()).includes(role))
-		return <>{children}</>;
+	if (allowed.map((r) => r.toUpperCase()).includes(role)) return <>{children}</>;
 	return <Navigate to="/internal-users" replace />;
 }
