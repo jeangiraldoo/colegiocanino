@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const getAuthHeader = () => {
-	const token =
-		localStorage.getItem("access_token") ||
-		sessionStorage.getItem("access_token");
+	const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 	return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -58,12 +56,10 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 	// produce only changed user fields to avoid unique-username validation conflicts
 	function buildChangedUserPayload(): Record<string, string | undefined> {
 		const changed: Record<string, string | undefined> = {};
-		if (String(form.name ?? "") !== String(user.name ?? ""))
-			changed.first_name = form.name;
+		if (String(form.name ?? "") !== String(user.name ?? "")) changed.first_name = form.name;
 		if (String(form.last_name ?? "") !== String(user.last_name ?? ""))
 			changed.last_name = form.last_name;
-		if (String(form.email ?? "") !== String(user.email ?? ""))
-			changed.email = form.email;
+		if (String(form.email ?? "") !== String(user.email ?? "")) changed.email = form.email;
 		if (String(form.document_id ?? "") !== String(user.document_id ?? ""))
 			changed.document_id = form.document_id;
 		if (String(form.username ?? "") !== String(user.username ?? ""))
@@ -78,8 +74,7 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 		try {
 			const changedUser = buildChangedUserPayload();
 			const changedInternal: Partial<{ role: string }> = {};
-			if (String(form.role ?? "") !== String(user.role ?? ""))
-				changedInternal.role = form.role;
+			if (String(form.role ?? "") !== String(user.role ?? "")) changedInternal.role = form.role;
 
 			if (fileObj) {
 				const fd = new FormData();
@@ -91,18 +86,15 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 				fd.append("role", changedInternal.role ?? form.role ?? "");
 				fd.append("photo", fileObj);
 
-				const res = await fetch(
-					`/api/internal-users/${encodeURIComponent(form.id)}/`,
-					{
-						method: "PATCH",
-						headers: {
-							...getAuthHeader(),
-							Accept: "application/json",
-							// Do NOT set Content-Type; browser will set the multipart boundary
-						},
-						body: fd,
+				const res = await fetch(`/api/internal-users/${encodeURIComponent(form.id)}/`, {
+					method: "PATCH",
+					headers: {
+						...getAuthHeader(),
+						Accept: "application/json",
+						// Do NOT set Content-Type; browser will set the multipart boundary
 					},
-				);
+					body: fd,
+				});
 
 				if (!res.ok) {
 					const errText = await res.text().catch(() => "");
@@ -120,13 +112,10 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 				const saved = await res.json().catch(() => null);
 				const updatedUser: User = {
 					id: (saved && (saved.id ?? form.id)) as string,
-					document_id:
-						(saved && saved.user && saved.user.document_id) ?? form.document_id,
-					username:
-						(saved && saved.user && saved.user.username) ?? form.username,
+					document_id: (saved && saved.user && saved.user.document_id) ?? form.document_id,
+					username: (saved && saved.user && saved.user.username) ?? form.username,
 					name: (saved && saved.user && saved.user.first_name) ?? form.name,
-					last_name:
-						(saved && saved.user && saved.user.last_name) ?? form.last_name,
+					last_name: (saved && saved.user && saved.user.last_name) ?? form.last_name,
 					email: (saved && saved.user && saved.user.email) ?? form.email,
 					role: (saved && saved.role) ?? form.role,
 					photo: (saved && saved.photo) ?? form.photo ?? null,
@@ -146,21 +135,15 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 					"Content-Type": "application/json",
 					...getAuthHeader(),
 				};
-				const res = await fetch(
-					`/api/internal-users/${encodeURIComponent(form.id)}/`,
-					{
-						method: "PATCH",
-						headers,
-						body: JSON.stringify(payload),
-					},
-				);
+				const res = await fetch(`/api/internal-users/${encodeURIComponent(form.id)}/`, {
+					method: "PATCH",
+					headers,
+					body: JSON.stringify(payload),
+				});
 
 				if (!res.ok) {
 					const errJson = await res.json().catch(() => null);
-					console.error(
-						"update internal user failed",
-						errJson ?? "bad response",
-					);
+					console.error("update internal user failed", errJson ?? "bad response");
 					onSave(form);
 					return;
 				}
@@ -168,13 +151,10 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 				const saved = await res.json().catch(() => null);
 				const updatedUser: User = {
 					id: (saved && (saved.id ?? form.id)) as string,
-					document_id:
-						(saved && saved.user && saved.user.document_id) ?? form.document_id,
-					username:
-						(saved && saved.user && saved.user.username) ?? form.username,
+					document_id: (saved && saved.user && saved.user.document_id) ?? form.document_id,
+					username: (saved && saved.user && saved.user.username) ?? form.username,
 					name: (saved && saved.user && saved.user.first_name) ?? form.name,
-					last_name:
-						(saved && saved.user && saved.user.last_name) ?? form.last_name,
+					last_name: (saved && saved.user && saved.user.last_name) ?? form.last_name,
 					email: (saved && saved.user && saved.user.email) ?? form.email,
 					role: (saved && saved.role) ?? form.role,
 					photo: (saved && saved.photo) ?? form.photo ?? null,
@@ -258,9 +238,7 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 								gap: 8,
 							}}
 						>
-							<span style={{ fontSize: 14, color: "var(--muted-color)" }}>
-								📁
-							</span>
+							<span style={{ fontSize: 14, color: "var(--muted-color)" }}>📁</span>
 							<span style={{ fontWeight: 600 }}>Seleccionar foto</span>
 						</label>
 
@@ -295,9 +273,7 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 					<input
 						className="input-primary w-full"
 						value={form.last_name}
-						onChange={(e) =>
-							setForm((s) => ({ ...s, last_name: e.target.value }))
-						}
+						onChange={(e) => setForm((s) => ({ ...s, last_name: e.target.value }))}
 					/>
 				</div>
 
@@ -315,9 +291,7 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 					<input
 						className="input-primary w-full"
 						value={form.username}
-						onChange={(e) =>
-							setForm((s) => ({ ...s, username: e.target.value }))
-						}
+						onChange={(e) => setForm((s) => ({ ...s, username: e.target.value }))}
 					/>
 					<small style={{ color: "#6b7280" }}>
 						No cambies el usuario si no es necesario (evita conflicto)
@@ -353,12 +327,7 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 				</div>
 
 				<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-					<button
-						type="button"
-						className="btn-cancel"
-						onClick={onCancel}
-						disabled={saving}
-					>
+					<button type="button" className="btn-cancel" onClick={onCancel} disabled={saving}>
 						Cancelar
 					</button>
 					<button type="submit" className="btn-primary" disabled={saving}>

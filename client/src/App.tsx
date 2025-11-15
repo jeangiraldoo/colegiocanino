@@ -1,10 +1,5 @@
 import React from "react";
-import {
-	BrowserRouter as Router,
-	Routes,
-	Route,
-	Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
 import { HomePage } from "./pages/HomePage/HomePage";
 import { RegisterPage } from "./pages/RegisterPage/RegisterPage";
@@ -34,7 +29,14 @@ function App() {
 
 				<Route path="/internal-users" element={<InternalUsers />}>
 					<Route index element={<Navigate to="dashboard" replace />} />
-					<Route path="dashboard" element={<DashboardContent />} />
+					<Route
+						path="dashboard"
+						element={
+							<RoleGuard allowed={["ADMIN", "COACH", "DIRECTOR"]}>
+								<DashboardContent />
+							</RoleGuard>
+						}
+					/>
 					<Route
 						path="registrar-usuarios"
 						element={
