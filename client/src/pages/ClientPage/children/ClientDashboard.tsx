@@ -49,9 +49,7 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
 
 export default function ClientDashboard() {
 	const navigate = useNavigate();
-	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-		null,
-	);
+	const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
 	const [selectedCanineId, setSelectedCanineId] = useState<string>("11"); // Por defecto, el primer canino
 	const [loading, setLoading] = useState(true);
 
@@ -96,8 +94,7 @@ export default function ClientDashboard() {
 								</div>
 							</div>
 							<p className="mt-4 text-gray-600">
-								Tu plan vence el: **31 de Octubre, 2026**. Incluye servicio de
-								transporte completo.
+								Tu plan vence el: **31 de Octubre, 2026**. Incluye servicio de transporte completo.
 							</p>
 							<button className="mt-4 btn-ghost w-full">Ver Detalles</button>
 						</div>
@@ -130,25 +127,19 @@ export default function ClientDashboard() {
 
 							{selectedAttendance ? (
 								<>
-									<p className="text-gray-500 text-sm mt-1">
-										{selectedAttendance.canineName}
-									</p>
+									<p className="text-gray-500 text-sm mt-1">{selectedAttendance.canineName}</p>
 									<p className="mt-4 text-gray-600">
-										Llegada: **{selectedAttendance.entryTime}** (
-										{selectedAttendance.status}). Salida: Aún en el colegio.
+										Llegada: **{selectedAttendance.entryTime}** ({selectedAttendance.status}).
+										Salida: Aún en el colegio.
 									</p>
 								</>
 							) : (
-								<p className="mt-4 text-gray-600">
-									No hay registros de asistencia para hoy.
-								</p>
+								<p className="mt-4 text-gray-600">No hay registros de asistencia para hoy.</p>
 							)}
 
 							<button
 								className="mt-4 btn-ghost w-full"
-								onClick={() =>
-									navigate(`/portal-cliente/mis-mascotas/${selectedCanineId}`)
-								}
+								onClick={() => navigate(`/portal-cliente/mis-mascotas/${selectedCanineId}`)}
 							>
 								Ver Historial de Asistencia
 							</button>
@@ -162,9 +153,7 @@ export default function ClientDashboard() {
 								</div>
 								<div>
 									<h3 className="text-lg font-bold">Mi Perfil</h3>
-									<p className="text-gray-500 text-sm">
-										Mantén tus datos actualizados
-									</p>
+									<p className="text-gray-500 text-sm">Mantén tus datos actualizados</p>
 								</div>
 							</div>
 							<p className="mt-4 text-gray-600">
@@ -185,19 +174,17 @@ export default function ClientDashboard() {
 									<PetsIcon />
 								</div>
 								<div>
-									<h3 className="text-lg font-bold">
-										¿Nuevo miembro en la familia?
-									</h3>
-									<p className="text-white/80 text-sm">
-										Inscribe a tu canino en nuestros planes.
-									</p>
+									<h3 className="text-lg font-bold">¿Nuevo miembro en la familia?</h3>
+									<p className="text-white/80 text-sm">Inscribe a tu canino en nuestros planes.</p>
 								</div>
 							</div>
 							<p className="mt-4">
-								Ofrecemos planes mensuales, bimestrales y anuales con opción de
-								transporte.
+								Ofrecemos planes mensuales, bimestrales y anuales con opción de transporte.
 							</p>
-							<button className="mt-4 bg-white text-amber-500 font-bold py-2 px-4 rounded-lg w-full">
+							<button
+								className="mt-4 bg-white text-amber-500 font-bold py-2 px-4 rounded-lg w-full"
+								onClick={() => navigate("/portal-cliente/matricular-canino")}
+							>
 								Matricular un Nuevo Canino
 							</button>
 						</div>
