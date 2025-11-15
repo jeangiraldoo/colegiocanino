@@ -18,6 +18,7 @@ import ClientDashboard from "./pages/ClientPage/children/ClientDashboard";
 import MyPets from "./pages/ClientPage/children/MyPets";
 import ClientProfile from "./pages/ClientPage/children/ClientProfile";
 import PetDetailPage from "./pages/ClientPage/children/PetDetailPage";
+import EnrollCanine from "./pages/ClientPage/children/EnrollCanine";
 
 function App() {
 	return (
@@ -77,6 +78,7 @@ function App() {
 					<Route path="mis-mascotas" element={<MyPets />} />
 					<Route path="mis-mascotas/:canineId" element={<PetDetailPage />} />
 					<Route path="perfil" element={<ClientProfile />} />
+					<Route path="matricular-canino" element={<EnrollCanine />} />
 				</Route>
 			</Routes>
 		</Router>
