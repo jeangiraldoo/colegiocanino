@@ -226,6 +226,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 		queryset = Enrollment.objects.all()
+		user = self.request.user
 
 		# Filters
 		canine_id = self.request.query_params.get("canine_id", None)
@@ -233,6 +234,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 		size = self.request.query_params.get("size", None)
 		breed = self.request.query_params.get("breed", None)
 		status = self.request.query_params.get("status", None)
+		mine = self.request.query_params.get("mine")
 
 		if canine_id:
 			queryset = queryset.filter(canine_id=canine_id)
@@ -244,6 +246,9 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 			queryset = queryset.filter(canine__breed__icontains=breed)
 		if status is not None:
 			queryset = queryset.filter(status=status.lower() == "true")
+
+		if mine and mine.lower() == "true":
+			queryset = queryset.filter(canine__client__user=user)
 
 		return queryset
 
