@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -6,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -81,6 +83,57 @@ class InternalUserViewSet(viewsets.ModelViewSet):
 	search_fields = ["user__username", "user__email", "role"]
 	ordering_fields = ["user__date_joined"]
 	ordering = ["-user__date_joined"]
+	parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+	def _coerce_user_field(self, data):
+		"""
+		Build a plain mutable dict from request.data without deep-copying file objects.
+		If 'user' is a JSON string (common when sending FormData), parse it.
+		"""
+		plain = {}
+		try:
+			for key in getattr(data, "keys", lambda: [])():
+				val = data.get(key)
+				if key == "user" and isinstance(val, str):
+					try:
+						plain["user"] = json.loads(val)
+						continue
+					except Exception:
+						pass
+				plain[key] = val
+		except Exception:
+			try:
+				plain = dict(data)
+			except Exception:
+				plain = {}
+		return plain
+
+	def create(self, request, *args, **kwargs):
+		data = self._coerce_user_field(request.data)
+		serializer = self.get_serializer(data=data)
+		serializer.is_valid(raise_exception=True)
+		self.perform_create(serializer)
+		headers = self.get_success_headers(serializer.data)
+		return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+	def partial_update(self, request, *args, **kwargs):
+		partial = True
+		instance = self.get_object()
+		data = self._coerce_user_field(request.data)
+		serializer = self.get_serializer(instance, data=data, partial=partial)
+		serializer.is_valid(raise_exception=True)
+		self.perform_update(serializer)
+		return Response(serializer.data)
+
+	def destroy(self, request, *args, **kwargs):
+		from django.db import transaction
+
+		instance = self.get_object()
+		user = instance.user
+		with transaction.atomic():
+			self.perform_destroy(instance)
+			user.delete()
+		return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -516,7 +569,9 @@ class DashboardStatsView(APIView):
 		# Upcoming expirations (next 30 days)
 		thirty_days_from_now = today + timedelta(days=30)
 		upcoming_expirations = Enrollment.objects.filter(
-			status=True, expiration_date__lte=thirty_days_from_now, expiration_date__gte=today
+			status=True,
+			expiration_date__lte=thirty_days_from_now,
+			expiration_date__gte=today,
 		).count()
 
 		stats = {

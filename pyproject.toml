@@ -9,7 +9,11 @@ dependencies = [
     "drf-spectacular>=0.28,<0.29",
     "djangorestframework-simplejwt>=2.8",
     "python-dotenv>=1.1.1",
-    "dj-database-url>=1.0.0"
+    "dj-database-url>=1.0.0",
+    "django-cors-headers",
+    "Pillow",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.23",
 ]
 readme = "README.md"
 authors = [
@@ -38,9 +42,7 @@ include = ["server*"]
 line-length = 100
 indent-width = 4
 exclude = [
-    "migrations",
-    "*/migrations/*",
-    "**/*migrations*/**",
+    "**/migrations/",
 ]
 
 [tool.ruff.format]
