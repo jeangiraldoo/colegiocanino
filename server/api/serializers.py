@@ -78,12 +78,40 @@ class UserSerializer(serializers.ModelSerializer):
 		return instance
 
 
+class FlexibleDateField(serializers.DateField):
+	"""DateField that accepts both date and datetime ISO strings"""
+
+	def to_internal_value(self, data):
+		if data is None:
+			return None
+		if isinstance(data, datetime.date):
+			return data
+		if isinstance(data, datetime.datetime):
+			return data.date()
+		if isinstance(data, str):
+			# Try to parse as datetime ISO first
+			try:
+				# Handle Z suffix (UTC)
+				if data.endswith("Z"):
+					data = data.replace("Z", "+00:00")
+				# Try datetime ISO format
+				dt = datetime.datetime.fromisoformat(data)
+				return dt.date()
+			except (ValueError, AttributeError):
+				# Fall back to standard date parsing
+				pass
+		# Use parent class for standard date format (YYYY-MM-DD)
+		return super().to_internal_value(data)
+
+
 class InternalUserSerializer(serializers.ModelSerializer):
 	"""Internal user profile serializer with nested user creation/update"""
 
 	user = UserSerializer()
 	user_id = serializers.IntegerField(source="user.id", read_only=True)
 	photo = serializers.ImageField(allow_null=True, required=False)
+	birthdate = FlexibleDateField(required=False, allow_null=True)
+	date_joined = FlexibleDateField(required=False, allow_null=True)
 
 	class Meta:
 		model = InternalUser
@@ -162,42 +190,83 @@ class InternalUserSerializer(serializers.ModelSerializer):
 
 		return data
 
+	def _convert_to_date(self, value):
+		"""Convert datetime to date if necessary"""
+		if value is None:
+			return None
+		if isinstance(value, datetime.datetime):
+			return value.date()
+		if isinstance(value, str):
+			# Try to parse as datetime first, then extract date
+			try:
+				dt = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+				return dt.date()
+			except (ValueError, AttributeError):
+				pass
+		return value
+
+	def validate_birthdate(self, value):
+		"""Ensure birthdate is a date object, not datetime"""
+		return self._convert_to_date(value)
+
+	def validate_date_joined(self, value):
+		"""Ensure date_joined is a date object, not datetime"""
+		return self._convert_to_date(value)
+
 	def create(self, validated_data):
 		user_data = validated_data.pop("user")
 		photo = validated_data.pop("photo", None)
 		password = user_data.pop("password", None)
 
-		allowed_field_names = [f.name for f in User._meta.fields]
-		user_kwargs = {k: v for k, v in user_data.items() if k in allowed_field_names}
+		allowed = {f.name for f in User._meta.fields}
+		user_kwargs = {k: v for k, v in user_data.items() if k in allowed}
+
 		user = User.objects.create(**user_kwargs)
 
 		if password:
 			user.set_password(password)
+
 		if validated_data.get("role") == InternalUser.Roles.ADMIN:
 			user.is_staff = True
+
 		user.save()
 
+		if "birthdate" in validated_data:
+			validated_data["birthdate"] = self._convert_to_date(validated_data["birthdate"])
+		if "date_joined" in validated_data:
+			validated_data["date_joined"] = self._convert_to_date(validated_data["date_joined"])
+
 		internal_user = InternalUser.objects.create(user=user, **validated_data)
+
 		if photo is not None:
 			internal_user.photo = photo
 			internal_user.save()
+
 		return internal_user
 
 	def update(self, instance, validated_data):
 		user_data = validated_data.pop("user", None)
 		photo = validated_data.pop("photo", None)
+
 		if user_data:
 			UserSerializer().update(instance.user, user_data)
 
-		role = validated_data.get("role", None)
-		if role is not None:
+		if "role" in validated_data:
+			role = validated_data["role"]
 			instance.user.is_staff = role == InternalUser.Roles.ADMIN
 			instance.user.save()
 
+		if "birthdate" in validated_data:
+			validated_data["birthdate"] = self._convert_to_date(validated_data["birthdate"])
+		if "date_joined" in validated_data:
+			validated_data["date_joined"] = self._convert_to_date(validated_data["date_joined"])
+
 		for attr, value in validated_data.items():
 			setattr(instance, attr, value)
+
 		if photo is not None:
 			instance.photo = photo
+
 		instance.save()
 		return instance
 
