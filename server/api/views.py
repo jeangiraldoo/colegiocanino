@@ -178,6 +178,10 @@ class CanineViewSet(viewsets.ModelViewSet):
 		breed = self.request.query_params.get("breed", None)
 		client_id = self.request.query_params.get("client_id", None)
 		status_param = self.request.query_params.get("status", None)
+		plan_name = self.request.query_params.get("plan")
+
+		if plan_name:
+			queryset = queryset.filter(enrollments__plan__name__icontains=plan_name)
 
 		if size:
 			queryset = queryset.filter(size=size)
