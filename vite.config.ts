@@ -9,10 +9,7 @@ export default defineConfig({
 	plugins: [react(), tailwindcss()],
 	resolve: {
 		alias: {
-			"@emotion/styled": path.resolve(
-				__dirname,
-				"node_modules/@emotion/styled",
-			),
+			"@emotion/styled": path.resolve(__dirname, "node_modules/@emotion/styled"),
 			"@emotion/react": path.resolve(__dirname, "node_modules/@emotion/react"),
 		},
 	},

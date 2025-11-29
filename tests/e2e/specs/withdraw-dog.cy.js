@@ -17,11 +17,9 @@ describe("E2E: Dispatch a dog (attendance) - admin -> verify by UI search", () =
 		cy.wait(300);
 		cy.window().then((win) => {
 			const acc =
-				win.localStorage.getItem("access_token") ||
-				win.sessionStorage.getItem("access_token");
+				win.localStorage.getItem("access_token") || win.sessionStorage.getItem("access_token");
 			const ref =
-				win.localStorage.getItem("refresh_token") ||
-				win.sessionStorage.getItem("refresh_token");
+				win.localStorage.getItem("refresh_token") || win.sessionStorage.getItem("refresh_token");
 			if (!acc)
 				throw new Error(
 					"No access token found after UI login. Verify credentials and app storage keys.",
@@ -41,9 +39,7 @@ describe("E2E: Dispatch a dog (attendance) - admin -> verify by UI search", () =
 			.should("exist")
 			.then(($tbody) => {
 				if ($tbody.find("tr").length === 0) {
-					throw new Error(
-						"No enrolled dogs found. Seed an enrollment before running this test.",
-					);
+					throw new Error("No enrolled dogs found. Seed an enrollment before running this test.");
 				}
 			});
 

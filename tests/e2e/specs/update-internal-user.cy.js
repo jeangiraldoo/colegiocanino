@@ -20,11 +20,9 @@ describe("E2E: Update internal user (Admin) -> ManageUsers reflects change", () 
 		cy.window()
 			.then((win) => {
 				const acc =
-					win.localStorage.getItem("access_token") ||
-					win.sessionStorage.getItem("access_token");
+					win.localStorage.getItem("access_token") || win.sessionStorage.getItem("access_token");
 				const ref =
-					win.localStorage.getItem("refresh_token") ||
-					win.sessionStorage.getItem("refresh_token");
+					win.localStorage.getItem("refresh_token") || win.sessionStorage.getItem("refresh_token");
 				if (!acc)
 					throw new Error(
 						"No access token found after UI login. Verify credentials and app storage keys.",
@@ -47,9 +45,7 @@ describe("E2E: Update internal user (Admin) -> ManageUsers reflects change", () 
 						email: `${createdUsername}@test.local`,
 						first_name: `Create${ts}`,
 						last_name: "User",
-						document_id: String(
-							10000000 + Math.floor(Math.random() * 89999999),
-						),
+						document_id: String(10000000 + Math.floor(Math.random() * 89999999)),
 						password: "StrongPass1!",
 					},
 					role: "COACH",
@@ -80,10 +76,7 @@ describe("E2E: Update internal user (Admin) -> ManageUsers reflects change", () 
 		cy.visit(`${frontendBase}/internal-users/administrar-usuarios`);
 		cy.get("table.manage-table tbody", { timeout: 15000 }).should("exist");
 
-		cy.contains(createdUsername, { timeout: 12000 })
-			.should("exist")
-			.parents("tr")
-			.as("targetRow");
+		cy.contains(createdUsername, { timeout: 12000 }).should("exist").parents("tr").as("targetRow");
 
 		cy.get("@targetRow").within(() => {
 			cy.get('button[title="Editar"]').click();
@@ -131,9 +124,6 @@ describe("E2E: Update internal user (Admin) -> ManageUsers reflects change", () 
 
 	after(function () {
 		// NOTE: per request, do NOT delete the created user here.
-		cy.log(
-			"skipping cleanup: createdInternalId =",
-			this.createdInternalId ?? createdInternalId,
-		);
+		cy.log("skipping cleanup: createdInternalId =", this.createdInternalId ?? createdInternalId);
 	});
 });

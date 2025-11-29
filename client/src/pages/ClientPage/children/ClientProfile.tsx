@@ -19,9 +19,7 @@ type ProfileData = {
 };
 
 export default function ClientProfile() {
-	const [initialProfile, setInitialProfile] = useState<UserProfile | null>(
-		null,
-	);
+	const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
 	const [profile, setProfile] = useState<UserProfile | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -39,9 +37,7 @@ export default function ClientProfile() {
 				setInitialProfile(response.data.user);
 			} catch (err) {
 				console.error("Error al cargar el perfil:", err);
-				setError(
-					"No se pudo cargar la información del perfil. Por favor, intenta de nuevo.",
-				);
+				setError("No se pudo cargar la información del perfil. Por favor, intenta de nuevo.");
 			} finally {
 				setLoading(false);
 			}
@@ -50,9 +46,7 @@ export default function ClientProfile() {
 		void fetchProfile();
 	}, []);
 
-	const handleInputChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-	) => {
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 		const { name, value } = e.target;
 		setProfile((prev) => (prev ? { ...prev, [name]: value } : null));
 	};
@@ -204,18 +198,10 @@ export default function ClientProfile() {
 
 				{isEditMode && (
 					<div className="flex justify-end gap-4 mt-8">
-						<button
-							className="btn-ghost"
-							onClick={handleCancel}
-							disabled={saving}
-						>
+						<button className="btn-ghost" onClick={handleCancel} disabled={saving}>
 							Cancelar
 						</button>
-						<button
-							className="btn-primary"
-							onClick={handleSaveChanges}
-							disabled={saving}
-						>
+						<button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
 							{saving ? "Guardando..." : "Guardar Cambios"}
 						</button>
 					</div>
