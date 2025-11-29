@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@mui/material";
 import axios from "axios"; // 1. Importamos axios
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
@@ -9,6 +10,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import HomeIcon from "@mui/icons-material/Home";
 import logoSrc from "../../assets/raices-caninas-logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
 
@@ -47,14 +49,10 @@ export const RegisterPage = () => {
 	const validate = () => {
 		if (Object.values(form).some((v) => v.trim() === ""))
 			return "Todos los campos son obligatorios.";
-		if (!/^\S+@\S+\.\S+$/.test(form.email))
-			return "El correo electrónico no es válido.";
-		if (form.password.length < 6)
-			return "La contraseña debe tener al menos 6 caracteres.";
-		if (form.password !== form.confirmPassword)
-			return "Las contraseñas no coinciden.";
-		if (!/^\d{6,12}$/.test(form.documentId))
-			return "La cédula debe contener entre 6 y 12 dígitos.";
+		if (!/^\S+@\S+\.\S+$/.test(form.email)) return "El correo electrónico no es válido.";
+		if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
+		if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
+		if (!/^\d{6,12}$/.test(form.documentId)) return "La cédula debe contener entre 6 y 12 dígitos.";
 		if (!agreeTerms) return "Debes aceptar los lineamientos de la escuela.";
 		return "";
 	};
@@ -81,10 +79,7 @@ export const RegisterPage = () => {
 				password: form.password,
 			};
 
-			const response = await axios.post(
-				"http://127.0.0.1:8000/api/register/",
-				payload,
-			);
+			const response = await axios.post("http://127.0.0.1:8000/api/register/", payload);
 
 			if (response.status === 201) {
 				setSuccess("¡Registro exitoso! Serás redirigido para iniciar sesión.");
@@ -108,9 +103,7 @@ export const RegisterPage = () => {
 				}
 				setError(errorMessage);
 			} else {
-				setError(
-					"No se pudo conectar con el servidor. Intenta de nuevo más tarde.",
-				);
+				setError("No se pudo conectar con el servidor. Intenta de nuevo más tarde.");
 			}
 		} finally {
 			setLoading(false);
@@ -119,14 +112,56 @@ export const RegisterPage = () => {
 
 	return (
 		<div className="min-h-screen w-full flex flex-col lg:flex-row login-page overflow-x-hidden">
-			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 overflow-y-auto">
+			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 overflow-y-auto relative">
+				<div className="absolute top-4 left-4 z-20">
+					<Button
+						component={Link}
+						to="/"
+						variant="outlined"
+						startIcon={<HomeIcon />}
+						sx={{
+							color: "#fbbf24",
+							borderColor: "#fbbf24",
+							fontFamily: "var(--font-lekton-bold)",
+							letterSpacing: "0.05em",
+							textTransform: "none",
+							padding: "0.5rem 1.5rem 0.5rem 1.75rem",
+							borderRadius: "0.5rem",
+							transition: "all 0.3s ease",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							"& .MuiButton-startIcon": {
+								marginRight: "0.75rem",
+								marginLeft: "-0.05rem",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+							},
+							"& .MuiSvgIcon-root": {
+								color: "#fbbf24",
+								fontSize: "1.2rem",
+								display: "block",
+								transform: "translate(-0.5rem, -0.5px)",
+							},
+							"&:hover": {
+								borderColor: "#f59e0b",
+								backgroundColor: "rgba(251, 191, 36, 0.15)",
+								color: "#f59e0b",
+								transform: "translateY(-2px)",
+								boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
+								"& .MuiSvgIcon-root": {
+									color: "#f59e0b",
+								},
+							},
+						}}
+					>
+						Inicio
+					</Button>
+				</div>
 				<div className="max-w-md w-full">
 					<div className="flex justify-center mb-4">
-						<img
-							src={logoSrc}
-							alt="Logo Raíces Caninas"
-							className="w-40 h-auto"
-						/>
+						<img src={logoSrc} alt="Logo Raíces Caninas" className="w-40 h-auto" />
 					</div>
 
 					<h1 className="text-2xl font-jua mb-2 text-center letter-space-md">
@@ -311,10 +346,7 @@ export const RegisterPage = () => {
 
 						<div className="mt-6 text-center text-sm font-lekton-italic subtittle-primary">
 							¿Ya tienes una cuenta?{" "}
-							<Link
-								to="/login"
-								className="link-amber underline font-lekton-bold no-italic"
-							>
+							<Link to="/login" className="link-amber underline font-lekton-bold no-italic">
 								Inicia Sesión
 							</Link>
 						</div>

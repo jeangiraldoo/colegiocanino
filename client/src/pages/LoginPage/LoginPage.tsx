@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@mui/material";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PetsIcon from "@mui/icons-material/Pets";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import HomeIcon from "@mui/icons-material/Home";
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
 import apiClient from "../../api/axiosConfig";
@@ -110,8 +112,48 @@ export const LoginPage = () => {
 
 	return (
 		<div className="h-screen w-screen flex login-page">
-			<div className="absolute left-4 top-4 z-20">
+			<div className="absolute left-4 top-4 z-20 flex items-center gap-4">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
+				<Button
+					component={Link}
+					to="/"
+					variant="outlined"
+					startIcon={<HomeIcon />}
+					sx={{
+						color: "#fbbf24",
+						borderColor: "#fbbf24",
+						fontFamily: "var(--font-lekton-bold)",
+						letterSpacing: "0.05em",
+						textTransform: "none",
+						padding: "0.5rem 1.25rem",
+						borderRadius: "0.5rem",
+						transition: "all 0.3s ease",
+						display: "flex",
+						alignItems: "center",
+						"& .MuiButton-startIcon": {
+							marginRight: "0.5rem",
+							marginLeft: 0,
+							display: "flex",
+							alignItems: "center",
+						},
+						"& .MuiSvgIcon-root": {
+							color: "#fbbf24",
+							fontSize: "1.2rem",
+						},
+						"&:hover": {
+							borderColor: "#f59e0b",
+							backgroundColor: "rgba(251, 191, 36, 0.15)",
+							color: "#f59e0b",
+							transform: "translateY(-2px)",
+							boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
+							"& .MuiSvgIcon-root": {
+								color: "#f59e0b",
+							},
+						},
+					}}
+				>
+					Inicio
+				</Button>
 			</div>
 			<div className="w-1/2 bg-white flex items-center justify-center p-8">
 				<div className="max-w-md w-full">
