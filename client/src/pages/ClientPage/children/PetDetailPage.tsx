@@ -1,6 +1,6 @@
 // client/src/pages/ClientPage/children/PetDetailPage.tsx
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
 import DatePicker from "react-datepicker";
@@ -11,15 +11,9 @@ const generateMockAttendance = (count: number): Attendance[] => {
 	return Array.from({ length: count }).map((_, i) => {
 		const date = new Date();
 		date.setDate(date.getDate() - i * 3); // Registros cada 3 días para variar meses
-		const dayOfWeek = [
-			"Domingo",
-			"Lunes",
-			"Martes",
-			"Miércoles",
-			"Jueves",
-			"Viernes",
-			"Sábado",
-		][date.getDay()];
+		const dayOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][
+			date.getDay()
+		];
 		const isAbsent = i % 7 === 0; // Uno de cada 7 está ausente
 		const isLate = !isAbsent && i % 4 === 0;
 
@@ -69,15 +63,13 @@ const fetchPetAttendance = async (canineId: string): Promise<CanineDetails> => {
 };
 
 export default function PetDetailPage() {
-	const { canineId } = useParams<{ canineId: string }>();
+	const { canineId } = useParams<{ canineId?: string }>();
 	const [details, setDetails] = useState<CanineDetails | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	const [startDate, setStartDate] = useState<Date | null>(null);
 	const [endDate, setEndDate] = useState<Date | null>(null);
-	const [filteredAttendances, setFilteredAttendances] = useState<Attendance[]>(
-		[],
-	);
+	const [filteredAttendances, setFilteredAttendances] = useState<Attendance[]>([]);
 	const [currentPage, setCurrentPage] = useState(1);
 	const recordsPerPage = 5;
 
@@ -102,9 +94,11 @@ export default function PetDetailPage() {
 		if (!details) return;
 		let filtered = details.attendances;
 		if (startDate || endDate) {
-			// Clona las fechas para no modificar el estado original
-			const start = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
-			const end = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
+			// Clone dates to avoid mutating state
+			const start = startDate ? new Date(startDate.getTime()) : null;
+			const end = endDate ? new Date(endDate.getTime()) : null;
+			if (start) start.setHours(0, 0, 0, 0);
+			if (end) end.setHours(23, 59, 59, 999);
 
 			filtered = details.attendances.filter((att) => {
 				const [day, month, year] = att.date.split("/");
@@ -177,7 +171,7 @@ export default function PetDetailPage() {
 								selectsEnd
 								startDate={startDate}
 								endDate={endDate}
-								minDate={startDate}
+								minDate={startDate ?? undefined}
 								className="input-primary w-full mt-1"
 								placeholderText="Fecha de fin"
 							/>
@@ -227,28 +221,14 @@ export default function PetDetailPage() {
 										{currentRecords.map((att, index) => (
 											<tr key={index} className="hover:bg-gray-50">
 												<td className="px-6 py-4 whitespace-nowrap">
-													<div className="font-bold text-gray-800">
-														{att.date}
-													</div>
-													<div className="text-sm text-gray-500">
-														{att.dayOfWeek}
-													</div>
+													<div className="font-bold text-gray-800">{att.date}</div>
+													<div className="text-sm text-gray-500">{att.dayOfWeek}</div>
 												</td>
-												<td className="px-6 py-4 whitespace-nowrap">
-													{att.status}
-												</td>
-												<td className="px-6 py-4 whitespace-nowrap">
-													{att.entry_time || "—"}
-												</td>
-												<td className="px-6 py-4 whitespace-nowrap">
-													{att.departure_time || "—"}
-												</td>
-												<td className="px-6 py-4 whitespace-nowrap">
-													{att.transport}
-												</td>
-												<td className="px-6 py-4 whitespace-nowrap">
-													{att.notes || "—"}
-												</td>
+												<td className="px-6 py-4 whitespace-nowrap">{att.status}</td>
+												<td className="px-6 py-4 whitespace-nowrap">{att.entry_time || "—"}</td>
+												<td className="px-6 py-4 whitespace-nowrap">{att.departure_time || "—"}</td>
+												<td className="px-6 py-4 whitespace-nowrap">{att.transport}</td>
+												<td className="px-6 py-4 whitespace-nowrap">{att.notes || "—"}</td>
 											</tr>
 										))}
 									</tbody>
@@ -268,19 +248,15 @@ export default function PetDetailPage() {
 										>
 											Anterior
 										</button>
-										{Array.from({ length: totalPages }, (_, i) => i + 1).map(
-											(number) => (
-												<button
-													key={number}
-													onClick={() => paginate(number)}
-													className={
-														currentPage === number ? "btn-primary" : "btn-ghost"
-													}
-												>
-													{number}
-												</button>
-											),
-										)}
+										{Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+											<button
+												key={number}
+												onClick={() => paginate(number)}
+												className={currentPage === number ? "btn-primary" : "btn-ghost"}
+											>
+												{number}
+											</button>
+										))}
 										<button
 											className="btn-ghost"
 											onClick={() => paginate(currentPage + 1)}
