@@ -8,6 +8,7 @@ import PetsIcon from "@mui/icons-material/Pets";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import logoSrc from "../../assets/raices-caninas-logo-circular.png";
 
 export const ClientPage = () => {
@@ -39,10 +40,7 @@ export const ClientPage = () => {
 			if (s.access) {
 				try {
 					const payload = JSON.parse(atob(s.access.split(".")[1]));
-					if (
-						!payload.token_type ||
-						String(payload.token_type).toLowerCase() === "access"
-					) {
+					if (!payload.token_type || String(payload.token_type).toLowerCase() === "access") {
 						return { token: s.access, storage: s.name };
 					}
 				} catch {
@@ -65,8 +63,7 @@ export const ClientPage = () => {
 					if (res.ok) {
 						const data = await res.json();
 						const newAccess = data.access;
-						if (s.name === "session")
-							sessionStorage.setItem("access_token", newAccess);
+						if (s.name === "session") sessionStorage.setItem("access_token", newAccess);
 						else localStorage.setItem("access_token", newAccess);
 						return { token: newAccess, storage: s.name };
 					}
@@ -103,18 +100,14 @@ export const ClientPage = () => {
 					if (!retry.ok) return;
 					const data = await retry.json();
 					const display =
-						[data.first_name, data.last_name].filter(Boolean).join(" ") ||
-						data.username ||
-						"";
+						[data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "";
 					setClientName(display);
 					return;
 				}
 				if (!res.ok) return;
 				const data = await res.json();
 				const display =
-					[data.first_name, data.last_name].filter(Boolean).join(" ") ||
-					data.username ||
-					"";
+					[data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "";
 				setClientName(display);
 			} catch {
 				// silent
@@ -133,11 +126,7 @@ export const ClientPage = () => {
 					style={{ borderColor: "rgba(15,23,32,0.06)" }}
 				>
 					<div className="flex items-center gap-3 w-full">
-						<img
-							src={logoSrc}
-							alt="Logo Raíces Caninas"
-							className="sidebar-logo"
-						/>
+						<img src={logoSrc} alt="Logo Raíces Caninas" className="sidebar-logo" />
 					</div>
 
 					<div className="last-login-box font-montserrat">
@@ -171,15 +160,17 @@ export const ClientPage = () => {
 						<span className="sidebar-text">Mis Mascotas</span>
 					</Link>
 
+					<Link to="matricular-canino" className="sidebar-link has-hover-indicator">
+						<AddCircleIcon className="sidebar-icon" />
+						<span className="sidebar-text">Matricular Canino</span>
+					</Link>
+
 					<Link to="perfil" className="sidebar-link has-hover-indicator">
 						<SettingsIcon className="sidebar-icon" />
 						<span className="sidebar-text">Mi Perfil</span>
 					</Link>
 				</nav>
-				<div
-					className="p-4 border-t"
-					style={{ borderColor: "rgba(15,23,32,0.06)" }}
-				>
+				<div className="p-4 border-t" style={{ borderColor: "rgba(15,23,32,0.06)" }}>
 					<button
 						type="button"
 						onClick={() => {

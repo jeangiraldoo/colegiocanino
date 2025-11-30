@@ -1,10 +1,4 @@
-import React, {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
@@ -43,9 +37,7 @@ export default function ViewAttendance() {
 		headers?: Record<string, string>;
 		credentials?: RequestCredentials;
 	} => {
-		const access =
-			localStorage.getItem("access_token") ||
-			sessionStorage.getItem("access_token");
+		const access = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 		if (access) return { headers: { Authorization: `Bearer ${access}` } };
 		return { credentials: "include" as RequestCredentials };
 	}, []);
@@ -57,14 +49,11 @@ export default function ViewAttendance() {
 			setError(null);
 			try {
 				const opts = getAuthHeader();
-				const res = await fetch(
-					`/api/attendance/?date=${encodeURIComponent(iso)}`,
-					{
-						method: "GET",
-						headers: { ...(opts.headers || {}), Accept: "application/json" },
-						credentials: opts.credentials || "same-origin",
-					},
-				);
+				const res = await fetch(`/api/attendance/?date=${encodeURIComponent(iso)}`, {
+					method: "GET",
+					headers: { ...(opts.headers || {}), Accept: "application/json" },
+					credentials: opts.credentials || "same-origin",
+				});
 
 				if (!res.ok) {
 					if (res.status === 401) {
@@ -88,24 +77,20 @@ export default function ViewAttendance() {
 					const canine_id =
 						typeof a["canine"] === "number"
 							? (a["canine"] as number)
-							: ((canineObj?.["id"] as number | string | undefined) ??
-								undefined);
+							: ((canineObj?.["id"] as number | string | undefined) ?? undefined);
 					const canine_name =
 						(a["canine_name"] as string | undefined) ??
 						(canineObj?.["name"] as string | undefined) ??
 						"";
 					const dateVal =
-						((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as
-							| string
-							| undefined) ?? iso;
+						((a["date"] ?? a["creation_date"] ?? a["attendance_date"]) as string | undefined) ??
+						iso;
 					const entry_time =
-						((a["arrival_time"] ?? a["entry_time"] ?? a["llegada_time"]) as
-							| string
-							| undefined) ?? null;
+						((a["arrival_time"] ?? a["entry_time"] ?? a["llegada_time"]) as string | undefined) ??
+						null;
 					const exit_time =
-						((a["departure_time"] ?? a["exit_time"] ?? a["salida_time"]) as
-							| string
-							| undefined) ?? null;
+						((a["departure_time"] ?? a["exit_time"] ?? a["salida_time"]) as string | undefined) ??
+						null;
 					const early_departure_reason =
 						((a["withdrawal_reason"] ??
 							a["early_departure_reason"] ??
@@ -190,11 +175,7 @@ export default function ViewAttendance() {
 			);
 		}
 
-		if (
-			key.includes("advance_withdrawal") ||
-			key.includes("retir") ||
-			key.includes("retiro")
-		) {
+		if (key.includes("advance_withdrawal") || key.includes("retir") || key.includes("retiro")) {
 			return (
 				<span
 					style={{
@@ -278,9 +259,7 @@ export default function ViewAttendance() {
 					</div>
 
 					<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-						<label style={{ fontSize: 13, color: "var(--muted-color)" }}>
-							Fecha
-						</label>
+						<label style={{ fontSize: 13, color: "var(--muted-color)" }}>Fecha</label>
 
 						<DatePicker
 							ref={dpRef}
@@ -314,11 +293,7 @@ export default function ViewAttendance() {
 				</header>
 
 				{error && (
-					<div
-						role="alert"
-						className="field-error"
-						style={{ marginBottom: 12 }}
-					>
+					<div role="alert" className="field-error" style={{ marginBottom: 12 }}>
 						{error}
 					</div>
 				)}
@@ -331,21 +306,14 @@ export default function ViewAttendance() {
 						alignItems: "center",
 					}}
 				>
-					<div style={{ color: "var(--muted-color)" }}>
-						{filtered.length} registros
-					</div>
+					<div style={{ color: "var(--muted-color)" }}>{filtered.length} registros</div>
 					<div style={{ color: "var(--muted-color)", fontSize: 13 }}>
-						{attendances.length === 0 && !loading
-							? "No hay registros para esta fecha"
-							: null}
+						{attendances.length === 0 && !loading ? "No hay registros para esta fecha" : null}
 					</div>
 				</div>
 
 				<div className="form-card" style={{ padding: 0 }}>
-					<table
-						className="manage-table"
-						style={{ width: "100%", minWidth: 720 }}
-					>
+					<table className="manage-table" style={{ width: "100%", minWidth: 720 }}>
 						<thead>
 							<tr>
 								<th style={{ width: 56 }}></th>
@@ -403,12 +371,8 @@ export default function ViewAttendance() {
 											color: "var(--muted-color)",
 										}}
 									>
-										<div style={{ fontWeight: 700 }}>
-											{fmtTime(a.entry_time)}
-										</div>
-										<div style={{ marginTop: 6 }}>
-											{badgeForType(a.entry_type ?? a.status)}
-										</div>
+										<div style={{ fontWeight: 700 }}>{fmtTime(a.entry_time)}</div>
+										<div style={{ marginTop: 6 }}>{badgeForType(a.entry_type ?? a.status)}</div>
 									</td>
 									<td
 										style={{
@@ -416,12 +380,8 @@ export default function ViewAttendance() {
 											color: "var(--muted-color)",
 										}}
 									>
-										<div style={{ fontWeight: 700 }}>
-											{fmtTime(a.exit_time)}
-										</div>
-										<div style={{ marginTop: 6 }}>
-											{badgeForType(a.exit_type)}
-										</div>
+										<div style={{ fontWeight: 700 }}>{fmtTime(a.exit_time)}</div>
+										<div style={{ marginTop: 6 }}>{badgeForType(a.exit_type)}</div>
 									</td>
 									<td
 										style={{

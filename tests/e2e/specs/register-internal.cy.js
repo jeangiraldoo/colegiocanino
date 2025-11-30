@@ -19,11 +19,9 @@ describe("E2E: Register internal user (HU-1)", () => {
 		// ensure tokens present in storage for robustness
 		cy.window().then((win) => {
 			const acc =
-				win.localStorage.getItem("access_token") ||
-				win.sessionStorage.getItem("access_token");
+				win.localStorage.getItem("access_token") || win.sessionStorage.getItem("access_token");
 			const ref =
-				win.localStorage.getItem("refresh_token") ||
-				win.sessionStorage.getItem("refresh_token");
+				win.localStorage.getItem("refresh_token") || win.sessionStorage.getItem("refresh_token");
 			if (!acc)
 				throw new Error(
 					"No access token found after UI login. Verify credentials and app storage keys.",
@@ -61,8 +59,7 @@ describe("E2E: Register internal user (HU-1)", () => {
 
 		cy.url({ timeout: 8000 }).should((url) => {
 			expect(
-				url.includes("/internal-users/administrar-usuarios") ||
-					url.includes("/internal-users"),
+				url.includes("/internal-users/administrar-usuarios") || url.includes("/internal-users"),
 			).to.equal(true);
 		});
 		cy.contains("Usuario interno creado correctamente.", {

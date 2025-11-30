@@ -1,10 +1,6 @@
-import React, {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AxiosResponse } from "axios";
+import apiClient from "../../../api/axiosConfig";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
@@ -41,9 +37,7 @@ type AttendanceRecord = {
 
 type RawRecord = Record<string, unknown>;
 function isLockedStatus(s: unknown): s is AttendanceRecord["status"] {
-	return (
-		typeof s === "string" && (s === "dispatched" || s === "advance_withdrawal")
-	);
+	return typeof s === "string" && (s === "dispatched" || s === "advance_withdrawal");
 }
 
 export default function RegisterAttendance() {
@@ -56,16 +50,12 @@ export default function RegisterAttendance() {
 
 	const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
 
-	const [busyEnrollments, setBusyEnrollments] = useState<
-		Record<string, boolean>
-	>({});
+	const [busyEnrollments, setBusyEnrollments] = useState<Record<string, boolean>>({});
 	const setBusy = useCallback((enrollmentId: string | number, v: boolean) => {
 		setBusyEnrollments((p) => ({ ...p, [String(enrollmentId)]: v }));
 	}, []);
 
-	const [unlockedByAdmin, setUnlockedByAdmin] = useState<
-		Record<string, boolean>
-	>({});
+	const [unlockedByAdmin, setUnlockedByAdmin] = useState<Record<string, boolean>>({});
 
 	const role = useMemo(() => {
 		return (
@@ -79,9 +69,7 @@ export default function RegisterAttendance() {
 	const isoDate = useMemo(() => toLocalISO(date), [date]);
 
 	const getAuthHeader = useCallback(() => {
-		const access =
-			localStorage.getItem("access_token") ||
-			sessionStorage.getItem("access_token");
+		const access = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 		if (access) return { Authorization: `Bearer ${access}` };
 		return {};
 	}, []);
@@ -90,23 +78,17 @@ export default function RegisterAttendance() {
 		setLoadingCanines(true);
 		try {
 			const headers = { ...getAuthHeader(), Accept: "application/json" };
-			const res = await fetch(
-				"/api/enrollments/?status=true&ordering=-creation_date",
-				{
-					method: "GET",
-					headers,
-				},
-			);
-			if (!res.ok) throw new Error("Failed to load enrollments");
-			const data = await res.json();
+			const res = await apiClient.get("/api/enrollments/?status=true&ordering=-creation_date", {
+				headers,
+				validateStatus: () => true,
+			});
+			if (!(res.status >= 200 && res.status < 300)) throw new Error("Failed to load enrollments");
+			const data = res.data;
 			if (!Array.isArray(data)) throw new Error("Invalid enrollments response");
 			const mapped = data.map((e: RawRecord) => {
 				const canine = e["canine"];
-				const canineName =
-					e["canine_name"] ??
-					(e["canine"] && (e["canine"] as RawRecord)["name"]);
-				const photo =
-					(e["canine"] && (e["canine"] as RawRecord)["photo"]) ?? null;
+				const canineName = e["canine_name"] ?? (e["canine"] && (e["canine"] as RawRecord)["name"]);
+				const photo = (e["canine"] && (e["canine"] as RawRecord)["photo"]) ?? null;
 				return {
 					id: (canine ?? e["pk"]) as number | string,
 					name: (canineName as string) ?? `#${String(canine ?? e["pk"])}`,
@@ -129,44 +111,35 @@ export default function RegisterAttendance() {
 			const iso = toLocalISO(selectedDate);
 			try {
 				const headers = { ...getAuthHeader(), Accept: "application/json" };
-				const res = await fetch(
-					`/api/attendance/?date=${encodeURIComponent(iso)}`,
-					{
-						method: "GET",
-						headers,
-					},
-				);
-				if (!res.ok) {
+				const res = await apiClient.get(`/api/attendance/?date=${encodeURIComponent(iso)}`, {
+					headers,
+					validateStatus: () => true,
+				});
+				if (!(res.status >= 200 && res.status < 300)) {
 					setRecords([]);
 					return;
 				}
-				const data = await res.json();
+				const data = res.data;
 				if (!Array.isArray(data)) {
 					setRecords([]);
 					return;
 				}
 				const mapped: AttendanceRecord[] = data.map((a: RawRecord) => ({
 					id: (a["id"] ?? a["pk"]) as number | string,
-					enrollment:
-						(a["enrollment"] as number | string) ?? a["enrollment_id"],
+					enrollment: (a["enrollment"] as number | string) ?? a["enrollment_id"],
 					canineId:
-						((a["enrollment"] && (a["enrollment"] as RawRecord)["canine"]) as
-							| number
-							| string) ??
+						((a["enrollment"] && (a["enrollment"] as RawRecord)["canine"]) as number | string) ??
 						(a["enrollment"] as number | string) ??
 						null,
 					canineName:
 						((a["enrollment"] &&
 							(a["enrollment"] as RawRecord)["canine"] &&
-							((a["enrollment"] as RawRecord)["canine"] as RawRecord)[
-								"name"
-							]) as string) ??
+							((a["enrollment"] as RawRecord)["canine"] as RawRecord)["name"]) as string) ??
 						(a["canine_name"] as string) ??
 						"",
 					date: (a["date"] as string) ?? iso,
 					entryTime: (a["arrival_time"] as string) ?? null,
-					status: ((a["status"] as string) ??
-						"present") as AttendanceRecord["status"],
+					status: ((a["status"] as string) ?? "present") as AttendanceRecord["status"],
 					exitTime: (a["departure_time"] as string) ?? null,
 					earlyDepartureReason: (a["withdrawal_reason"] as string) ?? null,
 				}));
@@ -188,35 +161,31 @@ export default function RegisterAttendance() {
 				canines.map(async (c) => {
 					const enrollmentId = c.enrollmentId ?? c.id;
 					try {
-						const res = await fetch(
+						const res = await apiClient.get(
 							`/api/attendance/?date=${encodeURIComponent(iso)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
-							{ method: "GET", headers: headersBase },
+							{ headers: headersBase, validateStatus: () => true },
 						);
-						if (!res.ok) return;
-						const arr = await res.json().catch(() => []);
+						if (!(res.status >= 200 && res.status < 300)) return;
+						const arr = Array.isArray(res.data) ? res.data : [];
 						if (!Array.isArray(arr) || arr.length === 0) return;
 						const a = arr[0] as RawRecord;
 						updatedRecords.push({
 							id: (a["id"] ?? a["pk"]) as number | string,
 							enrollment: (a["enrollment"] as number | string) ?? enrollmentId,
 							canineId:
-								((a["enrollment"] &&
-									(a["enrollment"] as RawRecord)["canine"]) as
+								((a["enrollment"] && (a["enrollment"] as RawRecord)["canine"]) as
 									| number
 									| string) ?? enrollmentId,
 							canineName:
 								((a["enrollment"] &&
 									(a["enrollment"] as RawRecord)["canine"] &&
-									((a["enrollment"] as RawRecord)["canine"] as RawRecord)[
-										"name"
-									]) as string) ??
+									((a["enrollment"] as RawRecord)["canine"] as RawRecord)["name"]) as string) ??
 								(a["canine_name"] as string) ??
 								c.name ??
 								"",
 							date: (a["date"] as string) ?? iso,
 							entryTime: (a["arrival_time"] as string) ?? null,
-							status: ((a["status"] as string) ??
-								"present") as AttendanceRecord["status"],
+							status: ((a["status"] as string) ?? "present") as AttendanceRecord["status"],
 							exitTime: (a["departure_time"] as string) ?? null,
 							earlyDepartureReason: (a["withdrawal_reason"] as string) ?? null,
 						});
@@ -279,25 +248,15 @@ export default function RegisterAttendance() {
 			Accept: "application/json",
 		};
 		try {
-			const qRes = await fetch(
+			const qRes = await apiClient.get(
 				`/api/attendance/?date=${encodeURIComponent(iso)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
-				{
-					method: "GET",
-					headers,
-				},
+				{ headers, validateStatus: () => true },
 			);
-			const qData = (await qRes.json().catch(() => null)) as unknown;
-			const existing =
-				Array.isArray(qData) && (qData as unknown[]).length
-					? ((qData as unknown[])[0] as RawRecord)
-					: null;
+			const qData = qRes && qRes.status >= 200 && qRes.status < 300 ? qRes.data : null;
+			const existing = Array.isArray(qData) && qData.length ? (qData[0] as RawRecord) : null;
 
 			if (existing && isLockedStatus(existing["status"])) {
-				console.warn(
-					"Attempt to modify locked attendance",
-					enrollmentId,
-					existing["status"],
-				);
+				console.warn("Attempt to modify locked attendance", enrollmentId, existing["status"]);
 				return;
 			}
 
@@ -320,41 +279,36 @@ export default function RegisterAttendance() {
 				if (reason !== undefined) payload.withdrawal_reason = reason;
 			}
 
-			let res: Response;
+			let res: AxiosResponse<unknown>;
 			if (existing && existing["id"]) {
-				res = await fetch(`/api/attendance/${existing["id"]}/`, {
-					method: "PATCH",
+				res = await apiClient.patch(`/api/attendance/${existing["id"]}/`, payload, {
 					headers,
-					body: JSON.stringify(payload),
+					validateStatus: () => true,
 				});
 			} else {
-				res = await fetch("/api/attendance/", {
-					method: "POST",
+				res = await apiClient.post("/api/attendance/", payload, {
 					headers,
-					body: JSON.stringify(payload),
+					validateStatus: () => true,
 				});
 			}
 
-			if (!res.ok) {
-				const txt = await res.text().catch(() => "");
+			if (!(res.status >= 200 && res.status < 300)) {
+				const txt = String(res.data ?? "");
 				console.error("upsert failed", res.status, txt);
 				return;
 			}
-			const savedRaw = (await res.json().catch(() => null)) as RawRecord | null;
+			const savedRaw = (res.data ?? null) as RawRecord | null;
 
 			const updated: AttendanceRecord = {
 				id: (savedRaw && (savedRaw["id"] ?? (existing && existing["id"]))) as
 					| number
 					| string
 					| undefined,
-				enrollment:
-					(savedRaw && (savedRaw["enrollment"] as number | string)) ??
-					enrollmentId,
+				enrollment: (savedRaw && (savedRaw["enrollment"] as number | string)) ?? enrollmentId,
 				canineId:
 					(savedRaw &&
 						savedRaw["enrollment"] &&
-						(((savedRaw["enrollment"] as RawRecord)["canine"] as number) ??
-							enrollmentId)) ??
+						(((savedRaw["enrollment"] as RawRecord)["canine"] as number) ?? enrollmentId)) ??
 					enrollmentId,
 				canineName: (savedRaw && (savedRaw["canine_name"] as string)) ?? "",
 				date: (savedRaw && (savedRaw["date"] as string)) ?? iso,
@@ -365,21 +319,16 @@ export default function RegisterAttendance() {
 					status) as AttendanceRecord["status"],
 				exitTime: (savedRaw && (savedRaw["departure_time"] as string)) ?? null,
 				earlyDepartureReason:
-					(savedRaw && (savedRaw["withdrawal_reason"] as string)) ??
-					reason ??
-					null,
+					(savedRaw && (savedRaw["withdrawal_reason"] as string)) ?? reason ?? null,
 			};
 
 			setRecords((prev) => {
-				const without = prev.filter(
-					(p) => String(p.enrollment) !== String(enrollmentId),
-				);
+				const without = prev.filter((p) => String(p.enrollment) !== String(enrollmentId));
 				return [updated, ...without];
 			});
 			setReasonDrafts((prev) => ({
 				...prev,
-				[String(enrollmentId)]:
-					(savedRaw && (savedRaw["withdrawal_reason"] as string)) ?? "",
+				[String(enrollmentId)]: (savedRaw && (savedRaw["withdrawal_reason"] as string)) ?? "",
 			}));
 		} catch (err) {
 			console.error("upsertAttendance error", err);
@@ -397,55 +346,45 @@ export default function RegisterAttendance() {
 					"Content-Type": "application/json",
 					Accept: "application/json",
 				};
-				const res = await fetch("/api/attendance/check_in/", {
-					method: "POST",
-					headers,
-					body: JSON.stringify({ enrollment: enrollmentId, status }),
-				});
-				if (!res.ok) {
-					const txt = await res.text().catch(() => "");
+				const res = await apiClient.post(
+					"/api/attendance/check_in/",
+					{ enrollment: enrollmentId, status },
+					{ headers, validateStatus: () => true },
+				);
+				if (!(res.status >= 200 && res.status < 300)) {
+					const txt = String(res.data ?? "");
 					console.error("check_in failed", res.status, txt);
 					return null;
 				}
-				const saved = (await res.json().catch(() => null)) as RawRecord | null;
+				const saved = (res.data ?? null) as RawRecord | null;
 
 				// patch to set local arrival time (so UI reflects local hours)
 				if (saved && saved["id"]) {
 					try {
-						const p = await fetch(`/api/attendance/${saved["id"]}/`, {
-							method: "PATCH",
-							headers,
-							body: JSON.stringify({ arrival_time: nowHHMM() + ":00", status }),
-						});
-						if (p.ok) {
-							const patched = (await p
-								.json()
-								.catch(() => null)) as RawRecord | null;
+						const p = await apiClient.patch(
+							`/api/attendance/${saved["id"]}/`,
+							{ arrival_time: nowHHMM() + ":00", status },
+							{ headers, validateStatus: () => true },
+						);
+						if (p.status >= 200 && p.status < 300) {
+							const patched = (p.data ?? null) as RawRecord | null;
 							if (patched) {
 								setRecords((prev) => {
-									const without = prev.filter(
-										(r) => String(r.enrollment) !== String(enrollmentId),
-									);
+									const without = prev.filter((r) => String(r.enrollment) !== String(enrollmentId));
 									const updated: AttendanceRecord = {
 										id: (patched["id"] ?? patched["pk"]) as number | string,
-										enrollment:
-											(patched["enrollment"] as number | string) ??
-											enrollmentId,
+										enrollment: (patched["enrollment"] as number | string) ?? enrollmentId,
 										canineId:
 											(patched["enrollment"] &&
-												((patched["enrollment"] as RawRecord)["canine"] as
-													| number
-													| string)) ??
+												((patched["enrollment"] as RawRecord)["canine"] as number | string)) ??
 											enrollmentId,
 										canineName: (patched["canine_name"] as string) ?? "",
 										date: (patched["date"] as string) ?? isoDate,
-										entryTime:
-											(patched["arrival_time"] as string) ?? nowHHMM() + ":00",
+										entryTime: (patched["arrival_time"] as string) ?? nowHHMM() + ":00",
 										status: ((patched["status"] as string) ??
 											"present") as AttendanceRecord["status"],
 										exitTime: (patched["departure_time"] as string) ?? null,
-										earlyDepartureReason:
-											(patched["withdrawal_reason"] as string) ?? "",
+										earlyDepartureReason: (patched["withdrawal_reason"] as string) ?? "",
 									};
 									return [updated, ...without];
 								});
@@ -508,38 +447,19 @@ export default function RegisterAttendance() {
 			}
 
 			const entryTime = existing?.entryTime ?? nowHHMM();
-			const reason =
-				reasonDrafts[String(enrollmentId)] ??
-				existing?.earlyDepartureReason ??
-				"";
-			void upsertAttendance(
-				enrollmentId,
-				newStatus,
-				entryTime ?? null,
-				reason ?? "",
-			);
+			const reason = reasonDrafts[String(enrollmentId)] ?? existing?.earlyDepartureReason ?? "";
+			void upsertAttendance(enrollmentId, newStatus, entryTime ?? null, reason ?? "");
 			return;
 		}
 
-		const entryTime =
-			existing?.entryTime ?? (newStatus === "absent" ? null : nowHHMM());
-		const reason =
-			reasonDrafts[String(enrollmentId)] ??
-			existing?.earlyDepartureReason ??
-			"";
-		void upsertAttendance(
-			enrollmentId,
-			newStatus,
-			entryTime ?? null,
-			reason ?? "",
-		);
+		const entryTime = existing?.entryTime ?? (newStatus === "absent" ? null : nowHHMM());
+		const reason = reasonDrafts[String(enrollmentId)] ?? existing?.earlyDepartureReason ?? "";
+		void upsertAttendance(enrollmentId, newStatus, entryTime ?? null, reason ?? "");
 	}
 
 	function handleSetEntryTime(enrollmentId: number | string, t: string | null) {
 		const existing = findRecordByEnrollment(enrollmentId);
-		const locked =
-			existing?.status === "dispatched" ||
-			existing?.status === "advance_withdrawal";
+		const locked = existing?.status === "dispatched" || existing?.status === "advance_withdrawal";
 		if (locked) {
 			alert("Registro bloqueado — sólo un administrador puede revertirlo.");
 			return;
@@ -548,14 +468,8 @@ export default function RegisterAttendance() {
 			void checkInApi(enrollmentId, "present");
 			return;
 		}
-		const status =
-			(existing?.status as AttendanceRecord["status"]) ?? "present";
-		void upsertAttendance(
-			enrollmentId,
-			status,
-			t ?? null,
-			existing?.earlyDepartureReason ?? "",
-		);
+		const status = (existing?.status as AttendanceRecord["status"]) ?? "present";
+		void upsertAttendance(enrollmentId, status, t ?? null, existing?.earlyDepartureReason ?? "");
 	}
 
 	async function commitReason(enrollmentId: number | string) {
@@ -576,23 +490,19 @@ export default function RegisterAttendance() {
 		};
 
 		try {
-			const q = await fetch(
+			const q = await apiClient.get(
 				`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
-				{ method: "GET", headers },
+				{ headers, validateStatus: () => true },
 			);
-			const serverArr = q.ok
-				? ((await q.json().catch(() => [])) as unknown[])
-				: [];
+			const serverArr =
+				q && q.status >= 200 && q.status < 300 ? (Array.isArray(q.data) ? q.data : []) : [];
 			const serverRec =
-				Array.isArray(serverArr) && serverArr.length
-					? (serverArr[0] as RawRecord)
-					: null;
+				Array.isArray(serverArr) && serverArr.length ? (serverArr[0] as RawRecord) : null;
 
 			if (serverRec && isLockedStatus(serverRec["status"])) {
 				setReasonDrafts((p) => ({
 					...p,
-					[String(enrollmentId)]:
-						(serverRec["withdrawal_reason"] as string) ?? "",
+					[String(enrollmentId)]: (serverRec["withdrawal_reason"] as string) ?? "",
 				}));
 				alert(
 					"No se pueden modificar las observaciones: el registro está bloqueado. Sólo un administrador puede revertirlo.",
@@ -602,67 +512,47 @@ export default function RegisterAttendance() {
 
 			if (serverRec && serverRec["id"]) {
 				const payload: Record<string, unknown> = { withdrawal_reason: draft };
-				const p = await fetch(`/api/attendance/${serverRec["id"]}/`, {
-					method: "PATCH",
+				const p = await apiClient.patch(`/api/attendance/${serverRec["id"]}/`, payload, {
 					headers,
-					body: JSON.stringify(payload),
+					validateStatus: () => true,
 				});
-				if (!p.ok) {
-					console.error(
-						"patch withdrawal_reason failed",
-						p.status,
-						await p.text().catch(() => ""),
-					);
-					const r = await fetch(
+				if (!(p.status >= 200 && p.status < 300)) {
+					console.error("patch withdrawal_reason failed", p.status, String(p.data ?? ""));
+					const r = await apiClient.get(
 						`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
-						{ method: "GET", headers },
+						{ headers, validateStatus: () => true },
 					);
-					const a = r.ok ? ((await r.json().catch(() => [])) as unknown[]) : [];
+					const a =
+						r && r.status >= 200 && r.status < 300 ? (Array.isArray(r.data) ? r.data : []) : [];
 					const srv = Array.isArray(a) && a.length ? (a[0] as RawRecord) : null;
 					setReasonDrafts((p) => ({
 						...p,
-						[String(enrollmentId)]:
-							(srv && (srv["withdrawal_reason"] as string)) ?? existingVal,
+						[String(enrollmentId)]: (srv && (srv["withdrawal_reason"] as string)) ?? existingVal,
 					}));
 					return;
 				}
-				const saved = (await p.json().catch(() => null)) as RawRecord | null;
+				const saved = (p.data ?? null) as RawRecord | null;
 
 				const updated: AttendanceRecord = {
-					id:
-						(saved && (saved["id"] as number | string)) ??
-						(serverRec["id"] as number | string),
-					enrollment:
-						(saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
+					id: (saved && (saved["id"] as number | string)) ?? (serverRec["id"] as number | string),
+					enrollment: (saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
 					canineId:
-						(saved &&
-							((saved["enrollment"] as RawRecord)["canine"] as
-								| number
-								| string)) ??
+						(saved && ((saved["enrollment"] as RawRecord)["canine"] as number | string)) ??
 						enrollmentId,
 					canineName:
-						(saved && (saved["canine_name"] as string)) ??
-						existingLocal?.canineName ??
-						"",
+						(saved && (saved["canine_name"] as string)) ?? existingLocal?.canineName ?? "",
 					date: (saved && (saved["date"] as string)) ?? isoDate,
 					entryTime:
-						(saved && (saved["arrival_time"] as string)) ??
-						existingLocal?.entryTime ??
-						null,
+						(saved && (saved["arrival_time"] as string)) ?? existingLocal?.entryTime ?? null,
 					status: ((saved && (saved["status"] as string)) ??
 						existingLocal?.status ??
 						"present") as AttendanceRecord["status"],
 					exitTime:
-						(saved && (saved["departure_time"] as string)) ??
-						existingLocal?.exitTime ??
-						null,
-					earlyDepartureReason:
-						(saved && (saved["withdrawal_reason"] as string)) ?? draft,
+						(saved && (saved["departure_time"] as string)) ?? existingLocal?.exitTime ?? null,
+					earlyDepartureReason: (saved && (saved["withdrawal_reason"] as string)) ?? draft,
 				};
 				setRecords((prev) => {
-					const without = prev.filter(
-						(r) => String(r.enrollment) !== String(enrollmentId),
-					);
+					const without = prev.filter((r) => String(r.enrollment) !== String(enrollmentId));
 					return [updated, ...without];
 				});
 				setReasonDrafts((p) => ({
@@ -680,54 +570,34 @@ export default function RegisterAttendance() {
 					arrival_time: existingLocal?.entryTime ?? null,
 					withdrawal_reason: draft,
 				};
-				const createRes = await fetch("/api/attendance/", {
-					method: "POST",
+				const createRes = await apiClient.post("/api/attendance/", payload, {
 					headers,
-					body: JSON.stringify(payload),
+					validateStatus: () => true,
 				});
-				if (!createRes.ok) {
-					console.error(
-						"create attendance failed",
-						createRes.status,
-						await createRes.text().catch(() => ""),
-					);
+				if (!(createRes.status >= 200 && createRes.status < 300)) {
+					console.error("create attendance failed", createRes.status, String(createRes.data ?? ""));
 					return;
 				}
-				const saved = (await createRes
-					.json()
-					.catch(() => null)) as RawRecord | null;
+				const saved = (createRes.data ?? null) as RawRecord | null;
 				const updated: AttendanceRecord = {
 					id:
 						(saved && (saved["id"] as number | string)) ??
 						(saved && (saved["pk"] as number | string)),
-					enrollment:
-						(saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
+					enrollment: (saved && (saved["enrollment"] as number | string)) ?? enrollmentId,
 					canineId:
-						(saved &&
-							((saved["enrollment"] as RawRecord)["canine"] as
-								| number
-								| string)) ??
+						(saved && ((saved["enrollment"] as RawRecord)["canine"] as number | string)) ??
 						enrollmentId,
 					canineName:
-						(saved && (saved["canine_name"] as string)) ??
-						existingLocal?.canineName ??
-						"",
+						(saved && (saved["canine_name"] as string)) ?? existingLocal?.canineName ?? "",
 					date: (saved && (saved["date"] as string)) ?? isoDate,
 					entryTime:
-						(saved && (saved["arrival_time"] as string)) ??
-						existingLocal?.entryTime ??
-						null,
-					status:
-						(saved && (saved["status"] as AttendanceRecord["status"])) ??
-						"present",
+						(saved && (saved["arrival_time"] as string)) ?? existingLocal?.entryTime ?? null,
+					status: (saved && (saved["status"] as AttendanceRecord["status"])) ?? "present",
 					exitTime: (saved && (saved["departure_time"] as string)) ?? null,
-					earlyDepartureReason:
-						(saved && (saved["withdrawal_reason"] as string)) ?? draft,
+					earlyDepartureReason: (saved && (saved["withdrawal_reason"] as string)) ?? draft,
 				};
 				setRecords((prev) => {
-					const without = prev.filter(
-						(r) => String(r.enrollment) !== String(enrollmentId),
-					);
+					const without = prev.filter((r) => String(r.enrollment) !== String(enrollmentId));
 					return [updated, ...without];
 				});
 				setReasonDrafts((p) => ({
@@ -745,12 +615,12 @@ export default function RegisterAttendance() {
 	async function adminUndoDispatch(enrollmentId: number | string) {
 		const existing = await (async () => {
 			const headers = { ...getAuthHeader(), Accept: "application/json" };
-			const res = await fetch(
+			const res = await apiClient.get(
 				`/api/attendance/?date=${encodeURIComponent(isoDate)}&enrollment_id=${encodeURIComponent(String(enrollmentId))}`,
-				{ headers },
+				{ headers, validateStatus: () => true },
 			);
-			if (!res.ok) return null;
-			const arr = await res.json().catch(() => null);
+			if (!(res.status >= 200 && res.status < 300)) return null;
+			const arr = Array.isArray(res.data) ? res.data : null;
 			return Array.isArray(arr) && arr.length ? arr[0] : null;
 		})();
 		if (!existing) {
@@ -768,18 +638,15 @@ export default function RegisterAttendance() {
 				status: "present",
 				departure_time: null,
 			};
-			const res = await fetch(`/api/attendance/${existing.id}/`, {
-				method: "PATCH",
+			const res = await apiClient.patch(`/api/attendance/${existing.id}/`, payload, {
 				headers,
-				body: JSON.stringify(payload),
+				validateStatus: () => true,
 			});
-			if (!res.ok) {
-				const t = await res.text().catch(() => null);
-				console.error("undo dispatch failed", res.status, t);
+			if (!(res.status >= 200 && res.status < 300)) {
+				console.error("undo dispatch failed", res.status, String(res.data ?? null));
 				alert("Failed to undo dispatch. Check console.");
 				return;
 			}
-			await res.json().catch(() => null);
 
 			void refreshAttendancesPerEnrollment(date);
 
@@ -795,13 +662,9 @@ export default function RegisterAttendance() {
 
 	function handleClear(enrollmentId: number | string) {
 		const existing = findRecordByEnrollment(enrollmentId);
-		const locked =
-			existing?.status === "dispatched" ||
-			existing?.status === "advance_withdrawal";
+		const locked = existing?.status === "dispatched" || existing?.status === "advance_withdrawal";
 		if (locked) {
-			alert(
-				"No se puede eliminar: registro bloqueado. Deshacer bloqueo con un admin.",
-			);
+			alert("No se puede eliminar: registro bloqueado. Deshacer bloqueo con un admin.");
 			return;
 		}
 		if (!confirm("Eliminar registro de este perro para la fecha?")) return;
@@ -814,17 +677,13 @@ export default function RegisterAttendance() {
 					{ headers },
 				);
 				if (!resQuery.ok) {
-					setRecords((prev) =>
-						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
-					);
+					setRecords((prev) => prev.filter((r) => String(r.enrollment) !== String(enrollmentId)));
 					return;
 				}
 				const arr = await resQuery.json().catch(() => null);
 				const a = Array.isArray(arr) && arr.length ? arr[0] : null;
 				if (!a) {
-					setRecords((prev) =>
-						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
-					);
+					setRecords((prev) => prev.filter((r) => String(r.enrollment) !== String(enrollmentId)));
 					return;
 				}
 				const del = await fetch(`/api/attendance/${a.id}/`, {
@@ -832,9 +691,7 @@ export default function RegisterAttendance() {
 					headers,
 				});
 				if (del.ok) {
-					setRecords((prev) =>
-						prev.filter((r) => String(r.enrollment) !== String(enrollmentId)),
-					);
+					setRecords((prev) => prev.filter((r) => String(r.enrollment) !== String(enrollmentId)));
 				} else {
 					console.error("delete failed", del.status);
 				}
@@ -911,8 +768,7 @@ export default function RegisterAttendance() {
 							<button
 								className="btn-ghost action-btn"
 								onClick={() => {
-									if (!confirm(`Eliminar todos los registros de ${isoDate}?`))
-										return;
+									if (!confirm(`Eliminar todos los registros de ${isoDate}?`)) return;
 									(async () => {
 										try {
 											const headers = {
@@ -971,10 +827,7 @@ export default function RegisterAttendance() {
 						</div>
 					</header>
 
-					<div
-						className="manage-table-container"
-						style={{ flex: 1, minHeight: 0 }}
-					>
+					<div className="manage-table-container" style={{ flex: 1, minHeight: 0 }}>
 						<table
 							className="manage-table"
 							style={{
@@ -996,13 +849,10 @@ export default function RegisterAttendance() {
 							<tbody>
 								{canines.map((c) => {
 									const enrollmentId = c.enrollmentId ?? c.id;
-									const rec = records.find(
-										(r) => String(r.enrollment) === String(enrollmentId),
-									);
+									const rec = records.find((r) => String(r.enrollment) === String(enrollmentId));
 
 									const wasUnlocked = !!unlockedByAdmin[String(enrollmentId)];
-									const currentStatus =
-										(rec?.status as AttendanceRecord["status"]) ?? "present";
+									const currentStatus = (rec?.status as AttendanceRecord["status"]) ?? "present";
 
 									const locked = !!rec && isLockedStatus(rec.status);
 
@@ -1073,20 +923,11 @@ export default function RegisterAttendance() {
 																: "btn-ghost btn-sm"
 														}
 														disabled={
-															(locked && !isAdmin) ||
-															!!busyEnrollments[String(enrollmentId)]
+															(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]
 														}
-														onClick={() =>
-															handleSetStatusFor(
-																enrollmentId,
-																c.name,
-																"present",
-															)
-														}
+														onClick={() => handleSetStatusFor(enrollmentId, c.name, "present")}
 													>
-														{busyEnrollments[String(enrollmentId)]
-															? "..."
-															: "Presente"}
+														{busyEnrollments[String(enrollmentId)] ? "..." : "Presente"}
 													</button>
 													<button
 														type="button"
@@ -1096,15 +937,10 @@ export default function RegisterAttendance() {
 																: "btn-ghost btn-sm"
 														}
 														disabled={
-															(locked && !isAdmin) ||
-															!!busyEnrollments[String(enrollmentId)]
+															(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]
 														}
 														onClick={() =>
-															handleSetStatusFor(
-																enrollmentId,
-																c.name,
-																"advance_withdrawal",
-															)
+															handleSetStatusFor(enrollmentId, c.name, "advance_withdrawal")
 														}
 													>
 														Retiro anticipado
@@ -1117,40 +953,26 @@ export default function RegisterAttendance() {
 																: "btn-ghost btn-sm"
 														}
 														disabled={
-															(locked && !isAdmin) ||
-															!!busyEnrollments[String(enrollmentId)]
+															(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]
 														}
-														onClick={() =>
-															handleSetStatusFor(
-																enrollmentId,
-																c.name,
-																"dispatched",
-															)
-														}
+														onClick={() => handleSetStatusFor(enrollmentId, c.name, "dispatched")}
 														style={
 															currentStatus === "dispatched"
 																? { background: "#bfdbfe", color: "#1e3a8a" }
 																: undefined
 														}
 													>
-														{busyEnrollments[String(enrollmentId)]
-															? "..."
-															: "Despachado"}
+														{busyEnrollments[String(enrollmentId)] ? "..." : "Despachado"}
 													</button>
 													<button
 														type="button"
 														className={
-															currentStatus === "absent"
-																? "btn-danger btn-sm"
-																: "btn-ghost btn-sm"
+															currentStatus === "absent" ? "btn-danger btn-sm" : "btn-ghost btn-sm"
 														}
 														disabled={
-															(locked && !isAdmin) ||
-															!!busyEnrollments[String(enrollmentId)]
+															(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]
 														}
-														onClick={() =>
-															handleSetStatusFor(enrollmentId, c.name, "absent")
-														}
+														onClick={() => handleSetStatusFor(enrollmentId, c.name, "absent")}
 													>
 														Ausente
 													</button>
@@ -1169,30 +991,17 @@ export default function RegisterAttendance() {
 													type="time"
 													className="input-primary"
 													value={rec?.entryTime ?? ""}
-													onChange={(e) =>
-														handleSetEntryTime(
-															enrollmentId,
-															e.target.value || null,
-														)
-													}
+													onChange={(e) => handleSetEntryTime(enrollmentId, e.target.value || null)}
 													step={60}
 													style={{ minWidth: 120, borderRadius: 10 }}
-													disabled={
-														(locked && !isAdmin) ||
-														!!busyEnrollments[String(enrollmentId)]
-													}
+													disabled={(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]}
 												/>
 												<button
 													type="button"
 													className="btn-small"
-													onClick={() =>
-														handleSetEntryTime(enrollmentId, nowHHMM())
-													}
+													onClick={() => handleSetEntryTime(enrollmentId, nowHHMM())}
 													title="Set now"
-													disabled={
-														(locked && !isAdmin) ||
-														!!busyEnrollments[String(enrollmentId)]
-													}
+													disabled={(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]}
 												>
 													🕒
 												</button>
@@ -1208,26 +1017,18 @@ export default function RegisterAttendance() {
 													className="input-primary reason-input"
 													placeholder="Observaciones (opcional)"
 													value={
-														reasonDrafts[String(enrollmentId)] ??
-														rec?.earlyDepartureReason ??
-														""
+														reasonDrafts[String(enrollmentId)] ?? rec?.earlyDepartureReason ?? ""
 													}
-													onChange={(e) =>
-														handleSetReasonLocal(enrollmentId, e.target.value)
-													}
+													onChange={(e) => handleSetReasonLocal(enrollmentId, e.target.value)}
 													onBlur={() => commitReason(enrollmentId)}
 													spellCheck={true}
-													disabled={
-														(locked && !isAdmin) ||
-														!!busyEnrollments[String(enrollmentId)]
-													}
+													disabled={(locked && !isAdmin) || !!busyEnrollments[String(enrollmentId)]}
 												/>
 											</td>
 
 											<td style={{ padding: "12px 16px", textAlign: "right" }}>
 												{rec ? (
-													rec.status === "dispatched" ||
-													rec.status === "advance_withdrawal" ? (
+													rec.status === "dispatched" || rec.status === "advance_withdrawal" ? (
 														isAdmin ? (
 															<button
 																className="icon-btn delete-btn"

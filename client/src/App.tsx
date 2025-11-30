@@ -1,13 +1,9 @@
-import React from "react";
-import {
-	BrowserRouter as Router,
-	Routes,
-	Route,
-	Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
 import { HomePage } from "./pages/HomePage/HomePage";
 import { RegisterPage } from "./pages/RegisterPage/RegisterPage";
+import PageTransition from "./components/PageTransition";
 import "./style.css";
 
 import InternalUsers from "./pages/InternalUsersPage/InternalUsers";
@@ -23,18 +19,49 @@ import ClientDashboard from "./pages/ClientPage/children/ClientDashboard";
 import MyPets from "./pages/ClientPage/children/MyPets";
 import ClientProfile from "./pages/ClientPage/children/ClientProfile";
 import PetDetailPage from "./pages/ClientPage/children/PetDetailPage";
+import EnrollCanine from "./pages/ClientPage/children/EnrollCanine";
 
-function App() {
+function AnimatedRoutes() {
+	const location = useLocation();
+
 	return (
-		<Router>
-			<Routes>
-				<Route path="/login" element={<LoginPage />} />
-				<Route path="/register" element={<RegisterPage />} />
-				<Route path="/" element={<HomePage />} />
+		<AnimatePresence mode="wait">
+			<Routes location={location} key={location.pathname}>
+				<Route
+					path="/login"
+					element={
+						<PageTransition>
+							<LoginPage />
+						</PageTransition>
+					}
+				/>
+				<Route
+					path="/register"
+					element={
+						<PageTransition>
+							<RegisterPage />
+						</PageTransition>
+					}
+				/>
+				<Route
+					path="/"
+					element={
+						<PageTransition>
+							<HomePage />
+						</PageTransition>
+					}
+				/>
 
 				<Route path="/internal-users" element={<InternalUsers />}>
 					<Route index element={<Navigate to="dashboard" replace />} />
-					<Route path="dashboard" element={<DashboardContent />} />
+					<Route
+						path="dashboard"
+						element={
+							<RoleGuard allowed={["ADMIN", "COACH", "DIRECTOR"]}>
+								<DashboardContent />
+							</RoleGuard>
+						}
+					/>
 					<Route
 						path="registrar-usuarios"
 						element={
@@ -75,8 +102,17 @@ function App() {
 					<Route path="mis-mascotas" element={<MyPets />} />
 					<Route path="mis-mascotas/:canineId" element={<PetDetailPage />} />
 					<Route path="perfil" element={<ClientProfile />} />
+					<Route path="matricular-canino" element={<EnrollCanine />} />
 				</Route>
 			</Routes>
+		</AnimatePresence>
+	);
+}
+
+function App() {
+	return (
+		<Router>
+			<AnimatedRoutes />
 		</Router>
 	);
 }

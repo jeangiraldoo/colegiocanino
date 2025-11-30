@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@mui/material";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PetsIcon from "@mui/icons-material/Pets";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import HomeIcon from "@mui/icons-material/Home";
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/right-image.png";
+import apiClient from "../../api/axiosConfig";
 
 export const LoginPage = () => {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [remember, setRemember] = useState<boolean>(
-		() => !!localStorage.getItem("access_token"),
-	);
+	const [remember, setRemember] = useState<boolean>(() => !!localStorage.getItem("access_token"));
 	const [showPassword, setShowPassword] = useState(false);
 
 	const navigate = useNavigate();
@@ -23,8 +24,7 @@ export const LoginPage = () => {
 	const validate = () => {
 		if (!username) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
-		if (password.length < 6)
-			return "La contraseña debe tener al menos 6 caracteres.";
+		if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
 		return "";
 	};
 
@@ -38,21 +38,21 @@ export const LoginPage = () => {
 		}
 		setLoading(true);
 		try {
-			const res = await fetch("/api/token/", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json",
+			const res = await apiClient.post(
+				"/api/token/",
+				{ username, password },
+				{
+					headers: { "Content-Type": "application/json", Accept: "application/json" },
+					validateStatus: () => true,
 				},
-				body: JSON.stringify({ username, password }),
-			});
-			if (!res.ok) {
-				const body = await res.json().catch(() => ({}));
+			);
+			if (!(res.status >= 200 && res.status < 300)) {
+				const body = res.data ?? {};
 				setError(body.detail || "Credenciales inválidas");
 				setLoading(false);
 				return;
 			}
-			const data = await res.json();
+			const data = res.data ?? {};
 			const access = data.access;
 			const refresh = data.refresh;
 			if (!access || !refresh) {
@@ -69,20 +69,17 @@ export const LoginPage = () => {
 				sessionStorage.setItem("refresh_token", refresh);
 			}
 
-			const userTypeRes = await fetch("/api/user-type/", {
-				method: "GET",
-				headers: {
-					Authorization: `Bearer ${access}`,
-					Accept: "application/json",
-				},
+			const userTypeRes = await apiClient.get("/api/user-type/", {
+				headers: { Authorization: `Bearer ${access}`, Accept: "application/json" },
+				validateStatus: () => true,
 			});
 
-			if (!userTypeRes.ok) {
+			if (!(userTypeRes.status >= 200 && userTypeRes.status < 300)) {
 				navigate("/", { replace: true });
 				return;
 			}
 
-			const ut = await userTypeRes.json();
+			const ut = userTypeRes.data ?? {};
 			if (ut.user_type) localStorage.setItem("user_type", String(ut.user_type));
 			if (ut.role) localStorage.setItem("user_role", String(ut.role));
 			if (ut.client_id) localStorage.setItem("client_id", String(ut.client_id));
@@ -115,8 +112,48 @@ export const LoginPage = () => {
 
 	return (
 		<div className="h-screen w-screen flex login-page">
-			<div className="absolute left-4 top-4 z-20">
+			<div className="absolute left-4 top-4 z-20 flex items-center gap-4">
 				<img src={logoSrc} alt="Logo" className="w-40 h-auto" />
+				<Button
+					component={Link}
+					to="/"
+					variant="outlined"
+					startIcon={<HomeIcon />}
+					sx={{
+						color: "#fbbf24",
+						borderColor: "#fbbf24",
+						fontFamily: "var(--font-lekton-bold)",
+						letterSpacing: "0.05em",
+						textTransform: "none",
+						padding: "0.5rem 1.25rem",
+						borderRadius: "0.5rem",
+						transition: "all 0.3s ease",
+						display: "flex",
+						alignItems: "center",
+						"& .MuiButton-startIcon": {
+							marginRight: "0.5rem",
+							marginLeft: 0,
+							display: "flex",
+							alignItems: "center",
+						},
+						"& .MuiSvgIcon-root": {
+							color: "#fbbf24",
+							fontSize: "1.2rem",
+						},
+						"&:hover": {
+							borderColor: "#f59e0b",
+							backgroundColor: "rgba(251, 191, 36, 0.15)",
+							color: "#f59e0b",
+							transform: "translateY(-2px)",
+							boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
+							"& .MuiSvgIcon-root": {
+								color: "#f59e0b",
+							},
+						},
+					}}
+				>
+					Inicio
+				</Button>
 			</div>
 			<div className="w-1/2 bg-white flex items-center justify-center p-8">
 				<div className="max-w-md w-full">
@@ -138,10 +175,7 @@ export const LoginPage = () => {
 						Usa tus credenciales para acceder a las funcionalidades.
 					</h4>
 
-					<form
-						onSubmit={handleSubmit}
-						aria-label="Formulario de inicio de sesión"
-					>
+					<form onSubmit={handleSubmit} aria-label="Formulario de inicio de sesión">
 						<label className="block mb-2">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Usuario
@@ -179,9 +213,7 @@ export const LoginPage = () => {
 									type="button"
 									className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
 									onClick={() => setShowPassword((s) => !s)}
-									aria-label={
-										showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-									}
+									aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
 									title={showPassword ? "Ocultar" : "Mostrar"}
 								>
 									{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
@@ -214,11 +246,7 @@ export const LoginPage = () => {
 						</div>
 
 						{error && (
-							<div
-								role="alert"
-								aria-live="assertive"
-								className="text-red-600 mt-3"
-							>
+							<div role="alert" aria-live="assertive" className="text-red-600 mt-3">
 								{error}
 							</div>
 						)}
@@ -257,10 +285,7 @@ export const LoginPage = () => {
 			</div>
 			<div className="fixed left-4 bottom-4 text-sm font-lekton-italic subtittle-primary">
 				¿No tienes una cuenta?{" "}
-				<Link
-					to="/register"
-					className="link-amber underline font-lekton-bold no-italic"
-				>
+				<Link to="/register" className="link-amber underline font-lekton-bold no-italic">
 					Regístrate
 				</Link>
 			</div>
