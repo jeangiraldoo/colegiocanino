@@ -363,8 +363,12 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
 		# Get existing values if updating
 		if self.instance:
-			enrollment_date = enrollment_date if enrollment_date is not None else self.instance.enrollment_date
-			expiration_date = expiration_date if expiration_date is not None else self.instance.expiration_date
+			enrollment_date = (
+				enrollment_date if enrollment_date is not None else self.instance.enrollment_date
+			)
+			expiration_date = (
+				expiration_date if expiration_date is not None else self.instance.expiration_date
+			)
 			plan = plan if plan is not None else self.instance.plan
 
 		# Validate dates
@@ -379,11 +383,17 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 		# Validate plan is active
 		if plan:
 			if not plan.active:
-				raise serializers.ValidationError(
-					{"plan": "El plan seleccionado no está activo."}
-				)
+				raise serializers.ValidationError({"plan": "El plan seleccionado no está activo."})
 
 		return data
+
+	def validate_canine(self, value):
+		"""
+		Validate that the canine is active.
+		"""
+		if not value.status:
+			raise serializers.ValidationError("No se puede inscribir un canino inactivo.")
+		return value
 
 
 class AttendanceSerializer(serializers.ModelSerializer):

@@ -1,14 +1,16 @@
 import json
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated, BasePermission
+from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -255,7 +257,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 		return [IsAuthenticated()]
 
 	def get_queryset(self):
-		queryset = Enrollment.objects.all()
+		queryset = Enrollment.objects.select_related("canine", "plan", "transport_service").all()
 
 		# Filters
 		canine_id = self.request.query_params.get("canine_id", None)
@@ -640,36 +642,56 @@ class EnrollmentsByPlanReportView(APIView):
 		# Get query parameters for filtering
 		status_filter = request.query_params.get("status", None)
 		active_only = request.query_params.get("active_only", None)
+		include_empty = request.query_params.get("include_empty", None)
 
-		# Base queryset
-		enrollments = Enrollment.objects.all()
+		# Build aggregation query
+		# We use Case/When or Filter inside Count (Django 2.0+)
+		# Since we are on Django 5.2, we can use filter argument in Count
 
-		# Apply filters if provided
+		# Base annotation
+		plans = EnrollmentPlan.objects.filter(active=True).annotate(
+			total_enrollments=Count("enrollments"),
+			active_enrollments=Count("enrollments", filter=Q(enrollments__status=True)),
+			inactive_enrollments=Count("enrollments", filter=Q(enrollments__status=False)),
+		)
+
+		# Apply status filter if provided
+		# Note: Filtering the main queryset would remove plans that don't match,
+		# but we want to filter the COUNTS if that's the intention.
+		# However, usually "status" filter on a report means "show me plans based on enrollments with this status".
+		# But the previous implementation filtered the enrollments used for counting.
+		# If we want to filter the counts, we should adjust the annotation filters.
+		# But for simplicity and correctness of "Plan Report", usually we want to see all plans
+		# and their breakdown.
+		# If the user wants to filter by status, they probably want to see counts for that status.
+
 		if status_filter is not None:
 			status_bool = status_filter.lower() == "true"
-			enrollments = enrollments.filter(status=status_bool)
+			# If status is filtered, we only count enrollments with that status
+			# This changes the meaning of "total_enrollments" to "total matching enrollments"
+			plans = EnrollmentPlan.objects.filter(active=True).annotate(
+				total_enrollments=Count("enrollments", filter=Q(enrollments__status=status_bool)),
+				active_enrollments=Count(
+					"enrollments",
+					filter=Q(enrollments__status=True) & Q(enrollments__status=status_bool),
+				),
+				inactive_enrollments=Count(
+					"enrollments",
+					filter=Q(enrollments__status=False) & Q(enrollments__status=status_bool),
+				),
+			)
 
-		# Get all plans (including those with no enrollments)
-		plans = EnrollmentPlan.objects.filter(active=True).order_by("name")
+		# Order by total enrollments
+		plans = plans.order_by("-total_enrollments")
 
-		# Build report data
 		report_data = []
 
 		for plan in plans:
-			# Filter enrollments for this plan
-			plan_enrollments = enrollments.filter(plan=plan)
-
-			# Count statistics
-			total_count = plan_enrollments.count()
-			active_count = plan_enrollments.filter(status=True).count()
-			inactive_count = plan_enrollments.filter(status=False).count()
-
-			# Only include plans with enrollments if active_only is not specified
-			# or if active_only is true and there are active enrollments
+			# Filter logic
 			if active_only and active_only.lower() == "true":
-				if active_count == 0:
+				if plan.active_enrollments == 0:
 					continue
-			elif total_count == 0 and not request.query_params.get("include_empty", None):
+			elif plan.total_enrollments == 0 and not include_empty:
 				continue
 
 			plan_data = {
@@ -677,16 +699,12 @@ class EnrollmentsByPlanReportView(APIView):
 				"plan_name": plan.name,
 				"duration": plan.duration,
 				"duration_display": plan.get_duration_display(),
-				"price": str(plan.price),  # Convert Decimal to string for JSON
-				"total_enrollments": total_count,
-				"active_enrollments": active_count,
-				"inactive_enrollments": inactive_count,
+				"price": str(plan.price),
+				"total_enrollments": plan.total_enrollments,
+				"active_enrollments": plan.active_enrollments,
+				"inactive_enrollments": plan.inactive_enrollments,
 			}
-
 			report_data.append(plan_data)
-
-		# Sort by total enrollments (descending) to show most popular first
-		report_data.sort(key=lambda x: x["total_enrollments"], reverse=True)
 
 		# Calculate summary statistics
 		total_all_enrollments = sum(item["total_enrollments"] for item in report_data)
@@ -701,6 +719,125 @@ class EnrollmentsByPlanReportView(APIView):
 				"total_inactive_enrollments": total_inactive,
 			},
 			"plans": report_data,
+		}
+
+		return Response(response_data)
+
+
+class MonthlyIncomeReportView(APIView):
+	"""
+	Report endpoint for monthly income from enrollments.
+	Only Directors and Admins can access this report.
+	"""
+
+	permission_classes = [IsDirectorOrAdmin]
+
+	def get(self, request):
+		"""
+		Get monthly income statistics from enrollments.
+		Returns income data grouped by year and month, suitable for chart visualization.
+		"""
+		# Get query parameters for filtering
+		year = request.query_params.get("year", None)
+		year_from = request.query_params.get("year_from", None)
+		year_to = request.query_params.get("year_to", None)
+		status_filter = request.query_params.get("status", None)
+
+		# Base queryset - get enrollments with plan price
+		enrollments = Enrollment.objects.select_related("plan").all()
+
+		# Apply status filter if provided
+		if status_filter is not None:
+			status_bool = status_filter.lower() == "true"
+			enrollments = enrollments.filter(status=status_bool)
+
+		# Apply year filters
+		try:
+			if year:
+				# Filter by specific year
+				enrollments = enrollments.filter(enrollment_date__year=int(year))
+			elif year_from or year_to:
+				# Filter by year range
+				if year_from:
+					enrollments = enrollments.filter(enrollment_date__year__gte=int(year_from))
+				if year_to:
+					enrollments = enrollments.filter(enrollment_date__year__lte=int(year_to))
+		except (ValueError, TypeError):
+			return Response(
+				{"error": "Year parameters must be valid integers"},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		# Group by year and month, and sum the plan prices
+		monthly_data = (
+			enrollments.annotate(month=TruncMonth("enrollment_date"))
+			.values("month")
+			.annotate(total_income=Sum("plan__price"), enrollment_count=Count("id"))
+			.order_by("month")
+		)
+
+		# Build response data
+		monthly_income = []
+		total_income = Decimal("0")
+		total_enrollments = 0
+
+		for entry in monthly_data:
+			month_date = entry["month"]
+			income = entry["total_income"] or Decimal("0")
+			count = entry["enrollment_count"]
+
+			monthly_income.append(
+				{
+					"year": month_date.year,
+					"month": month_date.month,
+					"month_name": month_date.strftime("%B"),  # Full month name
+					"month_short": month_date.strftime("%b"),  # Short month name
+					"date": month_date.strftime("%Y-%m"),  # Format: YYYY-MM
+					"income": str(income),  # Convert Decimal to string
+					"enrollment_count": count,
+				}
+			)
+
+			total_income += income
+			total_enrollments += count
+
+		# Calculate statistics
+		avg_monthly_income = total_income / len(monthly_income) if monthly_income else Decimal("0")
+
+		# Find min and max income months
+		if monthly_income:
+			max_month = max(monthly_income, key=lambda x: Decimal(x["income"]))
+			min_month = min(monthly_income, key=lambda x: Decimal(x["income"]))
+		else:
+			max_month = None
+			min_month = None
+
+		response_data = {
+			"summary": {
+				"total_income": str(total_income),
+				"total_enrollments": total_enrollments,
+				"average_monthly_income": str(avg_monthly_income),
+				"months_count": len(monthly_income),
+				"max_month": (
+					{
+						"date": max_month["date"],
+						"month_name": max_month["month_name"],
+						"income": max_month["income"],
+					}
+					if max_month
+					else None
+				),
+				"min_month": (
+					{
+						"date": min_month["date"],
+						"month_name": min_month["month_name"],
+						"income": min_month["income"],
+					}
+					if min_month
+					else None
+				),
+			},
+			"monthly_data": monthly_income,
 		}
 
 		return Response(response_data)
