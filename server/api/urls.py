@@ -6,6 +6,7 @@ from .views import (
 	CanineViewSet,
 	ClientViewSet,
 	DashboardStatsView,
+	EnrollmentsByPlanReportView,
 	EnrollmentPlanViewSet,
 	EnrollmentViewSet,
 	InternalUserViewSet,
@@ -34,4 +35,9 @@ urlpatterns = [
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),
 	path("user-type/", user_type_view, name="user-type"),
+	path(
+		"reports/enrollments-by-plan/",
+		EnrollmentsByPlanReportView.as_view(),
+		name="enrollments-by-plan-report",
+	),
 ]

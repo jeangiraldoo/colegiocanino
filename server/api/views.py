@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -36,6 +36,27 @@ from .serializers import (
 )
 
 UserModel = get_user_model()
+
+
+class IsDirectorOrAdmin(BasePermission):
+	"""
+	Permission class to allow only Directors and Admins to perform actions.
+	"""
+
+	def has_permission(self, request, view):
+		if not request.user or not request.user.is_authenticated:
+			return False
+
+		# Check if user is admin (staff)
+		if request.user.is_staff:
+			return True
+
+		# Check if user has internal profile with Director or Admin role
+		if hasattr(request.user, "internal_profile"):
+			role = request.user.internal_profile.role
+			return role in [InternalUser.Roles.DIRECTOR, InternalUser.Roles.ADMIN]
+
+		return False
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -214,6 +235,7 @@ class TransportServiceViewSet(viewsets.ModelViewSet):
 class EnrollmentViewSet(viewsets.ModelViewSet):
 	"""
 	ViewSet for Enrollment management.
+	Directors and Admins can update enrollments.
 	"""
 
 	queryset = Enrollment.objects.all()
@@ -223,6 +245,14 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 	search_fields = ["canine__name", "plan__name"]
 	ordering_fields = ["enrollment_date", "expiration_date", "creation_date"]
 	ordering = ["-creation_date"]
+
+	def get_permissions(self):
+		"""
+		Override to require Director or Admin permissions for update/partial_update/destroy.
+		"""
+		if self.action in ["update", "partial_update", "destroy"]:
+			return [IsDirectorOrAdmin()]
+		return [IsAuthenticated()]
 
 	def get_queryset(self):
 		queryset = Enrollment.objects.all()
@@ -588,3 +618,89 @@ class DashboardStatsView(APIView):
 
 		serializer = DashboardStatsSerializer(stats)
 		return Response(serializer.data)
+
+
+class EnrollmentsByPlanReportView(APIView):
+	"""
+	Report endpoint for enrollments grouped by plan type.
+	Only Directors and Admins can access this report.
+	"""
+
+	permission_classes = [IsDirectorOrAdmin]
+
+	def get(self, request):
+		"""
+		Get enrollment statistics grouped by plan type.
+		Returns detailed information about each plan including:
+		- Plan name, duration, price
+		- Total enrollments count
+		- Active enrollments count
+		- Inactive enrollments count
+		"""
+		# Get query parameters for filtering
+		status_filter = request.query_params.get("status", None)
+		active_only = request.query_params.get("active_only", None)
+
+		# Base queryset
+		enrollments = Enrollment.objects.all()
+
+		# Apply filters if provided
+		if status_filter is not None:
+			status_bool = status_filter.lower() == "true"
+			enrollments = enrollments.filter(status=status_bool)
+
+		# Get all plans (including those with no enrollments)
+		plans = EnrollmentPlan.objects.filter(active=True).order_by("name")
+
+		# Build report data
+		report_data = []
+
+		for plan in plans:
+			# Filter enrollments for this plan
+			plan_enrollments = enrollments.filter(plan=plan)
+
+			# Count statistics
+			total_count = plan_enrollments.count()
+			active_count = plan_enrollments.filter(status=True).count()
+			inactive_count = plan_enrollments.filter(status=False).count()
+
+			# Only include plans with enrollments if active_only is not specified
+			# or if active_only is true and there are active enrollments
+			if active_only and active_only.lower() == "true":
+				if active_count == 0:
+					continue
+			elif total_count == 0 and not request.query_params.get("include_empty", None):
+				continue
+
+			plan_data = {
+				"plan_id": plan.id,
+				"plan_name": plan.name,
+				"duration": plan.duration,
+				"duration_display": plan.get_duration_display(),
+				"price": str(plan.price),  # Convert Decimal to string for JSON
+				"total_enrollments": total_count,
+				"active_enrollments": active_count,
+				"inactive_enrollments": inactive_count,
+			}
+
+			report_data.append(plan_data)
+
+		# Sort by total enrollments (descending) to show most popular first
+		report_data.sort(key=lambda x: x["total_enrollments"], reverse=True)
+
+		# Calculate summary statistics
+		total_all_enrollments = sum(item["total_enrollments"] for item in report_data)
+		total_active = sum(item["active_enrollments"] for item in report_data)
+		total_inactive = sum(item["inactive_enrollments"] for item in report_data)
+
+		response_data = {
+			"summary": {
+				"total_plans": len(report_data),
+				"total_enrollments": total_all_enrollments,
+				"total_active_enrollments": total_active,
+				"total_inactive_enrollments": total_inactive,
+			},
+			"plans": report_data,
+		}
+
+		return Response(response_data)
