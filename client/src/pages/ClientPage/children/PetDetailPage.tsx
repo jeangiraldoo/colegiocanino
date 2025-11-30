@@ -1,20 +1,24 @@
 // client/src/pages/ClientPage/children/PetDetailPage.tsx
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import EnrollmentDetails from "../components/EnrollmentDetails"; // Import of the new component
 
-// --- Simulación de datos más robusta ---
+// --- We keep the existing attendance data simulation to avoid breaking that functionality ---
+// NOTE: In a future user story we should connect this to the real attendance endpoint
+// but for now we focus on integrating Enrollment (User Story HU-13)
+
 const generateMockAttendance = (count: number): Attendance[] => {
 	return Array.from({ length: count }).map((_, i) => {
 		const date = new Date();
-		date.setDate(date.getDate() - i * 3); // Registros cada 3 días para variar meses
+		date.setDate(date.getDate() - i * 3);
 		const dayOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][
 			date.getDay()
 		];
-		const isAbsent = i % 7 === 0; // Uno de cada 7 está ausente
+		const isAbsent = i % 7 === 0;
 		const isLate = !isAbsent && i % 4 === 0;
 
 		return {
@@ -49,23 +53,24 @@ type CanineDetails = {
 };
 
 const fetchPetAttendance = async (canineId: string): Promise<CanineDetails> => {
-	console.log(`Haciendo fetch a /api/canines/${canineId}/attendance/...`);
+	// We simulate a delay
 	await new Promise((res) => setTimeout(res, 700));
 
-	if (canineId === "12") {
-		return { name: "Luna", attendances: generateMockAttendance(10) }; // Luna tiene 10 registros
-	}
+	// We simulate names based on ID for the demo
+	const name = canineId === "12" ? "Luna" : "Toby";
+	const count = canineId === "12" ? 10 : 25;
 
 	return {
-		name: "Toby",
-		attendances: generateMockAttendance(25), // Toby tiene 25 registros
+		name: name,
+		attendances: generateMockAttendance(count),
 	};
 };
 
 export default function PetDetailPage() {
-	const { canineId } = useParams<{ canineId?: string }>();
+	const { canineId } = useParams<{ canineId: string }>();
 	const [details, setDetails] = useState<CanineDetails | null>(null);
-	const [loading, setLoading] = useState(true);
+	// Specific loading for attendance (enrollment has its own internal loading)
+	const [loadingAttendance, setLoadingAttendance] = useState(true);
 
 	const [startDate, setStartDate] = useState<Date | null>(null);
 	const [endDate, setEndDate] = useState<Date | null>(null);
@@ -76,7 +81,7 @@ export default function PetDetailPage() {
 	useEffect(() => {
 		if (!canineId) return;
 		const loadDetails = async () => {
-			setLoading(true);
+			setLoadingAttendance(true);
 			try {
 				const data = await fetchPetAttendance(canineId);
 				setDetails(data);
@@ -84,7 +89,7 @@ export default function PetDetailPage() {
 			} catch (error) {
 				console.error("Error al cargar el historial:", error);
 			} finally {
-				setLoading(false);
+				setLoadingAttendance(false);
 			}
 		};
 		void loadDetails();
@@ -94,11 +99,8 @@ export default function PetDetailPage() {
 		if (!details) return;
 		let filtered = details.attendances;
 		if (startDate || endDate) {
-			// Clone dates to avoid mutating state
-			const start = startDate ? new Date(startDate.getTime()) : null;
-			const end = endDate ? new Date(endDate.getTime()) : null;
-			if (start) start.setHours(0, 0, 0, 0);
-			if (end) end.setHours(23, 59, 59, 999);
+			const start = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
+			const end = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
 
 			filtered = details.attendances.filter((att) => {
 				const [day, month, year] = att.date.split("/");
@@ -143,138 +145,144 @@ export default function PetDetailPage() {
 					>
 						<span className="font-bold">&larr;</span> Volver a Mis Mascotas
 					</Link>
-					{/* CORRECCIÓN CLAVE: Se reduce el tamaño de la fuente de 3xl a 2xl */}
-					<h1 className="text-2xl font-bold mt-2">
-						Historial de Asistencia de {details?.name || "..."}
-					</h1>
+					<h1 className="text-2xl font-bold mt-2">Detalle de {details?.name || "..."}</h1>
 				</div>
 
-				<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-					<div className="flex flex-wrap items-center gap-4 mb-6">
-						<div className="flex-grow">
-							<label className="text-sm font-medium text-gray-600">Desde</label>
-							<DatePicker
-								selected={startDate}
-								onChange={(date) => setStartDate(date)}
-								selectsStart
-								startDate={startDate}
-								endDate={endDate}
-								className="input-primary w-full mt-1"
-								placeholderText="Fecha de inicio"
-							/>
-						</div>
-						<div className="flex-grow">
-							<label className="text-sm font-medium text-gray-600">Hasta</label>
-							<DatePicker
-								selected={endDate}
-								onChange={(date) => setEndDate(date)}
-								selectsEnd
-								startDate={startDate}
-								endDate={endDate}
-								minDate={startDate ?? undefined}
-								className="input-primary w-full mt-1"
-								placeholderText="Fecha de fin"
-							/>
-						</div>
-						<button className="btn-primary self-end" onClick={handleFilter}>
-							Filtrar
-						</button>
-					</div>
+				{/* --- ENROLLMENT HU-13 INTEGRATION: Enrollment Plan Component --- */}
+				{/* It renders only if we have a valid canineId */}
+				{canineId && <EnrollmentDetails canineId={canineId} />}
+				{/* --------------------------------------------------------- */}
 
-					{loading && <p className="text-center py-8">Cargando historial...</p>}
+				<div className="mt-8">
+					<h2 className="text-xl font-bold mb-4 text-gray-800">Historial de Asistencia</h2>
 
-					{!loading && filteredAttendances.length === 0 && (
-						<div className="text-center py-8">
-							<p className="text-gray-600">
-								No se encontraron registros para los criterios seleccionados.
-							</p>
-						</div>
-					)}
-
-					{!loading && filteredAttendances.length > 0 && (
-						<>
-							<div className="overflow-x-auto">
-								<table className="min-w-full divide-y divide-gray-200">
-									<thead className="bg-gray-50">
-										<tr>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Fecha
-											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Estado
-											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Entrada
-											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Salida
-											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Transporte
-											</th>
-											<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Notas
-											</th>
-										</tr>
-									</thead>
-									<tbody className="bg-white divide-y divide-gray-200">
-										{currentRecords.map((att, index) => (
-											<tr key={index} className="hover:bg-gray-50">
-												<td className="px-6 py-4 whitespace-nowrap">
-													<div className="font-bold text-gray-800">{att.date}</div>
-													<div className="text-sm text-gray-500">{att.dayOfWeek}</div>
-												</td>
-												<td className="px-6 py-4 whitespace-nowrap">{att.status}</td>
-												<td className="px-6 py-4 whitespace-nowrap">{att.entry_time || "—"}</td>
-												<td className="px-6 py-4 whitespace-nowrap">{att.departure_time || "—"}</td>
-												<td className="px-6 py-4 whitespace-nowrap">{att.transport}</td>
-												<td className="px-6 py-4 whitespace-nowrap">{att.notes || "—"}</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
+					<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+						<div className="flex flex-wrap items-center gap-4 mb-6">
+							<div className="flex-grow">
+								<label className="text-sm font-medium text-gray-600">Desde</label>
+								<DatePicker
+									selected={startDate}
+									onChange={(date) => setStartDate(date)}
+									selectsStart
+									startDate={startDate}
+									endDate={endDate}
+									className="input-primary w-full mt-1"
+									placeholderText="Fecha de inicio"
+								/>
 							</div>
+							<div className="flex-grow">
+								<label className="text-sm font-medium text-gray-600">Hasta</label>
+								<DatePicker
+									selected={endDate}
+									onChange={(date) => setEndDate(date)}
+									selectsEnd
+									startDate={startDate}
+									endDate={endDate}
+									minDate={startDate}
+									className="input-primary w-full mt-1"
+									placeholderText="Fecha de fin"
+								/>
+							</div>
+							<button className="btn-primary self-end" onClick={handleFilter}>
+								Filtrar
+							</button>
+						</div>
 
-							{totalPages > 1 && (
-								<div className="flex justify-between items-center mt-6">
-									<span className="text-sm text-gray-600">
-										Página {currentPage} de {totalPages}
-									</span>
-									<div className="flex items-center gap-2">
-										<button
-											className="btn-ghost"
-											onClick={() => paginate(currentPage - 1)}
-											disabled={currentPage === 1}
-										>
-											Anterior
-										</button>
-										{Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+						{loadingAttendance && <p className="text-center py-8">Cargando historial...</p>}
+
+						{!loadingAttendance && filteredAttendances.length === 0 && (
+							<div className="text-center py-8">
+								<p className="text-gray-600">
+									No se encontraron registros para los criterios seleccionados.
+								</p>
+							</div>
+						)}
+
+						{!loadingAttendance && filteredAttendances.length > 0 && (
+							<>
+								<div className="overflow-x-auto">
+									<table className="min-w-full divide-y divide-gray-200">
+										<thead className="bg-gray-50">
+											<tr>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Fecha
+												</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Estado
+												</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Entrada
+												</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Salida
+												</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Transporte
+												</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+													Notas
+												</th>
+											</tr>
+										</thead>
+										<tbody className="bg-white divide-y divide-gray-200">
+											{currentRecords.map((att, index) => (
+												<tr key={index} className="hover:bg-gray-50">
+													<td className="px-6 py-4 whitespace-nowrap">
+														<div className="font-bold text-gray-800">{att.date}</div>
+														<div className="text-sm text-gray-500">{att.dayOfWeek}</div>
+													</td>
+													<td className="px-6 py-4 whitespace-nowrap">{att.status}</td>
+													<td className="px-6 py-4 whitespace-nowrap">{att.entry_time || "—"}</td>
+													<td className="px-6 py-4 whitespace-nowrap">
+														{att.departure_time || "—"}
+													</td>
+													<td className="px-6 py-4 whitespace-nowrap">{att.transport}</td>
+													<td className="px-6 py-4 whitespace-nowrap">{att.notes || "—"}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+
+								{totalPages > 1 && (
+									<div className="flex justify-between items-center mt-6">
+										<span className="text-sm text-gray-600">
+											Página {currentPage} de {totalPages}
+										</span>
+										<div className="flex items-center gap-2">
 											<button
-												key={number}
-												onClick={() => paginate(number)}
-												className={currentPage === number ? "btn-primary" : "btn-ghost"}
+												className="btn-ghost"
+												onClick={() => paginate(currentPage - 1)}
+												disabled={currentPage === 1}
 											>
-												{number}
+												Anterior
 											</button>
-										))}
-										<button
-											className="btn-ghost"
-											onClick={() => paginate(currentPage + 1)}
-											disabled={currentPage === totalPages}
-										>
-											Siguiente
+											{Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+												<button
+													key={number}
+													onClick={() => paginate(number)}
+													className={currentPage === number ? "btn-primary" : "btn-ghost"}
+												>
+													{number}
+												</button>
+											))}
+											<button
+												className="btn-ghost"
+												onClick={() => paginate(currentPage + 1)}
+												disabled={currentPage === totalPages}
+											>
+												Siguiente
+											</button>
+										</div>
+										{/* Botón deshabilitado simulado para mantener el layout */}
+										<button className="btn-primary opacity-50 cursor-not-allowed" disabled>
+											Descargar Informe
 										</button>
 									</div>
-									<button
-										className="btn-primary"
-										onClick={() => console.log("Descargando informe...")}
-									>
-										Descargar Informe
-									</button>
-								</div>
-							)}
-						</>
-					)}
+								)}
+							</>
+						)}
+					</div>
 				</div>
 			</div>
 		</PageTransition>
