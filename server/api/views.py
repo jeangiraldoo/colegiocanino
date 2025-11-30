@@ -631,44 +631,21 @@ class EnrollmentsByPlanReportView(APIView):
 	permission_classes = [IsDirectorOrAdmin]
 
 	def get(self, request):
-		"""
-		Get enrollment statistics grouped by plan type.
-		Returns detailed information about each plan including:
-		- Plan name, duration, price
-		- Total enrollments count
-		- Active enrollments count
-		- Inactive enrollments count
-		"""
+		
 		# Get query parameters for filtering
 		status_filter = request.query_params.get("status", None)
 		active_only = request.query_params.get("active_only", None)
 		include_empty = request.query_params.get("include_empty", None)
 
-		# Build aggregation query
-		# We use Case/When or Filter inside Count (Django 2.0+)
-		# Since we are on Django 5.2, we can use filter argument in Count
-
-		# Base annotation
 		plans = EnrollmentPlan.objects.filter(active=True).annotate(
 			total_enrollments=Count("enrollments"),
 			active_enrollments=Count("enrollments", filter=Q(enrollments__status=True)),
 			inactive_enrollments=Count("enrollments", filter=Q(enrollments__status=False)),
 		)
 
-		# Apply status filter if provided
-		# Note: Filtering the main queryset would remove plans that don't match,
-		# but we want to filter the COUNTS if that's the intention.
-		# However, usually "status" filter on a report means "show me plans based on enrollments with this status".
-		# But the previous implementation filtered the enrollments used for counting.
-		# If we want to filter the counts, we should adjust the annotation filters.
-		# But for simplicity and correctness of "Plan Report", usually we want to see all plans
-		# and their breakdown.
-		# If the user wants to filter by status, they probably want to see counts for that status.
-
 		if status_filter is not None:
 			status_bool = status_filter.lower() == "true"
 			# If status is filtered, we only count enrollments with that status
-			# This changes the meaning of "total_enrollments" to "total matching enrollments"
 			plans = EnrollmentPlan.objects.filter(active=True).annotate(
 				total_enrollments=Count("enrollments", filter=Q(enrollments__status=status_bool)),
 				active_enrollments=Count(
@@ -733,10 +710,7 @@ class MonthlyIncomeReportView(APIView):
 	permission_classes = [IsDirectorOrAdmin]
 
 	def get(self, request):
-		"""
-		Get monthly income statistics from enrollments.
-		Returns income data grouped by year and month, suitable for chart visualization.
-		"""
+		
 		# Get query parameters for filtering
 		year = request.query_params.get("year", None)
 		year_from = request.query_params.get("year_from", None)
@@ -801,7 +775,6 @@ class MonthlyIncomeReportView(APIView):
 			total_income += income
 			total_enrollments += count
 
-		# Calculate statistics
 		avg_monthly_income = total_income / len(monthly_income) if monthly_income else Decimal("0")
 
 		# Find min and max income months
