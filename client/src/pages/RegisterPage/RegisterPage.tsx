@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@mui/material";
-import axios from "axios"; // 1. Importamos axios
+import axios from "axios";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -13,8 +13,8 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import HomeIcon from "@mui/icons-material/Home";
 import logoSrc from "../../assets/raices-caninas-logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
+import { validationRules } from "../../utils/validationRules"; // Import
 
-// CAMBIO CLAVE 2: Se define un tipo para la estructura de los errores de la API.
 type ApiErrorResponse = {
 	email?: string[];
 	username?: string[];
@@ -47,13 +47,28 @@ export const RegisterPage = () => {
 	};
 
 	const validate = () => {
-		if (Object.values(form).some((v) => v.trim() === ""))
-			return "Todos los campos son obligatorios.";
-		if (!/^\S+@\S+\.\S+$/.test(form.email)) return "El correo electrónico no es válido.";
-		if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
-		if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
-		if (!/^\d{6,12}$/.test(form.documentId)) return "La cédula debe contener entre 6 y 12 dígitos.";
-		if (!agreeTerms) return "Debes aceptar los lineamientos de la escuela.";
+		// 1. Check required fields
+		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
+
+		// 2. Validate Email format
+		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
+
+		// 3. Validate Password Strength (Backend Rule)
+		if (!validationRules.isValidPassword(form.password)) return validationRules.messages.password;
+
+		// 4. Validate Password Match
+		if (form.password !== form.confirmPassword) return validationRules.messages.matchPassword;
+
+		// 5. Validate Document ID (Numeric, 6-12 chars)
+		if (!validationRules.isValidDocumentId(form.documentId))
+			return validationRules.messages.documentId;
+
+		// 6. Validate Username length
+		if (!validationRules.isValidUsername(form.username)) return validationRules.messages.username;
+
+		// 7. Validate Terms
+		if (!agreeTerms) return validationRules.messages.terms;
+
 		return "";
 	};
 
@@ -88,7 +103,6 @@ export const RegisterPage = () => {
 				}, 2000);
 			}
 		} catch (err: unknown) {
-			// CAMBIO CLAVE 3: Se usa `unknown` y se verifica el tipo de error.
 			console.error("Error en el registro:", err);
 			if (axios.isAxiosError(err) && err.response) {
 				const apiErrors = err.response.data as ApiErrorResponse;
