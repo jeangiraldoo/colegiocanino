@@ -13,6 +13,7 @@ import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
 import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
 import RoleGuard from "./components/RoleGuard";
+import UserTypeGuard from "./components/UserTypeGuard";
 
 import ClientPage from "./pages/ClientPage/ClientPage";
 import ClientDashboard from "./pages/ClientPage/children/ClientDashboard";
@@ -52,7 +53,14 @@ function AnimatedRoutes() {
 					}
 				/>
 
-				<Route path="/internal-users" element={<InternalUsers />}>
+				<Route
+					path="/internal-users"
+					element={
+						<UserTypeGuard allowedUserType="internal">
+							<InternalUsers />
+						</UserTypeGuard>
+					}
+				>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route
 						path="dashboard"
@@ -96,7 +104,14 @@ function AnimatedRoutes() {
 					/>
 				</Route>
 
-				<Route path="/portal-cliente" element={<ClientPage />}>
+				<Route
+					path="/portal-cliente"
+					element={
+						<UserTypeGuard allowedUserType="client">
+							<ClientPage />
+						</UserTypeGuard>
+					}
+				>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route path="dashboard" element={<ClientDashboard />} />
 					<Route path="mis-mascotas" element={<MyPets />} />
