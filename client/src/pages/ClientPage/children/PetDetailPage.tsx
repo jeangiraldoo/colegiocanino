@@ -1,127 +1,107 @@
-// client/src/pages/ClientPage/children/PetDetailPage.tsx
-
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import EnrollmentDetails from "../components/EnrollmentDetails"; // Import of the new component
+import EnrollmentDetails from "../components/EnrollmentDetails";
+import apiClient from "../../../api/axiosConfig";
 
-// --- We keep the existing attendance data simulation to avoid breaking that functionality ---
-// NOTE: In a future user story we should connect this to the real attendance endpoint
-// but for now we focus on integrating Enrollment (User Story HU-13)
-
-const generateMockAttendance = (count: number): Attendance[] => {
-	return Array.from({ length: count }).map((_, i) => {
-		const date = new Date();
-		date.setDate(date.getDate() - i * 3);
-		const dayOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][
-			date.getDay()
-		];
-		const isAbsent = i % 7 === 0;
-		const isLate = !isAbsent && i % 4 === 0;
-
-		return {
-			date: date.toLocaleDateString("es-ES", {
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-			}),
-			dayOfWeek: dayOfWeek,
-			status: isAbsent ? "No" : "Completa",
-			entry_time: isAbsent ? null : isLate ? "08:45 AM" : "08:05 AM",
-			departure_time: isAbsent ? null : "05:00 PM",
-			transport: i % 2 === 0 ? "Sí" : "No",
-			notes: isAbsent ? "Aviso previo" : "Sin novedades",
-		};
-	});
-};
-
-type Attendance = {
+// Define interfaces matching the backend response structure
+interface Attendance {
+	id: number;
 	date: string;
-	dayOfWeek: string;
-	status: "Completa" | "No" | "Parcial";
-	entry_time: string | null;
+	status: string; // e.g., "present", "absent"
+	arrival_time: string | null;
 	departure_time: string | null;
-	transport: "Sí" | "No";
-	notes: string;
-};
+	withdrawal_reason: string | null;
+}
 
-type CanineDetails = {
+interface Canine {
+	id: number;
 	name: string;
+	breed: string;
+	// Add other canine fields if needed
+}
+
+interface CanineAttendanceResponse {
+	canine: Canine;
 	attendances: Attendance[];
-};
-
-const fetchPetAttendance = async (canineId: string): Promise<CanineDetails> => {
-	// We simulate a delay
-	await new Promise((res) => setTimeout(res, 700));
-
-	// We simulate names based on ID for the demo
-	const name = canineId === "12" ? "Luna" : "Toby";
-	const count = canineId === "12" ? 10 : 25;
-
-	return {
-		name: name,
-		attendances: generateMockAttendance(count),
-	};
-};
+}
 
 export default function PetDetailPage() {
-	const { canineId } = useParams<{ canineId: string }>();
-	const [details, setDetails] = useState<CanineDetails | null>(null);
-	// Specific loading for attendance (enrollment has its own internal loading)
-	const [loadingAttendance, setLoadingAttendance] = useState(true);
+	const { canineId } = useParams<{ canineId?: string }>();
+	const [canine, setCanine] = useState<Canine | null>(null);
+	const [attendances, setAttendances] = useState<Attendance[]>([]);
 
+	// Loading state for the main data fetch
+	const [loadingData, setLoadingData] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	// Filter states
 	const [startDate, setStartDate] = useState<Date | null>(null);
 	const [endDate, setEndDate] = useState<Date | null>(null);
 	const [filteredAttendances, setFilteredAttendances] = useState<Attendance[]>([]);
+
+	// Pagination states
 	const [currentPage, setCurrentPage] = useState(1);
 	const recordsPerPage = 5;
 
+	// Fetch real data from the backend
 	useEffect(() => {
 		if (!canineId) return;
-		const loadDetails = async () => {
-			setLoadingAttendance(true);
+
+		const loadCanineData = async () => {
+			setLoadingData(true);
+			setError(null);
 			try {
-				const data = await fetchPetAttendance(canineId);
-				setDetails(data);
-				setFilteredAttendances(data.attendances);
-			} catch (error) {
-				console.error("Error al cargar el historial:", error);
+				// We use the specialized endpoint that returns canine info + attendance history
+				const response = await apiClient.get<CanineAttendanceResponse>(
+					`/api/canines/${canineId}/attendance/`,
+				);
+
+				setCanine(response.data.canine);
+				setAttendances(response.data.attendances);
+				setFilteredAttendances(response.data.attendances); // Init filtered list
+			} catch (err: unknown) {
+				console.error("Error fetching canine details:", err);
+				setError("No se pudo cargar la información de la mascota.");
 			} finally {
-				setLoadingAttendance(false);
+				setLoadingData(false);
 			}
 		};
-		void loadDetails();
+
+		void loadCanineData();
 	}, [canineId]);
 
+	// Filter logic applied to real data
 	const handleFilter = () => {
-		if (!details) return;
-		let filtered = details.attendances;
+		let filtered = attendances;
+
 		if (startDate || endDate) {
-			const start = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
-			const end = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
+			// Create boundary dates for comparison
+			const start = startDate ? new Date(startDate.getTime()) : null;
+			const end = endDate ? new Date(endDate.getTime()) : null;
 
-			filtered = details.attendances.filter((att) => {
-				const [day, month, year] = att.date.split("/");
-				const attDate = new Date(`${year}-${month}-${day}`);
+			if (start) start.setHours(0, 0, 0, 0);
+			if (end) end.setHours(23, 59, 59, 999);
 
-				if (start && end) {
-					return attDate >= start && attDate <= end;
-				}
-				if (start) {
-					return attDate >= start;
-				}
-				if (end) {
-					return attDate <= end;
-				}
+			filtered = attendances.filter((att) => {
+				// Backend sends date as YYYY-MM-DD string
+				// We parse it to compare properly
+				const [year, month, day] = att.date.split("-").map(Number);
+				const attDate = new Date(year, month - 1, day);
+
+				if (start && attDate < start) return false;
+				if (end && attDate > end) return false;
+
 				return true;
 			});
 		}
 		setFilteredAttendances(filtered);
-		setCurrentPage(1);
+		setCurrentPage(1); // Reset pagination on filter
 	};
 
+	// Pagination Logic
 	const currentRecords = useMemo(() => {
 		const indexOfLastRecord = currentPage * recordsPerPage;
 		const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
@@ -135,6 +115,37 @@ export default function PetDetailPage() {
 		setCurrentPage(pageNumber);
 	};
 
+	// Helper to format status text for display
+	const formatStatus = (status: string) => {
+		const statusMap: Record<string, string> = {
+			present: "Presente",
+			absent: "Ausente",
+			dispatched: "Despachado",
+			advance_withdrawal: "Retiro Anticipado",
+		};
+		return statusMap[status] || status;
+	};
+
+	// Helper to get day of week from date string
+	const getDayOfWeek = (dateStr: string) => {
+		const [year, month, day] = dateStr.split("-").map(Number);
+		const date = new Date(year, month - 1, day);
+		const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+		return days[date.getDay()];
+	};
+
+	if (error) {
+		return (
+			<div className="p-8 text-center text-red-600 font-montserrat">
+				{error}
+				<br />
+				<Link to="/portal-cliente/mis-mascotas" className="underline mt-4 block">
+					Volver
+				</Link>
+			</div>
+		);
+	}
+
 	return (
 		<PageTransition>
 			<div className="font-montserrat">
@@ -145,13 +156,15 @@ export default function PetDetailPage() {
 					>
 						<span className="font-bold">&larr;</span> Volver a Mis Mascotas
 					</Link>
-					<h1 className="text-2xl font-bold mt-2">Detalle de {details?.name || "..."}</h1>
+					<h1 className="text-2xl font-bold mt-2">
+						{/* Show real name or skeleton if loading */}
+						{loadingData ? "Cargando..." : `Detalle de ${canine?.name}`}
+					</h1>
 				</div>
 
-				{/* --- ENROLLMENT HU-13 INTEGRATION: Enrollment Plan Component --- */}
-				{/* It renders only if we have a valid canineId */}
+				{/* HU-13: Real Enrollment Logic */}
+				{/* Only render if we have a valid ID. The component handles its own loading/error */}
 				{canineId && <EnrollmentDetails canineId={canineId} />}
-				{/* --------------------------------------------------------- */}
 
 				<div className="mt-8">
 					<h2 className="text-xl font-bold mb-4 text-gray-800">Historial de Asistencia</h2>
@@ -167,7 +180,7 @@ export default function PetDetailPage() {
 									startDate={startDate}
 									endDate={endDate}
 									className="input-primary w-full mt-1"
-									placeholderText="Fecha de inicio"
+									placeholderText="Fecha inicio"
 								/>
 							</div>
 							<div className="flex-grow">
@@ -178,9 +191,9 @@ export default function PetDetailPage() {
 									selectsEnd
 									startDate={startDate}
 									endDate={endDate}
-									minDate={startDate}
+									minDate={startDate ?? undefined}
 									className="input-primary w-full mt-1"
-									placeholderText="Fecha de fin"
+									placeholderText="Fecha fin"
 								/>
 							</div>
 							<button className="btn-primary self-end" onClick={handleFilter}>
@@ -188,17 +201,15 @@ export default function PetDetailPage() {
 							</button>
 						</div>
 
-						{loadingAttendance && <p className="text-center py-8">Cargando historial...</p>}
+						{loadingData && <p className="text-center py-8">Cargando historial...</p>}
 
-						{!loadingAttendance && filteredAttendances.length === 0 && (
+						{!loadingData && filteredAttendances.length === 0 && (
 							<div className="text-center py-8">
-								<p className="text-gray-600">
-									No se encontraron registros para los criterios seleccionados.
-								</p>
+								<p className="text-gray-600">No se encontraron registros de asistencia.</p>
 							</div>
 						)}
 
-						{!loadingAttendance && filteredAttendances.length > 0 && (
+						{!loadingData && filteredAttendances.length > 0 && (
 							<>
 								<div className="overflow-x-auto">
 									<table className="min-w-full divide-y divide-gray-200">
@@ -217,27 +228,37 @@ export default function PetDetailPage() {
 													Salida
 												</th>
 												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-													Transporte
-												</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 													Notas
 												</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
 											{currentRecords.map((att, index) => (
-												<tr key={index} className="hover:bg-gray-50">
+												<tr key={att.id || index} className="hover:bg-gray-50">
 													<td className="px-6 py-4 whitespace-nowrap">
 														<div className="font-bold text-gray-800">{att.date}</div>
-														<div className="text-sm text-gray-500">{att.dayOfWeek}</div>
+														<div className="text-sm text-gray-500">{getDayOfWeek(att.date)}</div>
 													</td>
-													<td className="px-6 py-4 whitespace-nowrap">{att.status}</td>
-													<td className="px-6 py-4 whitespace-nowrap">{att.entry_time || "—"}</td>
+													<td className="px-6 py-4 whitespace-nowrap">
+														<span
+															className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+																att.status === "present"
+																	? "bg-green-100 text-green-800"
+																	: att.status === "absent"
+																		? "bg-red-100 text-red-800"
+																		: "bg-yellow-100 text-yellow-800"
+															}`}
+														>
+															{formatStatus(att.status)}
+														</span>
+													</td>
+													<td className="px-6 py-4 whitespace-nowrap">{att.arrival_time || "—"}</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														{att.departure_time || "—"}
 													</td>
-													<td className="px-6 py-4 whitespace-nowrap">{att.transport}</td>
-													<td className="px-6 py-4 whitespace-nowrap">{att.notes || "—"}</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+														{att.withdrawal_reason || "—"}
+													</td>
 												</tr>
 											))}
 										</tbody>
@@ -257,15 +278,10 @@ export default function PetDetailPage() {
 											>
 												Anterior
 											</button>
-											{Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-												<button
-													key={number}
-													onClick={() => paginate(number)}
-													className={currentPage === number ? "btn-primary" : "btn-ghost"}
-												>
-													{number}
-												</button>
-											))}
+
+											{/* Simple Pagination Numbers */}
+											<span className="text-sm font-bold">{currentPage}</span>
+
 											<button
 												className="btn-ghost"
 												onClick={() => paginate(currentPage + 1)}
@@ -274,10 +290,6 @@ export default function PetDetailPage() {
 												Siguiente
 											</button>
 										</div>
-										{/* Botón deshabilitado simulado para mantener el layout */}
-										<button className="btn-primary opacity-50 cursor-not-allowed" disabled>
-											Descargar Informe
-										</button>
 									</div>
 								)}
 							</>

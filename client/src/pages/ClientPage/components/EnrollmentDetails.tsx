@@ -5,15 +5,15 @@ import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
-// Type definition based on EnrollmentSerializer (server/api/serializers.py)
-type Enrollment = {
+// Interface matching Django's EnrollmentSerializer structure
+interface Enrollment {
 	id: number;
-	plan_name: string; // Read-only field from serializer
-	transport_service_name: string; // Read-only field from serializer
+	plan_name: string;
+	transport_service_name: string;
 	enrollment_date: string;
 	expiration_date: string;
 	status: boolean;
-};
+}
 
 type Props = {
 	canineId: string;
@@ -21,7 +21,7 @@ type Props = {
 
 /**
  * Component to display the active enrollment details of a canine.
- * Associated with HU-13: Visualization of canine enrollment plan.
+ * Fetches real data from the backend API using Axios.
  */
 export default function EnrollmentDetails({ canineId }: Props) {
 	const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -30,36 +30,34 @@ export default function EnrollmentDetails({ canineId }: Props) {
 
 	useEffect(() => {
 		const fetchEnrollment = async () => {
+			if (!canineId) return;
+
 			try {
 				setLoading(true);
-				// SCRUM-74 Integration: Fetch enrollments filtering by canine and active status.
-				// The backend ViewSet allows filtering by 'canine_id' and 'status'.
+				// Fetch only active enrollments for this specific canine
 				const response = await apiClient.get<Enrollment[]>(
 					`/api/enrollments/?canine_id=${canineId}&status=true`,
 				);
 
-				// Logic: We assume the canine has one active enrollment. We take the first one.
+				// If the array has items, the first one is the active plan
 				if (response.data && response.data.length > 0) {
 					setEnrollment(response.data[0]);
 				} else {
-					setEnrollment(null);
+					setEnrollment(null); // No active plan found
 				}
 				setError(null);
-			} catch (_err) {
-				// Using _err to comply with no-unused-vars lint rule
-				console.error("Error fetching enrollment:", _err);
+			} catch (err: unknown) {
+				console.error("Error fetching enrollment:", err);
 				setError("Could not load enrollment information.");
 			} finally {
 				setLoading(false);
 			}
 		};
 
-		if (canineId) {
-			void fetchEnrollment();
-		}
+		void fetchEnrollment();
 	}, [canineId]);
 
-	// Skeleton loading state for better UX
+	// Loading state: Skeleton UI for better UX
 	if (loading) {
 		return (
 			<div className="p-6 bg-white rounded-lg border border-gray-100 shadow-sm animate-pulse mb-6">
@@ -84,20 +82,20 @@ export default function EnrollmentDetails({ canineId }: Props) {
 		);
 	}
 
-	// Empty state (No active plan)
+	// Empty state: No active enrollment
 	if (!enrollment) {
 		return (
 			<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 font-montserrat">
 				<div className="flex items-center gap-3 mb-2">
 					<CardMembershipIcon className="text-gray-400" />
-					<h3 className="text-lg font-bold text-gray-700">Sin Matrícula Activa</h3>
+					<h3 className="text-lg font-bold text-gray-700">No Active Enrollment</h3>
 				</div>
-				<p className="text-gray-500 text-sm">Este canino no tiene un plan activo actualmente.</p>
+				<p className="text-gray-500 text-sm">This canine does not have an active plan currently.</p>
 			</div>
 		);
 	}
 
-	// Success state: Show enrollment details
+	// Success state: Render details
 	return (
 		<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 font-montserrat">
 			<div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
@@ -105,46 +103,44 @@ export default function EnrollmentDetails({ canineId }: Props) {
 					<CardMembershipIcon className="text-amber-500" />
 				</div>
 				<div>
-					<h2 className="text-xl font-bold text-gray-800">Plan Actual</h2>
-					<p className="text-sm text-gray-500">Detalles de la matrícula vigente</p>
+					<h2 className="text-xl font-bold text-gray-800">Current Plan</h2>
+					<p className="text-sm text-gray-500">Details of the current enrollment.</p>
 				</div>
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-				{/* Plan Name */}
-				<div className="flex flex-col">
-					<span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Plan</span>
+				<div>
+					<span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+						Plan Name
+					</span>
 					<span className="text-lg font-bold text-amber-600">{enrollment.plan_name}</span>
 				</div>
 
-				{/* Transport Service */}
 				<div className="flex items-start gap-3">
 					<DirectionsBusIcon className="text-gray-400 mt-1" />
 					<div>
 						<span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
-							Servicio de Transporte
+							Transport
 						</span>
 						<span className="font-semibold text-gray-700">{enrollment.transport_service_name}</span>
 					</div>
 				</div>
 
-				{/* Start Date */}
 				<div className="flex items-start gap-3">
 					<CalendarTodayIcon className="text-gray-400 mt-1" />
 					<div>
 						<span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
-							Fecha de Inicio
+							Start Date
 						</span>
 						<span className="font-semibold text-gray-700">{enrollment.enrollment_date}</span>
 					</div>
 				</div>
 
-				{/* Expiration Date */}
 				<div className="flex items-start gap-3">
 					<AccessTimeIcon className="text-red-400 mt-1" />
 					<div>
 						<span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
-							Vencimiento
+							Expiration
 						</span>
 						<span className="font-semibold text-gray-800">{enrollment.expiration_date}</span>
 					</div>
