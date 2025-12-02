@@ -10,6 +10,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import PetsIcon from "@mui/icons-material/Pets";
 import logoSrc from "../../assets/logo.png";
 
 export const InternalUsersPage = () => {
@@ -122,6 +123,7 @@ export const InternalUsersPage = () => {
 			manageUsers: true,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 		},
 		DIRECTOR: {
 			dashboard: true,
@@ -129,6 +131,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 		},
 		ADVISOR: {
 			dashboard: true,
@@ -136,6 +139,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: false,
 			viewAttendance: false,
+			listCanines: false,
 		},
 		COACH: {
 			dashboard: false,
@@ -143,6 +147,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 		},
 	}[role ?? "ADMIN"] ?? {
 		dashboard: false,
@@ -150,6 +155,7 @@ export const InternalUsersPage = () => {
 		manageUsers: false,
 		registerAttendance: false,
 		viewAttendance: false,
+		listCanines: false,
 	};
 
 	return (
@@ -224,6 +230,16 @@ export const InternalUsersPage = () => {
 						<Link to="visualizar-asistencia" className="sidebar-link has-hover-indicator">
 							<VisibilityIcon className="sidebar-icon" />
 							<span className="sidebar-text">Visualizar asistencia</span>
+						</Link>
+					)}
+
+					{canAccess.listCanines && (
+						<Link
+							to="listar-caninos"
+							className={`sidebar-link has-hover-indicator ${isActive("listar-caninos") ? "active" : ""}`}
+						>
+							<PetsIcon className="sidebar-icon" />
+							<span className="sidebar-text">Listar caninos</span>
 						</Link>
 					)}
 				</nav>
