@@ -12,6 +12,7 @@ import RegisterUser from "./pages/InternalUsersPage/children/RegisterUser";
 import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
 import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
+import ListCanines from "./pages/InternalUsersPage/children/ListCanines";
 import RoleGuard from "./components/RoleGuard";
 import UserTypeGuard from "./components/UserTypeGuard";
 
@@ -99,6 +100,14 @@ function AnimatedRoutes() {
 						element={
 							<RoleGuard allowed={["ADMIN", "COACH", "DIRECTOR"]}>
 								<ViewAttendance />
+							</RoleGuard>
+						}
+					/>
+					<Route
+						path="listar-caninos"
+						element={
+							<RoleGuard allowed={["ADMIN", "COACH", "DIRECTOR"]}>
+								<ListCanines />
 							</RoleGuard>
 						}
 					/>
