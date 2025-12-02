@@ -2,7 +2,7 @@
 
 /**
  * Validation rules to match Backend constraints.
- * Ensures consistency across all forms in the application.
+ * Centralizing regex patterns ensures consistency and maintainability.
  */
 
 // Regex for email validation
@@ -28,7 +28,6 @@ export const validationRules = {
 	},
 
 	isValidUsername: (username: string): boolean => {
-		// Backend usually requires non-empty and specific characters
 		return username.trim().length >= 3;
 	},
 
@@ -41,5 +40,6 @@ export const validationRules = {
 		username: "El nombre de usuario debe tener al menos 3 caracteres.",
 		required: "Todos los campos son obligatorios.",
 		matchPassword: "Las contraseñas no coinciden.",
+		terms: "Debes aceptar los lineamientos de la escuela.",
 	},
 };
