@@ -1,8 +1,10 @@
+// client/src/pages/RegisterPage/RegisterPage.tsx
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { isAxiosError } from "axios";
-import apiClient from "../../api/axiosConfig"; // Use configured apiClient
-import { validationRules } from "../../utils/validationRules"; // Import validation rules
+import { isAxiosError } from "axios"; // Only for type checking
+import apiClient from "../../api/axiosConfig"; // Refactor: Use centralized instance
+import { validationRules } from "../../utils/validationRules";
 
 // Icons
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
@@ -10,13 +12,13 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import PhoneIcon from "@mui/icons-material/Phone";
-import HomeIcon from "@mui/icons-material/Home"; // For address
+import HomeIcon from "@mui/icons-material/Home";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Home button icon
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 // Assets
-import logoSrc from "../../assets/logo.png"; // UPDATED: Same logo as Login
+import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
 
 import { Button } from "@mui/material";
@@ -38,8 +40,8 @@ export const RegisterPage = () => {
 		documentId: "",
 		username: "",
 		email: "",
-		phoneNumber: "", // NEW Field
-		address: "", // NEW Field
+		phoneNumber: "",
+		address: "",
 		password: "",
 		confirmPassword: "",
 	});
@@ -57,12 +59,9 @@ export const RegisterPage = () => {
 		setSuccess(null);
 	};
 
-	// Validation using centralized rules
 	const validate = () => {
-		// 1. Check required fields
 		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
 
-		// 2. Validate specific formats
 		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
 
 		if (!validationRules.isValidDocumentId(form.documentId))
@@ -97,19 +96,18 @@ export const RegisterPage = () => {
 		setLoading(true);
 
 		try {
-			// Prepare payload matching backend serializer expectations
 			const payload = {
 				first_name: form.firstName,
 				last_name: form.lastName,
 				document_id: form.documentId,
 				username: form.username,
 				email: form.email,
-				phone_number: form.phoneNumber, // NEW
-				address: form.address, // NEW
+				phone_number: form.phoneNumber,
+				address: form.address,
 				password: form.password,
 			};
 
-			// Use apiClient (Axios) instead of direct axios import
+			// REFACTOR: Use apiClient instead of direct axios
 			const response = await apiClient.post("/api/register/", payload);
 
 			if (response.status === 201) {
@@ -124,7 +122,6 @@ export const RegisterPage = () => {
 				const apiErrors = err.response.data as ApiErrorResponse;
 				let errorMessage = "Ocurrió un error en el registro.";
 
-				// Handle specific backend errors
 				if (apiErrors.email?.[0]) {
 					errorMessage = `Correo: ${apiErrors.email[0]}`;
 				} else if (apiErrors.username?.[0]) {
@@ -144,28 +141,25 @@ export const RegisterPage = () => {
 	};
 
 	return (
-		<div className="min-h-screen w-full flex flex-col lg:flex-row login-page overflow-x-hidden">
-			{/* 
-                LAYOUT CHANGE (HU-9): 
-                Image section moved to the LEFT (first in DOM order for flex-row).
-                Form section moved to the RIGHT.
-            */}
-
-			{/* LEFT SIDE: Image (Hidden on small screens, visible on lg) */}
-			<div className="hidden lg:block lg:w-1/2 relative min-h-screen">
+		// FIX: Ensure w-screen to avoid empty spaces on the right. Use flex row for desktop.
+		<div className="min-h-screen w-screen flex flex-col lg:flex-row overflow-x-hidden m-0 p-0 bg-white">
+			{/* LEFT SIDE: Image (Visible on large screens) */}
+			{/* Use w-1/2 and h-screen to ensure full coverage */}
+			<div className="hidden lg:block lg:w-1/2 relative h-screen sticky top-0">
 				<img
 					src={rightImage}
 					alt="Personas felices con sus perros"
 					className="w-full h-full object-cover"
 				/>
-				{/* Optional: Overlay to make text readable if you add text over image */}
-				<div className="absolute inset-0 bg-black/10"></div>
+				{/* Overlay for better contrast if needed, or aesthetic tint */}
+				<div className="absolute inset-0 bg-black/5"></div>
 			</div>
 
 			{/* RIGHT SIDE: Form */}
-			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 overflow-y-auto relative">
-				{/* Home Button */}
-				<div className="absolute top-4 left-4 z-20">
+			{/* Use w-1/2 and bg-white explicitly. 'relative' allows positioning the Home button inside this container */}
+			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 relative min-h-screen">
+				{/* FIX: Home Button positioned absolutely relative to the RIGHT panel, not the window */}
+				<div className="absolute top-6 left-6 z-20">
 					<Button
 						component={Link}
 						to="/"
@@ -176,6 +170,7 @@ export const RegisterPage = () => {
 							borderColor: "#fbbf24",
 							fontFamily: "var(--font-lekton-bold)",
 							textTransform: "none",
+							backgroundColor: "white", // Ensure background if over content
 							"&:hover": {
 								borderColor: "#f59e0b",
 								backgroundColor: "rgba(251, 191, 36, 0.15)",
@@ -187,9 +182,8 @@ export const RegisterPage = () => {
 					</Button>
 				</div>
 
-				<div className="max-w-md w-full">
+				<div className="max-w-md w-full mt-10 lg:mt-0">
 					<div className="flex justify-center mb-4">
-						{/* LOGO UPDATE (HU-9): Using logo.png instead of raices-caninas-logo.png */}
 						<img src={logoSrc} alt="Logo Raíces Caninas" className="w-40 h-auto" />
 					</div>
 
@@ -204,9 +198,8 @@ export const RegisterPage = () => {
 					</h4>
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
-						{/* Name & Last Name Row */}
-						<div className="flex gap-4">
-							<label className="block w-1/2">
+						<div className="flex gap-4 flex-col md:flex-row">
+							<label className="block w-full md:w-1/2">
 								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 									Nombre
 								</span>
@@ -223,7 +216,7 @@ export const RegisterPage = () => {
 								</div>
 							</label>
 
-							<label className="block w-1/2">
+							<label className="block w-full md:w-1/2 mt-3 md:mt-0">
 								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 									Apellido
 								</span>
@@ -258,7 +251,6 @@ export const RegisterPage = () => {
 							</div>
 						</label>
 
-						{/* NEW FIELDS (HU-9): Phone & Address */}
 						<label className="block mt-3">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 								Teléfono
@@ -292,7 +284,6 @@ export const RegisterPage = () => {
 								/>
 							</div>
 						</label>
-						{/* END NEW FIELDS */}
 
 						<label className="block mt-3">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
