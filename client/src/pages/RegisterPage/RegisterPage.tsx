@@ -1,24 +1,32 @@
-// client/src/pages/RegisterPage/RegisterPage.tsx
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@mui/material";
-import axios from "axios"; // 1. Importamos axios
+import { isAxiosError } from "axios";
+import apiClient from "../../api/axiosConfig"; // Use configured apiClient
+import { validationRules } from "../../utils/validationRules"; // Import validation rules
+
+// Icons
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import PhoneIcon from "@mui/icons-material/Phone";
+import HomeIcon from "@mui/icons-material/Home"; // For address
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import HomeIcon from "@mui/icons-material/Home";
-import logoSrc from "../../assets/raices-caninas-logo.png";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Home button icon
+
+// Assets
+import logoSrc from "../../assets/logo.png"; // UPDATED: Same logo as Login
 import rightImage from "../../assets/image-RegisterPage.png";
 
-// CAMBIO CLAVE 2: Se define un tipo para la estructura de los errores de la API.
+import { Button } from "@mui/material";
+
+// Define types for API errors
 type ApiErrorResponse = {
 	email?: string[];
 	username?: string[];
 	document_id?: string[];
+	phone_number?: string[];
 };
 
 export const RegisterPage = () => {
@@ -30,9 +38,12 @@ export const RegisterPage = () => {
 		documentId: "",
 		username: "",
 		email: "",
+		phoneNumber: "", // NEW Field
+		address: "", // NEW Field
 		password: "",
 		confirmPassword: "",
 	});
+
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -46,14 +57,30 @@ export const RegisterPage = () => {
 		setSuccess(null);
 	};
 
+	// Validation using centralized rules
 	const validate = () => {
-		if (Object.values(form).some((v) => v.trim() === ""))
-			return "Todos los campos son obligatorios.";
-		if (!/^\S+@\S+\.\S+$/.test(form.email)) return "El correo electrónico no es válido.";
-		if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
-		if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
-		if (!/^\d{6,12}$/.test(form.documentId)) return "La cédula debe contener entre 6 y 12 dígitos.";
-		if (!agreeTerms) return "Debes aceptar los lineamientos de la escuela.";
+		// 1. Check required fields
+		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
+
+		// 2. Validate specific formats
+		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
+
+		if (!validationRules.isValidDocumentId(form.documentId))
+			return validationRules.messages.documentId;
+
+		if (!validationRules.isValidPhoneNumber(form.phoneNumber))
+			return validationRules.messages.phone;
+
+		if (!validationRules.isValidAddress(form.address)) return validationRules.messages.address;
+
+		if (!validationRules.isValidUsername(form.username)) return validationRules.messages.username;
+
+		if (!validationRules.isValidPassword(form.password)) return validationRules.messages.password;
+
+		if (form.password !== form.confirmPassword) return validationRules.messages.matchPassword;
+
+		if (!agreeTerms) return validationRules.messages.terms;
+
 		return "";
 	};
 
@@ -70,16 +97,20 @@ export const RegisterPage = () => {
 		setLoading(true);
 
 		try {
+			// Prepare payload matching backend serializer expectations
 			const payload = {
 				first_name: form.firstName,
 				last_name: form.lastName,
 				document_id: form.documentId,
 				username: form.username,
 				email: form.email,
+				phone_number: form.phoneNumber, // NEW
+				address: form.address, // NEW
 				password: form.password,
 			};
 
-			const response = await axios.post("http://127.0.0.1:8000/api/register/", payload);
+			// Use apiClient (Axios) instead of direct axios import
+			const response = await apiClient.post("/api/register/", payload);
 
 			if (response.status === 201) {
 				setSuccess("¡Registro exitoso! Serás redirigido para iniciar sesión.");
@@ -88,18 +119,20 @@ export const RegisterPage = () => {
 				}, 2000);
 			}
 		} catch (err: unknown) {
-			// CAMBIO CLAVE 3: Se usa `unknown` y se verifica el tipo de error.
 			console.error("Error en el registro:", err);
-			if (axios.isAxiosError(err) && err.response) {
+			if (isAxiosError(err) && err.response) {
 				const apiErrors = err.response.data as ApiErrorResponse;
 				let errorMessage = "Ocurrió un error en el registro.";
 
+				// Handle specific backend errors
 				if (apiErrors.email?.[0]) {
-					errorMessage = `Correo electrónico: ${apiErrors.email[0]}`;
+					errorMessage = `Correo: ${apiErrors.email[0]}`;
 				} else if (apiErrors.username?.[0]) {
-					errorMessage = `Nombre de usuario: ${apiErrors.username[0]}`;
+					errorMessage = `Usuario: ${apiErrors.username[0]}`;
 				} else if (apiErrors.document_id?.[0]) {
 					errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
+				} else if (apiErrors.phone_number?.[0]) {
+					errorMessage = `Teléfono: ${apiErrors.phone_number[0]}`;
 				}
 				setError(errorMessage);
 			} else {
@@ -112,55 +145,51 @@ export const RegisterPage = () => {
 
 	return (
 		<div className="min-h-screen w-full flex flex-col lg:flex-row login-page overflow-x-hidden">
+			{/* 
+                LAYOUT CHANGE (HU-9): 
+                Image section moved to the LEFT (first in DOM order for flex-row).
+                Form section moved to the RIGHT.
+            */}
+
+			{/* LEFT SIDE: Image (Hidden on small screens, visible on lg) */}
+			<div className="hidden lg:block lg:w-1/2 relative min-h-screen">
+				<img
+					src={rightImage}
+					alt="Personas felices con sus perros"
+					className="w-full h-full object-cover"
+				/>
+				{/* Optional: Overlay to make text readable if you add text over image */}
+				<div className="absolute inset-0 bg-black/10"></div>
+			</div>
+
+			{/* RIGHT SIDE: Form */}
 			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 overflow-y-auto relative">
+				{/* Home Button */}
 				<div className="absolute top-4 left-4 z-20">
 					<Button
 						component={Link}
 						to="/"
 						variant="outlined"
-						startIcon={<HomeIcon />}
+						startIcon={<ArrowBackIcon />}
 						sx={{
 							color: "#fbbf24",
 							borderColor: "#fbbf24",
 							fontFamily: "var(--font-lekton-bold)",
-							letterSpacing: "0.05em",
 							textTransform: "none",
-							padding: "0.5rem 1.5rem 0.5rem 1.75rem",
-							borderRadius: "0.5rem",
-							transition: "all 0.3s ease",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							"& .MuiButton-startIcon": {
-								marginRight: "0.75rem",
-								marginLeft: "-0.05rem",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-							},
-							"& .MuiSvgIcon-root": {
-								color: "#fbbf24",
-								fontSize: "1.2rem",
-								display: "block",
-								transform: "translate(-0.5rem, -0.5px)",
-							},
 							"&:hover": {
 								borderColor: "#f59e0b",
 								backgroundColor: "rgba(251, 191, 36, 0.15)",
 								color: "#f59e0b",
-								transform: "translateY(-2px)",
-								boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
-								"& .MuiSvgIcon-root": {
-									color: "#f59e0b",
-								},
 							},
 						}}
 					>
 						Inicio
 					</Button>
 				</div>
+
 				<div className="max-w-md w-full">
 					<div className="flex justify-center mb-4">
+						{/* LOGO UPDATE (HU-9): Using logo.png instead of raices-caninas-logo.png */}
 						<img src={logoSrc} alt="Logo Raíces Caninas" className="w-40 h-auto" />
 					</div>
 
@@ -175,39 +204,42 @@ export const RegisterPage = () => {
 					</h4>
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
-						<label className="block">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Nombre
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="firstName"
-									value={form.firstName}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu nombre"
-								/>
-							</div>
-						</label>
+						{/* Name & Last Name Row */}
+						<div className="flex gap-4">
+							<label className="block w-1/2">
+								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Nombre
+								</span>
+								<div className="relative mt-1">
+									<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+									<input
+										type="text"
+										name="firstName"
+										value={form.firstName}
+										onChange={handleChange}
+										className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+										placeholder="Nombre"
+									/>
+								</div>
+							</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Apellido
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="lastName"
-									value={form.lastName}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu apellido"
-								/>
-							</div>
-						</label>
+							<label className="block w-1/2">
+								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Apellido
+								</span>
+								<div className="relative mt-1">
+									<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+									<input
+										type="text"
+										name="lastName"
+										value={form.lastName}
+										onChange={handleChange}
+										className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+										placeholder="Apellido"
+									/>
+								</div>
+							</label>
+						</div>
 
 						<label className="block mt-3">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
@@ -225,6 +257,42 @@ export const RegisterPage = () => {
 								/>
 							</div>
 						</label>
+
+						{/* NEW FIELDS (HU-9): Phone & Address */}
+						<label className="block mt-3">
+							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+								Teléfono
+							</span>
+							<div className="relative mt-1">
+								<PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+								<input
+									type="text"
+									name="phoneNumber"
+									value={form.phoneNumber}
+									onChange={handleChange}
+									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									placeholder="Ej: 3001234567"
+								/>
+							</div>
+						</label>
+
+						<label className="block mt-3">
+							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+								Dirección
+							</span>
+							<div className="relative mt-1">
+								<HomeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+								<input
+									type="text"
+									name="address"
+									value={form.address}
+									onChange={handleChange}
+									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
+									placeholder="Dirección de residencia"
+								/>
+							</div>
+						</label>
+						{/* END NEW FIELDS */}
 
 						<label className="block mt-3">
 							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
@@ -272,7 +340,7 @@ export const RegisterPage = () => {
 									value={form.password}
 									onChange={handleChange}
 									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="Mínimo 6 caracteres"
+									placeholder="Mínimo 8 caracteres"
 								/>
 								<button
 									type="button"
@@ -321,7 +389,7 @@ export const RegisterPage = () => {
 							<div
 								role="alert"
 								aria-live="assertive"
-								className="text-red-600 mt-3 text-center font-lekton-bold"
+								className="text-red-600 mt-3 text-center font-lekton-bold text-sm"
 							>
 								{error}
 							</div>
@@ -330,7 +398,7 @@ export const RegisterPage = () => {
 							<div
 								role="alert"
 								aria-live="polite"
-								className="text-green-600 mt-3 text-center font-lekton-bold"
+								className="text-green-600 mt-3 text-center font-lekton-bold text-sm"
 							>
 								{success}
 							</div>
@@ -352,13 +420,6 @@ export const RegisterPage = () => {
 						</div>
 					</form>
 				</div>
-			</div>
-			<div className="hidden lg:block lg:w-1/2 relative min-h-screen">
-				<img
-					src={rightImage}
-					alt="Personas felices con sus perros"
-					className="w-full h-full object-cover"
-				/>
 			</div>
 		</div>
 	);
