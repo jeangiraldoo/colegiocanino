@@ -1,12 +1,16 @@
 // client/src/pages/ClientPage/children/ClientProfile.tsx
 
-import React, { useState, useEffect } from "react";
-import { isAxiosError } from "axios"; // Import needed for type-safe error handling
+import React, { useState, useEffect, useMemo } from "react";
+import { isAxiosError } from "axios";
 import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
 import { validationRules } from "../../../utils/validationRules";
 
-// Define types matching the backend serializer structure
+// Icons (Only used ones)
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+
+// Define types matching backend serializers
 type UserProfile = {
 	username: string;
 	email: string;
@@ -17,13 +21,20 @@ type UserProfile = {
 	document_id: string;
 };
 
-type ProfileData = {
-	user: UserProfile;
+type ProfileData = { user: UserProfile };
+
+// Define a strict type for the update payload
+type UpdateProfilePayload = {
+	user: Partial<UserProfile> & { password?: string };
 };
 
-// Payload type definition to avoid 'any'
-type UpdateProfilePayload = {
-	user: UserProfile & { password?: string };
+// Type for password validation criteria
+type PasswordCriteria = {
+	length: boolean;
+	uppercase: boolean;
+	lowercase: boolean;
+	number: boolean;
+	special: boolean;
 };
 
 export default function ClientProfile() {
@@ -41,8 +52,27 @@ export default function ClientProfile() {
 	// Password management states
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
+	const [confirmNewPassword, setConfirmNewPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 
-	// Fetch profile data on mount
+	const passwordCriteria: PasswordCriteria = useMemo(
+		() => ({
+			length: newPassword.length >= 8,
+			uppercase: /[A-Z]/.test(newPassword),
+			lowercase: /[a-z]/.test(newPassword),
+			number: /\d/.test(newPassword),
+			special: /[@$!%*?&]/.test(newPassword),
+		}),
+		[newPassword],
+	);
+
+	const hasChanges = useMemo(() => {
+		if (!initialProfile || !profile) return false;
+		const profileChanged = JSON.stringify(initialProfile) !== JSON.stringify(profile);
+		const passwordChanged = newPassword.length > 0;
+		return profileChanged || passwordChanged;
+	}, [initialProfile, profile, newPassword]);
+
 	useEffect(() => {
 		const fetchProfile = async () => {
 			setLoading(true);
@@ -50,103 +80,91 @@ export default function ClientProfile() {
 				const response = await apiClient.get<ProfileData>("/api/profile/");
 				setProfile(response.data.user);
 				setInitialProfile(response.data.user);
-				setError(null);
-			} catch (err: unknown) {
+			} catch (err) {
 				console.error("Error fetching profile:", err);
-				setError("No se pudo cargar la información del perfil. Por favor, intenta de nuevo.");
+				setError("No se pudo cargar la información del perfil.");
 			} finally {
 				setLoading(false);
 			}
 		};
-
 		void fetchProfile();
 	}, []);
 
-	// Handle text input changes for profile fields
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 		const { name, value } = e.target;
 		setProfile((prev) => (prev ? { ...prev, [name]: value } : null));
-		// Clear error/success messages when user types
-		if (error) setError(null);
-		if (successMsg) setSuccessMsg(null);
 	};
 
-	// Handle form submission
 	const handleSaveChanges = async () => {
 		if (!profile) return;
 		setSaving(true);
 		setError(null);
 		setSuccessMsg(null);
 
-		// 1. Validate Password Logic (Frontend Validation)
 		if (newPassword) {
-			// UX: Require current password to prevent accidental changes
 			if (!currentPassword) {
-				setError("Para cambiar la contraseña, debes ingresar tu contraseña actual.");
+				setError("Ingresa tu contraseña actual para verificar el cambio.");
 				setSaving(false);
 				return;
 			}
-
-			// Backend constraint validation
+			if (newPassword === currentPassword) {
+				setError("La nueva contraseña no puede ser igual a la actual.");
+				setSaving(false);
+				return;
+			}
 			if (!validationRules.isValidPassword(newPassword)) {
 				setError(validationRules.messages.password);
+				setSaving(false);
+				return;
+			}
+			if (newPassword !== confirmNewPassword) {
+				setError("Las nuevas contraseñas no coinciden.");
 				setSaving(false);
 				return;
 			}
 		}
 
 		try {
-			// 2. Construct Payload with strict typing
-			// The backend expects 'password' INSIDE the 'user' object.
-			const payload: UpdateProfilePayload = {
-				user: {
-					...profile,
-				},
-			};
-
-			// Only add password to payload if user wants to change it
+			const payload: UpdateProfilePayload = { user: { ...profile } };
 			if (newPassword) {
 				payload.user.password = newPassword;
 			}
 
-			// 3. Send Request via Axios
 			await apiClient.patch("/api/profile/", payload);
 
-			// 4. Update Success State
-			setInitialProfile(profile); // Sync backup state
+			setInitialProfile(profile);
 			setIsEditMode(false);
 			setSuccessMsg("Perfil actualizado correctamente.");
-
-			// Clear sensitive fields
 			setCurrentPassword("");
 			setNewPassword("");
+			setConfirmNewPassword("");
 		} catch (err: unknown) {
 			console.error("Error saving profile:", err);
 
-			// Type-safe error handling using axios guard
 			if (isAxiosError(err) && err.response?.data) {
+				// FIX: Cast to Record<string, unknown> to avoid 'any'
 				const data = err.response.data as Record<string, unknown>;
-				// Try to extract a meaningful message
-				// backend usually returns { detail: "..." } or { user: { password: [...] } }
-				const userErrors = data.user as Record<string, string[]> | undefined;
+				const userErrors =
+					typeof data.user === "object" && data.user !== null
+						? (data.user as Record<string, string[]>)
+						: undefined;
 				const passwordError = userErrors?.password?.[0];
-				const detail =
-					(data.detail as string) || passwordError || "Error de validación en el servidor.";
+				const detail = typeof data.detail === "string" ? data.detail : undefined;
 
-				setError(`Error: ${detail}`);
+				setError(`Error: ${detail || passwordError || "Error de validación."}`);
 			} else {
-				setError("No se pudieron guardar los cambios. Verifique su conexión.");
+				setError("No se pudieron guardar los cambios.");
 			}
 		} finally {
 			setSaving(false);
 		}
 	};
 
-	// Revert changes and exit edit mode
 	const handleCancel = () => {
 		setProfile(initialProfile);
 		setCurrentPassword("");
 		setNewPassword("");
+		setConfirmNewPassword("");
 		setIsEditMode(false);
 		setError(null);
 		setSuccessMsg(null);
@@ -157,7 +175,6 @@ export default function ClientProfile() {
 	return (
 		<PageTransition>
 			<div className="font-montserrat">
-				{/* Header Section */}
 				<div className="flex justify-between items-center mb-6">
 					<h1 className="text-2xl font-bold">Mi Perfil</h1>
 					{!isEditMode && (
@@ -167,7 +184,6 @@ export default function ClientProfile() {
 					)}
 				</div>
 
-				{/* Notifications */}
 				{error && (
 					<div className="p-4 mb-6 bg-red-50 text-red-600 rounded-lg border border-red-100 text-sm">
 						{error}
@@ -180,9 +196,7 @@ export default function ClientProfile() {
 				)}
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-					{/* Left Column: Personal Info & Address */}
 					<div className="lg:col-span-2 space-y-8">
-						{/* Personal Information Card */}
 						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
 							<h2 className="text-lg font-bold mb-4">Información Personal</h2>
 							<form className="space-y-4">
@@ -235,7 +249,6 @@ export default function ClientProfile() {
 							</form>
 						</div>
 
-						{/* Address Card */}
 						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
 							<h2 className="text-lg font-bold mb-4">Dirección</h2>
 							<form>
@@ -254,51 +267,96 @@ export default function ClientProfile() {
 						</div>
 					</div>
 
-					{/* Right Column: Password Management */}
 					<div className="lg:col-span-1">
 						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
 							<h2 className="text-lg font-bold mb-4">Cambiar Contraseña</h2>
 							<form className="space-y-4">
 								<div>
 									<label className="form-label">Contraseña Actual</label>
-									<input
-										type="password"
-										className="input-primary w-full mt-1"
-										placeholder="••••••••"
-										value={currentPassword}
-										onChange={(e) => setCurrentPassword(e.target.value)}
-										disabled={!isEditMode}
-									/>
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={currentPassword}
+											onChange={(e) => setCurrentPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+										<button
+											type="button"
+											className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
+											onClick={() => setShowPassword((s) => !s)}
+											disabled={!isEditMode}
+										>
+											{showPassword ? (
+												<VisibilityOffIcon fontSize="small" />
+											) : (
+												<VisibilityIcon fontSize="small" />
+											)}
+										</button>
+									</div>
 								</div>
 								<div>
 									<label className="form-label">Nueva Contraseña</label>
-									<input
-										type="password"
-										className="input-primary w-full mt-1"
-										placeholder="••••••••"
-										value={newPassword}
-										onChange={(e) => setNewPassword(e.target.value)}
-										disabled={!isEditMode}
-									/>
-									{/* Helper text for password requirements when editing */}
-									{isEditMode && (
-										<p className="text-xs text-gray-500 mt-2">
-											Mínimo 8 caracteres, una mayúscula, un número y un carácter especial.
-										</p>
-									)}
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={newPassword}
+											onChange={(e) => setNewPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+									</div>
 								</div>
+								<div>
+									<label className="form-label">Confirmar Nueva Contraseña</label>
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={confirmNewPassword}
+											onChange={(e) => setConfirmNewPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+									</div>
+								</div>
+
+								{isEditMode && newPassword.length > 0 && (
+									<div className="space-y-1 text-xs text-gray-500 mt-2">
+										<p className={passwordCriteria.length ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.length ? "✓" : "•"} Mínimo 8 caracteres
+										</p>
+										<p className={passwordCriteria.uppercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.uppercase ? "✓" : "•"} Una mayúscula
+										</p>
+										<p className={passwordCriteria.lowercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.lowercase ? "✓" : "•"} Una minúscula
+										</p>
+										<p className={passwordCriteria.number ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.number ? "✓" : "•"} Un número
+										</p>
+										<p className={passwordCriteria.special ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.special ? "✓" : "•"} Un carácter especial (@$!%*?&)
+										</p>
+									</div>
+								)}
 							</form>
 						</div>
 					</div>
 				</div>
 
-				{/* Action Buttons (Only visible in Edit Mode) */}
 				{isEditMode && (
 					<div className="flex justify-end gap-4 mt-8">
 						<button className="btn-ghost" onClick={handleCancel} disabled={saving}>
 							Cancelar
 						</button>
-						<button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+						<button
+							className="btn-primary"
+							onClick={handleSaveChanges}
+							disabled={saving || !hasChanges}
+						>
 							{saving ? "Guardando..." : "Guardar Cambios"}
 						</button>
 					</div>
