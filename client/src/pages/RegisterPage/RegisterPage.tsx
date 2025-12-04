@@ -1,6 +1,6 @@
 // client/src/pages/RegisterPage/RegisterPage.tsx
 
-import { useState } from "react";
+import { useState, useMemo } from "react"; // Import useMemo
 import { Link, useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
 import apiClient from "../../api/axiosConfig";
@@ -22,11 +22,19 @@ import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
 import { Button } from "@mui/material";
 
+// Type definitions (unchanged)
 type ApiErrorResponse = {
 	email?: string[];
 	username?: string[];
 	document_id?: string[];
 	phone_number?: string[];
+};
+type PasswordCriteria = {
+	length: boolean;
+	uppercase: boolean;
+	lowercase: boolean;
+	number: boolean;
+	special: boolean;
 };
 
 export const RegisterPage = () => {
@@ -50,12 +58,26 @@ export const RegisterPage = () => {
 	const [agreeTerms, setAgreeTerms] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 
+	// --- NEW: Real-time password validation state ---
+	const passwordCriteria: PasswordCriteria = useMemo(
+		() => ({
+			length: form.password.length >= 8,
+			uppercase: /[A-Z]/.test(form.password),
+			lowercase: /[a-z]/.test(form.password),
+			number: /\d/.test(form.password),
+			special: /[@$!%*?&]/.test(form.password),
+		}),
+		[form.password],
+	);
+	// ---------------------------------------------
+
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		setForm((prev) => ({ ...prev, [name]: value }));
 		setError(null);
 	};
 
+	// ... (validate function remains unchanged)
 	const validate = () => {
 		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
 		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
@@ -71,6 +93,7 @@ export const RegisterPage = () => {
 		return "";
 	};
 
+	// ... (handleSubmit function remains unchanged)
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		const validationError = validate();
@@ -165,6 +188,7 @@ export const RegisterPage = () => {
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
 						<div className="space-y-4">
+							{/* ... (otros campos del formulario se mantienen igual) ... */}
 							<div className="flex flex-col md:flex-row gap-4">
 								<div className="w-full md:w-1/2">
 									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
@@ -307,6 +331,27 @@ export const RegisterPage = () => {
 										{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
 									</button>
 								</div>
+
+								{/* --- NEW: Real-time password validation feedback --- */}
+								{form.password.length > 0 && (
+									<div className="space-y-1 text-xs mt-2 pl-1">
+										<p className={passwordCriteria.length ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.length ? "✓" : "•"} Mínimo 8 caracteres
+										</p>
+										<p className={passwordCriteria.uppercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.uppercase ? "✓" : "•"} Una mayúscula
+										</p>
+										<p className={passwordCriteria.lowercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.lowercase ? "✓" : "•"} Una minúscula
+										</p>
+										<p className={passwordCriteria.number ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.number ? "✓" : "•"} Un número
+										</p>
+										<p className={passwordCriteria.special ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.special ? "✓" : "•"} Un carácter especial (@$!%*?&)
+										</p>
+									</div>
+								)}
 							</div>
 
 							<div>
