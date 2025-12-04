@@ -165,13 +165,11 @@ export const RegisterPage = () => {
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
 						<div className="space-y-4">
-							{/* --- FORM FIELDS with corrected structure and classes --- */}
 							<div className="flex flex-col md:flex-row gap-4">
 								<div className="w-full md:w-1/2">
 									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 										Nombre
 									</label>
-									{/* FIX: Container with flex alignment */}
 									<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
 										<PersonOutlineIcon className="text-amber-400 mx-3" />
 										<input
@@ -202,7 +200,6 @@ export const RegisterPage = () => {
 								</div>
 							</div>
 
-							{/* Apply the same pattern to all other inputs */}
 							<div>
 								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
 									Cédula de ciudadanía

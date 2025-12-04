@@ -14,7 +14,7 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@
 // Regex for document ID: Numeric, 6 to 12 digits
 const DOCUMENT_ID_REGEX = /^\d{6,12}$/;
 
-// Regex for phone number: 7 to 15 digits (adjust as needed for local rules)
+// Regex for phone number: 7 to 15 digits
 const PHONE_REGEX = /^\d{7,15}$/;
 
 export const validationRules = {
@@ -39,7 +39,7 @@ export const validationRules = {
 	},
 
 	isValidAddress: (address: string): boolean => {
-		// Basic check: not empty and at least 5 chars
+		// Basic check: not empty and at least 5 characters long
 		return address.trim().length >= 5;
 	},
 
