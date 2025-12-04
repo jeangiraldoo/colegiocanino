@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { isAxiosError } from "axios"; // Only for type checking
-import apiClient from "../../api/axiosConfig"; // Refactor: Use centralized instance
+import { isAxiosError } from "axios";
+import apiClient from "../../api/axiosConfig";
 import { validationRules } from "../../utils/validationRules";
 
 // Icons
@@ -20,10 +20,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 // Assets
 import logoSrc from "../../assets/logo.png";
 import rightImage from "../../assets/image-RegisterPage.png";
-
 import { Button } from "@mui/material";
 
-// Define types for API errors
 type ApiErrorResponse = {
 	email?: string[];
 	username?: string[];
@@ -56,45 +54,33 @@ export const RegisterPage = () => {
 		const { name, value } = e.target;
 		setForm((prev) => ({ ...prev, [name]: value }));
 		setError(null);
-		setSuccess(null);
 	};
 
 	const validate = () => {
 		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
-
 		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
-
 		if (!validationRules.isValidDocumentId(form.documentId))
 			return validationRules.messages.documentId;
-
 		if (!validationRules.isValidPhoneNumber(form.phoneNumber))
 			return validationRules.messages.phone;
-
 		if (!validationRules.isValidAddress(form.address)) return validationRules.messages.address;
-
 		if (!validationRules.isValidUsername(form.username)) return validationRules.messages.username;
-
 		if (!validationRules.isValidPassword(form.password)) return validationRules.messages.password;
-
 		if (form.password !== form.confirmPassword) return validationRules.messages.matchPassword;
-
 		if (!agreeTerms) return validationRules.messages.terms;
-
 		return "";
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setError(null);
-		setSuccess(null);
-
 		const validationError = validate();
 		if (validationError) {
 			setError(validationError);
 			return;
 		}
 		setLoading(true);
-
+		setError(null);
+		setSuccess(null);
 		try {
 			const payload = {
 				first_name: form.firstName,
@@ -106,34 +92,23 @@ export const RegisterPage = () => {
 				address: form.address,
 				password: form.password,
 			};
-
-			// REFACTOR: Use apiClient instead of direct axios
 			const response = await apiClient.post("/api/register/", payload);
-
 			if (response.status === 201) {
 				setSuccess("¡Registro exitoso! Serás redirigido para iniciar sesión.");
-				setTimeout(() => {
-					navigate("/login");
-				}, 2000);
+				setTimeout(() => navigate("/login"), 2000);
 			}
 		} catch (err: unknown) {
-			console.error("Error en el registro:", err);
 			if (isAxiosError(err) && err.response) {
 				const apiErrors = err.response.data as ApiErrorResponse;
 				let errorMessage = "Ocurrió un error en el registro.";
-
-				if (apiErrors.email?.[0]) {
-					errorMessage = `Correo: ${apiErrors.email[0]}`;
-				} else if (apiErrors.username?.[0]) {
-					errorMessage = `Usuario: ${apiErrors.username[0]}`;
-				} else if (apiErrors.document_id?.[0]) {
-					errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
-				} else if (apiErrors.phone_number?.[0]) {
+				if (apiErrors.email?.[0]) errorMessage = `Correo: ${apiErrors.email[0]}`;
+				else if (apiErrors.username?.[0]) errorMessage = `Usuario: ${apiErrors.username[0]}`;
+				else if (apiErrors.document_id?.[0]) errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
+				else if (apiErrors.phone_number?.[0])
 					errorMessage = `Teléfono: ${apiErrors.phone_number[0]}`;
-				}
 				setError(errorMessage);
 			} else {
-				setError("No se pudo conectar con el servidor. Intenta de nuevo más tarde.");
+				setError("No se pudo conectar con el servidor.");
 			}
 		} finally {
 			setLoading(false);
@@ -141,24 +116,16 @@ export const RegisterPage = () => {
 	};
 
 	return (
-		// FIX: Ensure w-screen to avoid empty spaces on the right. Use flex row for desktop.
-		<div className="min-h-screen w-screen flex flex-col lg:flex-row overflow-x-hidden m-0 p-0 bg-white">
-			{/* LEFT SIDE: Image (Visible on large screens) */}
-			{/* Use w-1/2 and h-screen to ensure full coverage */}
+		<div className="min-h-screen w-screen flex flex-col lg:flex-row m-0 p-0 bg-white">
 			<div className="hidden lg:block lg:w-1/2 relative h-screen sticky top-0">
 				<img
 					src={rightImage}
 					alt="Personas felices con sus perros"
 					className="w-full h-full object-cover"
 				/>
-				{/* Overlay for better contrast if needed, or aesthetic tint */}
-				<div className="absolute inset-0 bg-black/5"></div>
 			</div>
 
-			{/* RIGHT SIDE: Form */}
-			{/* Use w-1/2 and bg-white explicitly. 'relative' allows positioning the Home button inside this container */}
 			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 relative min-h-screen">
-				{/* FIX: Home Button positioned absolutely relative to the RIGHT panel, not the window */}
 				<div className="absolute top-6 left-6 z-20">
 					<Button
 						component={Link}
@@ -170,7 +137,7 @@ export const RegisterPage = () => {
 							borderColor: "#fbbf24",
 							fontFamily: "var(--font-lekton-bold)",
 							textTransform: "none",
-							backgroundColor: "white", // Ensure background if over content
+							backgroundColor: "white",
 							"&:hover": {
 								borderColor: "#f59e0b",
 								backgroundColor: "rgba(251, 191, 36, 0.15)",
@@ -186,7 +153,6 @@ export const RegisterPage = () => {
 					<div className="flex justify-center mb-4">
 						<img src={logoSrc} alt="Logo Raíces Caninas" className="w-40 h-auto" />
 					</div>
-
 					<h1 className="text-2xl font-jua mb-2 text-center letter-space-md">
 						<span className="inline-block bg-block-amber text-white px-2 py-1 rounded-none font-jua letter-space-md">
 							REGÍSTRATE
@@ -198,167 +164,171 @@ export const RegisterPage = () => {
 					</h4>
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
-						<div className="flex gap-4 flex-col md:flex-row">
-							<label className="block w-full md:w-1/2">
-								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-									Nombre
-								</span>
-								<div className="relative mt-1">
-									<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-									<input
-										type="text"
-										name="firstName"
-										value={form.firstName}
-										onChange={handleChange}
-										className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-										placeholder="Nombre"
-									/>
+						<div className="space-y-4">
+							{/* --- FORM FIELDS with corrected structure and classes --- */}
+							<div className="flex flex-col md:flex-row gap-4">
+								<div className="w-full md:w-1/2">
+									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+										Nombre
+									</label>
+									{/* FIX: Container with flex alignment */}
+									<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+										<PersonOutlineIcon className="text-amber-400 mx-3" />
+										<input
+											type="text"
+											name="firstName"
+											value={form.firstName}
+											onChange={handleChange}
+											className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+											placeholder="Nombre"
+										/>
+									</div>
 								</div>
-							</label>
+								<div className="w-full md:w-1/2">
+									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+										Apellido
+									</label>
+									<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+										<PersonOutlineIcon className="text-amber-400 mx-3" />
+										<input
+											type="text"
+											name="lastName"
+											value={form.lastName}
+											onChange={handleChange}
+											className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+											placeholder="Apellido"
+										/>
+									</div>
+								</div>
+							</div>
 
-							<label className="block w-full md:w-1/2 mt-3 md:mt-0">
-								<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-									Apellido
-								</span>
-								<div className="relative mt-1">
-									<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
+							{/* Apply the same pattern to all other inputs */}
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Cédula de ciudadanía
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<BadgeOutlinedIcon className="text-amber-400 mx-3" />
 									<input
 										type="text"
-										name="lastName"
-										value={form.lastName}
+										name="documentId"
+										value={form.documentId}
 										onChange={handleChange}
-										className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-										placeholder="Apellido"
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Tu número de documento"
 									/>
 								</div>
-							</label>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Teléfono
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<PhoneIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="phoneNumber"
+										value={form.phoneNumber}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Ej: 3001234567"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Dirección
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<HomeIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="address"
+										value={form.address}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Dirección de residencia"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Nombre de usuario
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<PersonOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="username"
+										value={form.username}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Elige un nombre de usuario"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Correo electrónico
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<MailOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type="email"
+										name="email"
+										value={form.email}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="nombre@ejemplo.com"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Contraseña
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<LockOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type={showPassword ? "text" : "password"}
+										name="password"
+										value={form.password}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Mínimo 8 caracteres"
+									/>
+									<button
+										type="button"
+										className="password-toggle pr-3"
+										onClick={() => setShowPassword((s) => !s)}
+									>
+										{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+									</button>
+								</div>
+							</div>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Confirmar Contraseña
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<LockOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type={showPassword ? "text" : "password"}
+										name="confirmPassword"
+										value={form.confirmPassword}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Repite tu contraseña"
+									/>
+								</div>
+							</div>
 						</div>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Cédula de ciudadanía
-							</span>
-							<div className="relative mt-1">
-								<BadgeOutlinedIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="documentId"
-									value={form.documentId}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu número de documento"
-								/>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Teléfono
-							</span>
-							<div className="relative mt-1">
-								<PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="phoneNumber"
-									value={form.phoneNumber}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Ej: 3001234567"
-								/>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Dirección
-							</span>
-							<div className="relative mt-1">
-								<HomeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="address"
-									value={form.address}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Dirección de residencia"
-								/>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Nombre de usuario
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="username"
-									value={form.username}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Elige un nombre de usuario"
-								/>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Correo electrónico
-							</span>
-							<div className="relative mt-1">
-								<MailOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="email"
-									name="email"
-									value={form.email}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="nombre@ejemplo.com"
-								/>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Contraseña
-							</span>
-							<div className="relative mt-1">
-								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type={showPassword ? "text" : "password"}
-									name="password"
-									value={form.password}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="Mínimo 8 caracteres"
-								/>
-								<button
-									type="button"
-									className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
-									onClick={() => setShowPassword((s) => !s)}
-								>
-									{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-								</button>
-							</div>
-						</label>
-
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Confirmar Contraseña
-							</span>
-							<div className="relative mt-1">
-								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type={showPassword ? "text" : "password"}
-									name="confirmPassword"
-									value={form.confirmPassword}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="Repite tu contraseña"
-								/>
-							</div>
-						</label>
 
 						<label className="flex items-center gap-2 mt-4">
 							<input
