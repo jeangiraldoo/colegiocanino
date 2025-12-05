@@ -11,6 +11,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 
 from .models import (
 	Attendance,
@@ -178,6 +179,10 @@ class CanineViewSet(viewsets.ModelViewSet):
 		breed = self.request.query_params.get("breed", None)
 		client_id = self.request.query_params.get("client_id", None)
 		status_param = self.request.query_params.get("status", None)
+		plan_name = self.request.query_params.get("plan")
+
+		if plan_name:
+			queryset = queryset.filter(enrollments__plan__name__icontains=plan_name)
 
 		if size:
 			queryset = queryset.filter(size=size)
@@ -588,3 +593,67 @@ class DashboardStatsView(APIView):
 
 		serializer = DashboardStatsSerializer(stats)
 		return Response(serializer.data)
+
+
+class ReportsViewSet(ViewSet):
+	permission_classes = [IsAuthenticated]
+
+	@action(detail=False, methods=["get"], url_path="enrollments-by-plan")
+	def enrollments_by_plan(self, request):
+		now = timezone.now().date()
+
+		try:
+			limit = int(request.query_params.get("limit", 1))
+			if limit <= 0:
+				limit = 1
+		except ValueError:
+			limit = 1
+
+		plan_id = request.query_params.get("plan")
+
+		if plan_id:
+			plans = EnrollmentPlan.objects.filter(id=plan_id)
+		else:
+			plans = EnrollmentPlan.objects.all()
+
+		if plan_id and not plans.exists():
+			return Response({"error": f"Enrollment plan with id={plan_id} not found"}, status=404)
+
+		ranges = {
+			"last_month": now - timedelta(days=30),
+			"last_3_months": now - timedelta(days=90),
+			"last_6_months": now - timedelta(days=180),
+			"last_12_months": now - timedelta(days=365),
+		}
+
+		result = {}
+
+		for plan in plans:
+			plan_data = {}
+
+			for label, date_from in ranges.items():
+				qs = (
+					Enrollment.objects.filter(plan=plan, enrollment_date__gte=date_from)
+					.values("canine__breed")
+					.annotate(count=Count("id"))
+					.order_by("-count")[:limit]
+				)
+
+				plan_data[label] = [
+					{"breed": row["canine__breed"], "count": row["count"]} for row in qs
+				]
+
+			result[plan.name] = plan_data
+
+		return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_password(request):
+	user = request.user
+	password = request.data.get("password")
+
+	if user.check_password(password):
+		return Response({"valid": True})
+	return Response({"valid": False})

@@ -9,8 +9,10 @@ from .views import (
 	EnrollmentPlanViewSet,
 	EnrollmentViewSet,
 	InternalUserViewSet,
+	ReportsViewSet,
 	TransportServiceViewSet,
 	UserViewSet,
+	verify_password,
 	canine_attendance_view,
 	profile_view,
 	register_view,
@@ -26,6 +28,7 @@ router.register("transport-services", TransportServiceViewSet, basename="transpo
 router.register("enrollments", EnrollmentViewSet, basename="enrollment")
 router.register("attendance", AttendanceViewSet, basename="attendance")
 router.register("internal-users", InternalUserViewSet, basename="internal-user")
+router.register("reports", ReportsViewSet, basename="reports")
 
 urlpatterns = [
 	path("", include(router.urls)),
@@ -34,4 +37,5 @@ urlpatterns = [
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),
 	path("user-type/", user_type_view, name="user-type"),
+	path("auth/verify-password/", verify_password, name="verify-password"),
 ]
