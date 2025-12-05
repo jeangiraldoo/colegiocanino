@@ -1,3 +1,6 @@
+// client/src/App.tsx
+
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
@@ -6,14 +9,17 @@ import { RegisterPage } from "./pages/RegisterPage/RegisterPage";
 import PageTransition from "./components/PageTransition";
 import "./style.css";
 
+// Import Internal User Pages
 import InternalUsers from "./pages/InternalUsersPage/InternalUsers";
 import DashboardContent from "./pages/InternalUsersPage/children/DashboardContent";
 import RegisterUser from "./pages/InternalUsersPage/children/RegisterUser";
 import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
 import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
+import ReportsPage from "./pages/InternalUsersPage/children/ReportsPage"; // <-- NEW IMPORT
 import RoleGuard from "./components/RoleGuard";
 
+// Import Client Pages
 import ClientPage from "./pages/ClientPage/ClientPage";
 import ClientDashboard from "./pages/ClientPage/children/ClientDashboard";
 import MyPets from "./pages/ClientPage/children/MyPets";
@@ -52,6 +58,7 @@ function AnimatedRoutes() {
 					}
 				/>
 
+				{/* --- Internal Users Routes --- */}
 				<Route path="/internal-users" element={<InternalUsers />}>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route
@@ -94,8 +101,18 @@ function AnimatedRoutes() {
 							</RoleGuard>
 						}
 					/>
+					{/* --- NEW ROUTE FOR REPORTS (HU-7) --- */}
+					<Route
+						path="reportes"
+						element={
+							<RoleGuard allowed={["ADMIN", "DIRECTOR"]}>
+								<ReportsPage />
+							</RoleGuard>
+						}
+					/>
 				</Route>
 
+				{/* --- Client Portal Routes --- */}
 				<Route path="/portal-cliente" element={<ClientPage />}>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route path="dashboard" element={<ClientDashboard />} />
