@@ -9,6 +9,7 @@ from .views import (
 	EnrollmentPlanViewSet,
 	EnrollmentViewSet,
 	InternalUserViewSet,
+	ReportsViewSet,
 	TransportServiceViewSet,
 	UserViewSet,
 	canine_attendance_view,
@@ -26,6 +27,7 @@ router.register("transport-services", TransportServiceViewSet, basename="transpo
 router.register("enrollments", EnrollmentViewSet, basename="enrollment")
 router.register("attendance", AttendanceViewSet, basename="attendance")
 router.register("internal-users", InternalUserViewSet, basename="internal-user")
+router.register("reports", ReportsViewSet, basename="reports")
 
 urlpatterns = [
 	path("", include(router.urls)),
