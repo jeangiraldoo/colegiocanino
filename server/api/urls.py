@@ -12,6 +12,7 @@ from .views import (
 	ReportsViewSet,
 	TransportServiceViewSet,
 	UserViewSet,
+	verify_password,
 	canine_attendance_view,
 	profile_view,
 	register_view,
@@ -36,4 +37,5 @@ urlpatterns = [
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),
 	path("user-type/", user_type_view, name="user-type"),
+	path("auth/verify-password/", verify_password, name="verify-password"),
 ]

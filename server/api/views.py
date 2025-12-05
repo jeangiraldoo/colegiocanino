@@ -646,3 +646,14 @@ class ReportsViewSet(ViewSet):
 			result[plan.name] = plan_data
 
 		return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_password(request):
+	user = request.user
+	password = request.data.get("password")
+
+	if user.check_password(password):
+		return Response({"valid": True})
+	return Response({"valid": False})
