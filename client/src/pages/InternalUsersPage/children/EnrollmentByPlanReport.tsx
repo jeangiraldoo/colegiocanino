@@ -132,43 +132,31 @@ export default function EnrollmentByPlanReport() {
 			scales: chartType === "bar" ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {},
 		};
 
-		const backendNeededPlaceholder = (chartName: string) => (
-			<div className="flex items-center justify-center h-full text-center text-gray-500 bg-gray-50 rounded-lg p-4">
-				<div>
-					<p className="font-bold">{chartName}</p>
-					<p className="text-sm">
-						Datos no disponibles. Se requiere una actualización del backend.
-					</p>
-				</div>
-			</div>
-		);
-
-		if (timeRangeData.length === 0 && chartType !== "line" && chartType !== "boxplot") {
+		if (timeRangeData.length === 0) {
 			return (
 				<div className="flex items-center justify-center h-full text-gray-500">
 					No hay datos para este período.
 				</div>
 			);
 		}
-
 		switch (chartType) {
 			case "pie":
-				return <Pie options={chartOptions} data={chartData} />;
+				return <Pie options={chartOptions as ChartOptions<"pie">} data={chartData} />;
 			case "doughnut":
-				return <Doughnut options={chartOptions} data={chartData} />;
+				return <Doughnut options={chartOptions as ChartOptions<"doughnut">} data={chartData} />;
 			case "polarArea":
-				return <PolarArea options={chartOptions} data={chartData} />;
-			case "line":
-				return backendNeededPlaceholder("Gráfico de Líneas (Evolución)");
-			case "boxplot":
-				return backendNeededPlaceholder("Diagrama de Caja (Edades)");
+				return <PolarArea options={chartOptions as ChartOptions<"polarArea">} data={chartData} />;
 			default:
-				return <Bar options={chartOptions} data={chartData} />;
+				return <Bar options={chartOptions as ChartOptions<"bar">} data={chartData} />;
 		}
 	};
 
 	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
-		const chartTypes: ChartType[] = ["bar", "pie", "doughnut", "polarArea", "line", "boxplot"];
+		// For the 'full view' subsection we exclude chart types that require
+		// backend support (line, boxplot). This removes the placeholder
+		// messages and only shows charts that are supported by the backend
+		// data returned for this report.
+		const chartTypes: ChartType[] = ["bar", "pie", "doughnut", "polarArea"];
 
 		return (
 			<div key={planName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
@@ -251,30 +239,24 @@ export default function EnrollmentByPlanReport() {
 					</div>
 					<div className="flex items-center gap-2">
 						<span className="font-semibold mr-2">Tipo de Gráfico:</span>
-						{(["bar", "pie", "doughnut", "polarArea", "line", "boxplot"] as ChartType[]).map(
-							(type) => (
-								<button
-									key={type}
-									onClick={() => {
-										setSingleChartType(type);
-										setViewMode("single");
-									}}
-									className={`mr-2 capitalize ${viewMode === "single" && singleChartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
-								>
-									{type === "bar"
-										? "Barras"
-										: type === "pie"
-											? "Torta"
-											: type === "doughnut"
-												? "Dona"
-												: type === "line"
-													? "Línea"
-													: type === "boxplot"
-														? "Caja"
-														: "Polar"}
-								</button>
-							),
-						)}
+						{(["bar", "pie", "doughnut", "polarArea"] as ChartType[]).map((type) => (
+							<button
+								key={type}
+								onClick={() => {
+									setSingleChartType(type);
+									setViewMode("single");
+								}}
+								className={`mr-2 capitalize ${viewMode === "single" && singleChartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
+							>
+								{type === "bar"
+									? "Barras"
+									: type === "pie"
+										? "Torta"
+										: type === "doughnut"
+											? "Dona"
+											: "Polar"}
+							</button>
+						))}
 						<button
 							onClick={() => setViewMode("all")}
 							className={viewMode === "all" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
