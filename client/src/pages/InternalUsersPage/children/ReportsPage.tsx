@@ -1,6 +1,7 @@
 // client/src/pages/InternalUsersPage/children/ReportsPage.tsx
 
 import React, { useState, useEffect } from "react";
+// FIX: Removed 'Line' from imports as it is not being used
 import { Bar, Doughnut, Pie, PolarArea } from "react-chartjs-2";
 import {
 	Chart as ChartJS,
@@ -12,6 +13,10 @@ import {
 	Legend,
 	ArcElement,
 	RadialLinearScale,
+	PointElement,
+	LineElement,
+	type ChartOptions,
+	type TooltipItem,
 } from "chart.js";
 import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
@@ -27,31 +32,32 @@ ChartJS.register(
 	Legend,
 	ArcElement,
 	RadialLinearScale,
+	PointElement,
+	LineElement,
 );
 
-// --- Type Definitions based on Backend API response ---
+// --- Type Definitions ---
 interface BreedStat {
 	breed: string;
 	count: number;
 }
-type TimeRangeReport = Record<string, BreedStat[]>; // e.g., { "last_month": [...] }
-type ReportData = Record<string, TimeRangeReport>; // e.g., { "Plan Anual": { ... } }
-type ChartType = "bar" | "pie" | "doughnut" | "polarArea";
+type TimeRangeReport = Record<string, BreedStat[]>;
+type ReportData = Record<string, TimeRangeReport>;
+type ChartType = "bar" | "pie" | "doughnut" | "polarArea" | "line" | "boxplot";
 
+// --- Constants ---
 const TIME_RANGE_LABELS: Record<string, string> = {
 	last_month: "Últimos 30 días",
 	last_3_months: "Últimos 3 meses",
 	last_6_months: "Últimos 6 meses",
 	last_12_months: "Últimos 12 meses",
 };
-
-// Color palette for charts
 const CHART_COLORS = [
-	"rgba(251, 191, 36, 0.7)", // Amber
-	"rgba(59, 130, 246, 0.7)", // Blue
-	"rgba(239, 68, 68, 0.7)", // Red
-	"rgba(16, 185, 129, 0.7)", // Green
-	"rgba(139, 92, 246, 0.7)", // Violet
+	"rgba(251, 191, 36, 0.7)",
+	"rgba(59, 130, 246, 0.7)",
+	"rgba(239, 68, 68, 0.7)",
+	"rgba(16, 185, 129, 0.7)",
+	"rgba(139, 92, 246, 0.7)",
 ];
 
 export default function ReportsPage() {
@@ -59,7 +65,8 @@ export default function ReportsPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedTimeRange, setSelectedTimeRange] = useState<string>("last_month");
-	const [chartType, setChartType] = useState<ChartType>("bar");
+	const [viewMode, setViewMode] = useState<"single" | "all">("single");
+	const [singleChartType, setSingleChartType] = useState<ChartType>("bar");
 
 	useEffect(() => {
 		const fetchReport = async () => {
@@ -80,7 +87,7 @@ export default function ReportsPage() {
 		void fetchReport();
 	}, []);
 
-	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
+	const renderChart = (planName: string, data: TimeRangeReport, chartType: ChartType) => {
 		const timeRangeData = data[selectedTimeRange] || [];
 
 		const chartData = {
@@ -98,43 +105,90 @@ export default function ReportsPage() {
 			],
 		};
 
-		const chartOptions = {
+		const chartOptions: ChartOptions = {
 			responsive: true,
 			maintainAspectRatio: false,
 			plugins: {
-				legend: {
-					display: true, // Enable legend for interactivity
-					position: "top" as const,
-				},
+				legend: { display: true, position: "top" as const },
 				title: { display: true, text: `Top 5 Razas - ${planName}` },
+				tooltip: {
+					callbacks: {
+						label: (context: TooltipItem<"pie" | "doughnut">) => {
+							const label = context.label || "";
+							const value = context.raw as number;
+							if (chartType === "pie" || chartType === "doughnut") {
+								const total = context.chart.getDatasetMeta(0).total || 1;
+								const percentage = ((value / total) * 100).toFixed(1);
+								return `${label}: ${value} (${percentage}%)`;
+							}
+							return `${label}: ${value}`;
+						},
+					},
+				},
 			},
-			scales:
-				chartType === "bar" ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : undefined,
+			scales: chartType === "bar" ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {},
 		};
 
-		const renderChart = () => {
-			switch (chartType) {
-				case "pie":
-					return <Pie options={chartOptions} data={chartData} />;
-				case "doughnut":
-					return <Doughnut options={chartOptions} data={chartData} />;
-				case "polarArea":
-					return <PolarArea options={chartOptions} data={chartData} />;
-				case "bar":
-				default:
-					return <Bar options={chartOptions} data={chartData} />;
-			}
-		};
+		const backendNeededPlaceholder = (chartName: string) => (
+			<div className="flex items-center justify-center h-full text-center text-gray-500 bg-gray-50 rounded-lg p-4">
+				<div>
+					<p className="font-bold">{chartName}</p>
+					<p className="text-sm">
+						Datos no disponibles. Se requiere una actualización del backend.
+					</p>
+				</div>
+			</div>
+		);
+
+		let chartComponent;
+		switch (chartType) {
+			case "pie":
+				chartComponent = <Pie options={chartOptions} data={chartData} />;
+				break;
+			case "doughnut":
+				chartComponent = <Doughnut options={chartOptions} data={chartData} />;
+				break;
+			case "polarArea":
+				chartComponent = <PolarArea options={chartOptions} data={chartData} />;
+				break;
+			case "line":
+				chartComponent = backendNeededPlaceholder("Gráfico de Líneas (Evolución)");
+				break;
+			case "boxplot":
+				chartComponent = backendNeededPlaceholder("Diagrama de Caja (Edades)");
+				break;
+			case "bar":
+			default:
+				chartComponent = <Bar options={chartOptions} data={chartData} />;
+				break;
+		}
+
+		return (
+			<div className="h-80">
+				{timeRangeData.length > 0 ? (
+					chartComponent
+				) : (
+					<p className="text-center text-gray-500 pt-24">No hay datos para este período.</p>
+				)}
+			</div>
+		);
+	};
+
+	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
+		const chartTypes: ChartType[] = ["bar", "pie", "doughnut", "polarArea", "line", "boxplot"];
 
 		return (
 			<div key={planName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-				<div className="h-80">
-					{timeRangeData.length > 0 ? (
-						renderChart()
-					) : (
-						<p className="text-center text-gray-500 pt-24">No hay datos para este período.</p>
-					)}
-				</div>
+				<h3 className="text-xl font-bold text-gray-800 mb-4">{planName}</h3>
+				{viewMode === "single" ? (
+					renderChart(planName, data, singleChartType)
+				) : (
+					<div className="space-y-8">
+						{chartTypes.map((type) => (
+							<div key={type}>{renderChart(planName, data, type)}</div>
+						))}
+					</div>
+				)}
 			</div>
 		);
 	};
@@ -165,23 +219,38 @@ export default function ReportsPage() {
 							</button>
 						))}
 					</div>
-					<div>
-						<span className="font-semibold mr-4">Tipo de Gráfico:</span>
-						{(["bar", "pie", "doughnut", "polarArea"] as ChartType[]).map((type) => (
-							<button
-								key={type}
-								onClick={() => setChartType(type)}
-								className={`mr-2 capitalize ${chartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
-							>
-								{type === "bar"
-									? "Barras"
-									: type === "pie"
-										? "Torta"
-										: type === "doughnut"
-											? "Dona"
-											: "Polar"}
-							</button>
-						))}
+					<div className="flex items-center gap-2">
+						<span className="font-semibold mr-2">Tipo de Gráfico:</span>
+						{(["bar", "pie", "doughnut", "polarArea", "line", "boxplot"] as ChartType[]).map(
+							(type) => (
+								<button
+									key={type}
+									onClick={() => {
+										setSingleChartType(type);
+										setViewMode("single");
+									}}
+									className={`mr-2 capitalize ${viewMode === "single" && singleChartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
+								>
+									{type === "bar"
+										? "Barras"
+										: type === "pie"
+											? "Torta"
+											: type === "doughnut"
+												? "Dona"
+												: type === "line"
+													? "Línea"
+													: type === "boxplot"
+														? "Caja"
+														: "Polar"}
+								</button>
+							),
+						)}
+						<button
+							onClick={() => setViewMode("all")}
+							className={viewMode === "all" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
+						>
+							Ver Todos
+						</button>
 					</div>
 				</div>
 
