@@ -1,7 +1,7 @@
 // client/src/pages/InternalUsersPage/children/ReportsPage.tsx
 
 import React, { useState, useEffect } from "react";
-import { Bar } from "react-chartjs-2";
+import { Bar, Doughnut, Pie, PolarArea } from "react-chartjs-2";
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -10,13 +10,24 @@ import {
 	Title,
 	Tooltip,
 	Legend,
+	ArcElement,
+	RadialLinearScale,
 } from "chart.js";
 import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 
-// Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// Register all necessary Chart.js components
+ChartJS.register(
+	CategoryScale,
+	LinearScale,
+	BarElement,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	RadialLinearScale,
+);
 
 // --- Type Definitions based on Backend API response ---
 interface BreedStat {
@@ -25,6 +36,7 @@ interface BreedStat {
 }
 type TimeRangeReport = Record<string, BreedStat[]>; // e.g., { "last_month": [...] }
 type ReportData = Record<string, TimeRangeReport>; // e.g., { "Plan Anual": { ... } }
+type ChartType = "bar" | "pie" | "doughnut" | "polarArea";
 
 const TIME_RANGE_LABELS: Record<string, string> = {
 	last_month: "Últimos 30 días",
@@ -33,18 +45,27 @@ const TIME_RANGE_LABELS: Record<string, string> = {
 	last_12_months: "Últimos 12 meses",
 };
 
+// Color palette for charts
+const CHART_COLORS = [
+	"rgba(251, 191, 36, 0.7)", // Amber
+	"rgba(59, 130, 246, 0.7)", // Blue
+	"rgba(239, 68, 68, 0.7)", // Red
+	"rgba(16, 185, 129, 0.7)", // Green
+	"rgba(139, 92, 246, 0.7)", // Violet
+];
+
 export default function ReportsPage() {
 	const [reportData, setReportData] = useState<ReportData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedTimeRange, setSelectedTimeRange] = useState<string>("last_month");
+	const [chartType, setChartType] = useState<ChartType>("bar");
 
 	useEffect(() => {
 		const fetchReport = async () => {
 			setLoading(true);
 			setError(null);
 			try {
-				// SCRUM-80: Connect to the new reports endpoint
 				const response = await apiClient.get<ReportData>(
 					"/api/reports/enrollments-by-plan/?limit=5",
 				);
@@ -59,21 +80,6 @@ export default function ReportsPage() {
 		void fetchReport();
 	}, []);
 
-	const chartOptions = {
-		responsive: true,
-		maintainAspectRatio: false,
-		plugins: {
-			legend: { display: false },
-			title: { display: true, text: "Top 5 Razas por Plan" },
-		},
-		scales: {
-			y: {
-				beginAtZero: true,
-				ticks: { stepSize: 1 },
-			},
-		},
-	};
-
 	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
 		const timeRangeData = data[selectedTimeRange] || [];
 
@@ -83,21 +89,50 @@ export default function ReportsPage() {
 				{
 					label: "Matrículas",
 					data: timeRangeData.map((d) => d.count),
-					backgroundColor: "rgba(251, 191, 36, 0.6)",
-					borderColor: "rgba(245, 158, 11, 1)",
+					backgroundColor: timeRangeData.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+					borderColor: timeRangeData.map((_, i) =>
+						CHART_COLORS[i % CHART_COLORS.length].replace("0.7", "1"),
+					),
 					borderWidth: 1,
 				},
 			],
 		};
 
+		const chartOptions = {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				legend: {
+					display: true, // Enable legend for interactivity
+					position: "top" as const,
+				},
+				title: { display: true, text: `Top 5 Razas - ${planName}` },
+			},
+			scales:
+				chartType === "bar" ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : undefined,
+		};
+
+		const renderChart = () => {
+			switch (chartType) {
+				case "pie":
+					return <Pie options={chartOptions} data={chartData} />;
+				case "doughnut":
+					return <Doughnut options={chartOptions} data={chartData} />;
+				case "polarArea":
+					return <PolarArea options={chartOptions} data={chartData} />;
+				case "bar":
+				default:
+					return <Bar options={chartOptions} data={chartData} />;
+			}
+		};
+
 		return (
 			<div key={planName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-				<h3 className="text-xl font-bold text-gray-800 mb-4">{planName}</h3>
-				<div className="h-64">
+				<div className="h-80">
 					{timeRangeData.length > 0 ? (
-						<Bar options={chartOptions} data={chartData} />
+						renderChart()
 					) : (
-						<p className="text-center text-gray-500 pt-16">No hay datos para este período.</p>
+						<p className="text-center text-gray-500 pt-24">No hay datos para este período.</p>
 					)}
 				</div>
 			</div>
@@ -117,16 +152,34 @@ export default function ReportsPage() {
 					</div>
 				</div>
 
-				<div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex items-center justify-between">
-					<p className="font-semibold">Seleccionar Período:</p>
-					<div className="flex gap-2">
+				<div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-wrap items-center justify-between gap-4">
+					<div>
+						<span className="font-semibold mr-4">Período:</span>
 						{Object.entries(TIME_RANGE_LABELS).map(([key, label]) => (
 							<button
 								key={key}
 								onClick={() => setSelectedTimeRange(key)}
-								className={selectedTimeRange === key ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
+								className={`mr-2 ${selectedTimeRange === key ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
 							>
 								{label}
+							</button>
+						))}
+					</div>
+					<div>
+						<span className="font-semibold mr-4">Tipo de Gráfico:</span>
+						{(["bar", "pie", "doughnut", "polarArea"] as ChartType[]).map((type) => (
+							<button
+								key={type}
+								onClick={() => setChartType(type)}
+								className={`mr-2 capitalize ${chartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
+							>
+								{type === "bar"
+									? "Barras"
+									: type === "pie"
+										? "Torta"
+										: type === "doughnut"
+											? "Dona"
+											: "Polar"}
 							</button>
 						))}
 					</div>
@@ -137,8 +190,14 @@ export default function ReportsPage() {
 
 				{!loading && reportData && (
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						{Object.entries(reportData).map(([planName, data]) =>
-							renderReportForPlan(planName, data),
+						{Object.keys(reportData).length > 0 ? (
+							Object.entries(reportData).map(([planName, data]) =>
+								renderReportForPlan(planName, data),
+							)
+						) : (
+							<p className="text-center text-gray-500 lg:col-span-2 py-12">
+								No hay datos de matrículas para generar reportes.
+							</p>
 						)}
 					</div>
 				)}
