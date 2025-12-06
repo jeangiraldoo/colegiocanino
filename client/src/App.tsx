@@ -16,7 +16,8 @@ import RegisterUser from "./pages/InternalUsersPage/children/RegisterUser";
 import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
 import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
-import ReportsPage from "./pages/InternalUsersPage/children/ReportsPage"; // <-- NEW IMPORT
+import ReportsPage from "./pages/InternalUsersPage/children/ReportsPage";
+import EnrollmentByPlanReport from "./pages/InternalUsersPage/children/EnrollmentByPlanReport";
 import RoleGuard from "./components/RoleGuard";
 
 // Import Client Pages
@@ -101,12 +102,20 @@ function AnimatedRoutes() {
 							</RoleGuard>
 						}
 					/>
-					{/* --- NEW ROUTE FOR REPORTS (HU-7) --- */}
+					{/* --- Nested Routes for Reports --- */}
 					<Route
 						path="reportes"
 						element={
 							<RoleGuard allowed={["ADMIN", "DIRECTOR"]}>
 								<ReportsPage />
+							</RoleGuard>
+						}
+					/>
+					<Route
+						path="reportes/matriculas-por-plan"
+						element={
+							<RoleGuard allowed={["ADMIN", "DIRECTOR"]}>
+								<EnrollmentByPlanReport />
 							</RoleGuard>
 						}
 					/>
