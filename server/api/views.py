@@ -621,6 +621,7 @@ class ReportsViewSet(ViewSet):
 
 		ranges = {
 			"last_month": now - timedelta(days=30),
+			"last_2_months": now - timedelta(days=60),
 			"last_3_months": now - timedelta(days=90),
 			"last_6_months": now - timedelta(days=180),
 			"last_12_months": now - timedelta(days=365),
