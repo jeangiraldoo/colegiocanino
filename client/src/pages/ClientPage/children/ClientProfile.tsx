@@ -6,7 +6,7 @@ import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
 import { validationRules } from "../../../utils/validationRules";
 
-// Icons (Only used ones)
+// Icons
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
@@ -101,6 +101,7 @@ export default function ClientProfile() {
 		setError(null);
 		setSuccessMsg(null);
 
+		// --- Password Verification Logic ---
 		if (newPassword) {
 			if (!currentPassword) {
 				setError("Ingresa tu contraseña actual para verificar el cambio.");
@@ -122,6 +123,23 @@ export default function ClientProfile() {
 				setSaving(false);
 				return;
 			}
+
+			// Verify current password with the new backend endpoint
+			try {
+				const verifyResponse = await apiClient.post("/api/auth/verify-password/", {
+					password: currentPassword,
+				});
+				if (!verifyResponse.data.valid) {
+					setError("La contraseña actual es incorrecta.");
+					setSaving(false);
+					return;
+				}
+			} catch (err: unknown) {
+				console.error("Error verifying password:", err);
+				setError("Error al verificar la contraseña. Intente de nuevo.");
+				setSaving(false);
+				return;
+			}
 		}
 
 		try {
@@ -140,18 +158,15 @@ export default function ClientProfile() {
 			setConfirmNewPassword("");
 		} catch (err: unknown) {
 			console.error("Error saving profile:", err);
-
 			if (isAxiosError(err) && err.response?.data) {
-				// FIX: Cast to Record<string, unknown> to avoid 'any'
 				const data = err.response.data as Record<string, unknown>;
 				const userErrors =
 					typeof data.user === "object" && data.user !== null
 						? (data.user as Record<string, string[]>)
 						: undefined;
-				const passwordError = userErrors?.password?.[0];
+				const emailError = userErrors?.email?.[0];
 				const detail = typeof data.detail === "string" ? data.detail : undefined;
-
-				setError(`Error: ${detail || passwordError || "Error de validación."}`);
+				setError(`Error: ${detail || emailError || "Error de validación del servidor."}`);
 			} else {
 				setError("No se pudieron guardar los cambios.");
 			}
@@ -324,7 +339,7 @@ export default function ClientProfile() {
 								</div>
 
 								{isEditMode && newPassword.length > 0 && (
-									<div className="space-y-1 text-xs text-gray-500 mt-2">
+									<div className="space-y-1 text-xs mt-2 pl-1">
 										<p className={passwordCriteria.length ? "text-green-600" : "text-gray-500"}>
 											{passwordCriteria.length ? "✓" : "•"} Mínimo 8 caracteres
 										</p>
