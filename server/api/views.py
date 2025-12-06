@@ -621,6 +621,7 @@ class ReportsViewSet(ViewSet):
 
 		ranges = {
 			"last_month": now - timedelta(days=30),
+			"last_2_months": now - timedelta(days=60),
 			"last_3_months": now - timedelta(days=90),
 			"last_6_months": now - timedelta(days=180),
 			"last_12_months": now - timedelta(days=365),
@@ -644,6 +645,47 @@ class ReportsViewSet(ViewSet):
 				]
 
 			result[plan.name] = plan_data
+
+		return Response(result)
+
+	@action(detail=False, methods=["get"], url_path="enrollments-by-transport")
+	def enrollments_by_transport(self, request):
+		limit = int(request.query_params.get("limit", 1))
+		transport_id = request.query_params.get("transport")
+
+		now = timezone.now().date()
+		ranges = {
+			"last_month": now - timedelta(days=30),
+			"last_2_months": now - timedelta(days=60),
+			"last_3_months": now - timedelta(days=90),
+			"last_6_months": now - timedelta(days=180),
+			"last_12_months": now - timedelta(days=365),
+		}
+
+		transports = TransportService.objects.all()
+		if transport_id:
+			transports = transports.filter(pk=transport_id)
+
+		result = {}
+
+		for service in transports:
+			transport_data = {}
+
+			for label, date_from in ranges.items():
+				qs = (
+					Enrollment.objects.filter(
+						transport_service=service, enrollment_date__gte=date_from
+					)
+					.values("canine__breed")
+					.annotate(count=Count("id"))
+					.order_by("-count")[:limit]
+				)
+
+				transport_data[label] = [
+					{"breed": row["canine__breed"], "count": row["count"]} for row in qs
+				]
+
+			result[service.get_type_display()] = transport_data
 
 		return Response(result)
 
