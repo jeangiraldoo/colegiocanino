@@ -4,6 +4,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import AddchartIcon from "@mui/icons-material/Addchart";
 
 // This component acts as a hub for all available reports.
@@ -14,6 +15,12 @@ export default function ReportsPage() {
 			description: "Analiza la popularidad de razas por cada tipo de plan de matrícula.",
 			path: "matriculas-por-plan",
 			icon: AssessmentIcon,
+		},
+		{
+			title: "Reporte de Servicios de Transporte",
+			description: "Visualiza la distribución de matrículas según el servicio de transporte.",
+			path: "servicios-transporte",
+			icon: DirectionsBusIcon,
 		},
 		{
 			title: "Próximo Reporte",

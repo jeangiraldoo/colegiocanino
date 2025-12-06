@@ -1,4 +1,4 @@
-// client/src/pages/InternalUsersPage/children/EnrollmentByPlanReport.tsx
+// client/src/pages/InternalUsersPage/children/TransportReport.tsx
 
 import React, { useState, useEffect } from "react";
 import { Bar, Doughnut, Pie, PolarArea } from "react-chartjs-2";
@@ -13,17 +13,14 @@ import {
 	Legend,
 	ArcElement,
 	RadialLinearScale,
-	PointElement,
-	LineElement,
 	type ChartOptions,
 	type TooltipItem,
 } from "chart.js";
 import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
-import AssessmentIcon from "@mui/icons-material/Assessment";
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import { Link } from "react-router-dom";
 
-// Register all necessary Chart.js components
 ChartJS.register(
 	CategoryScale,
 	LinearScale,
@@ -33,21 +30,12 @@ ChartJS.register(
 	Legend,
 	ArcElement,
 	RadialLinearScale,
-	PointElement,
-	LineElement,
 );
 
-// --- Type Definitions ---
-interface BreedStat {
-	breed: string;
-	count: number;
-}
-type TimeRangeReport = Record<string, BreedStat[]>;
-type ReportData = Record<string, TimeRangeReport>;
-type ChartType = "bar" | "pie" | "doughnut" | "polarArea" | "line" | "boxplot";
+// Type Definitions
+type ChartType = "bar" | "pie" | "doughnut" | "polarArea";
 
-// --- Constants ---
-// FIX: Add 'last_2_months' to match new backend data
+// FIX: Add new time range to match backend
 const TIME_RANGE_LABELS: Record<string, string> = {
 	last_month: "Últimos 30 días",
 	last_2_months: "Últimos 2 meses", // <-- NEW
@@ -55,15 +43,22 @@ const TIME_RANGE_LABELS: Record<string, string> = {
 	last_6_months: "Últimos 6 meses",
 	last_12_months: "Últimos 12 meses",
 };
+
 const CHART_COLORS = [
-	"rgba(251, 191, 36, 0.7)",
 	"rgba(59, 130, 246, 0.7)",
 	"rgba(239, 68, 68, 0.7)",
 	"rgba(16, 185, 129, 0.7)",
 	"rgba(139, 92, 246, 0.7)",
 ];
 
-export default function EnrollmentByPlanReport() {
+interface BreedStat {
+	breed: string;
+	count: number;
+}
+type TimeRangeReport = Record<string, BreedStat[]>;
+type ReportData = Record<string, TimeRangeReport>; // The API returns { "Servicio Completo": { "last_month": [...] } }
+
+export default function TransportReport() {
 	const [reportData, setReportData] = useState<ReportData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -76,13 +71,14 @@ export default function EnrollmentByPlanReport() {
 			setLoading(true);
 			setError(null);
 			try {
+				// REAL ENDPOINT INTEGRATION
 				const response = await apiClient.get<ReportData>(
-					"/api/reports/enrollments-by-plan/?limit=5",
+					"/api/reports/enrollments-by-transport/?limit=5",
 				);
 				setReportData(response.data);
 			} catch (_err) {
-				console.error("Error fetching enrollment report:", _err);
-				setError("No se pudo cargar el reporte. Intente de nuevo.");
+				console.error("Error fetching transport report:", _err);
+				setError("No se pudo cargar el reporte de transporte.");
 			} finally {
 				setLoading(false);
 			}
@@ -90,8 +86,15 @@ export default function EnrollmentByPlanReport() {
 		void fetchReport();
 	}, []);
 
-	const renderChart = (planName: string, data: TimeRangeReport, chartType: ChartType) => {
-		const timeRangeData = data[selectedTimeRange] || [];
+	// renderChart and renderReportForPlan now receive the serviceName
+	const renderChart = (serviceName: string, timeRangeData: BreedStat[], chartType: ChartType) => {
+		if (!timeRangeData || timeRangeData.length === 0) {
+			return (
+				<div className="flex items-center justify-center h-full text-gray-500">
+					No hay datos para este período.
+				</div>
+			);
+		}
 
 		const chartData = {
 			labels: timeRangeData.map((d) => d.breed),
@@ -108,18 +111,18 @@ export default function EnrollmentByPlanReport() {
 			],
 		};
 
-		const chartOptions: ChartOptions<"bar" | "pie" | "doughnut" | "polarArea"> = {
+		const chartOptions: ChartOptions<ChartType> = {
 			responsive: true,
 			maintainAspectRatio: false,
 			plugins: {
 				legend: { display: true, position: "top" as const },
-				title: { display: true, text: `Top 5 Razas - ${planName}` },
+				title: { display: true, text: `Top 5 Razas - ${serviceName}` },
 				tooltip: {
 					callbacks: {
 						label: (context: TooltipItem<"pie" | "doughnut" | "polarArea" | "bar">) => {
 							const label = context.label || "";
 							const value = context.raw as number;
-							if (chartType === "pie" || chartType === "doughnut") {
+							if (["pie", "doughnut"].includes(chartType)) {
 								const total = context.chart.getDatasetMeta(0).total || 1;
 								const percentage = ((value / total) * 100).toFixed(1);
 								return `${label}: ${value} (${percentage}%)`;
@@ -132,25 +135,6 @@ export default function EnrollmentByPlanReport() {
 			scales: chartType === "bar" ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {},
 		};
 
-		const backendNeededPlaceholder = (chartName: string) => (
-			<div className="flex items-center justify-center h-full text-center text-gray-500 bg-gray-50 rounded-lg p-4">
-				<div>
-					<p className="font-bold">{chartName}</p>
-					<p className="text-sm">
-						Datos no disponibles. Se requiere una actualización del backend.
-					</p>
-				</div>
-			</div>
-		);
-
-		if (timeRangeData.length === 0 && chartType !== "line" && chartType !== "boxplot") {
-			return (
-				<div className="flex items-center justify-center h-full text-gray-500">
-					No hay datos para este período.
-				</div>
-			);
-		}
-
 		switch (chartType) {
 			case "pie":
 				return <Pie options={chartOptions} data={chartData} />;
@@ -158,21 +142,17 @@ export default function EnrollmentByPlanReport() {
 				return <Doughnut options={chartOptions} data={chartData} />;
 			case "polarArea":
 				return <PolarArea options={chartOptions} data={chartData} />;
-			case "line":
-				return backendNeededPlaceholder("Gráfico de Líneas (Evolución)");
-			case "boxplot":
-				return backendNeededPlaceholder("Diagrama de Caja (Edades)");
 			default:
 				return <Bar options={chartOptions} data={chartData} />;
 		}
 	};
 
-	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
-		const chartTypes: ChartType[] = ["bar", "pie", "doughnut", "polarArea", "line", "boxplot"];
+	const renderReportForService = (serviceName: string, data: TimeRangeReport) => {
+		const chartTypes: ChartType[] = ["bar", "pie", "doughnut", "polarArea"];
 
 		return (
-			<div key={planName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-				<h3 className="text-xl font-bold text-gray-800 mb-4">{planName}</h3>
+			<div key={serviceName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+				<h3 className="text-xl font-bold text-gray-800 mb-4">{serviceName}</h3>
 				{viewMode === "single" ? (
 					<div className="h-80">
 						<AnimatePresence mode="wait">
@@ -184,7 +164,7 @@ export default function EnrollmentByPlanReport() {
 								transition={{ duration: 0.25 }}
 								className="h-full w-full"
 							>
-								{renderChart(planName, data, singleChartType)}
+								{renderChart(serviceName, data[selectedTimeRange], singleChartType)}
 							</motion.div>
 						</AnimatePresence>
 					</div>
@@ -199,13 +179,11 @@ export default function EnrollmentByPlanReport() {
 											? "Torta"
 											: type === "doughnut"
 												? "Dona"
-												: type === "line"
-													? "Línea"
-													: type === "boxplot"
-														? "Caja"
-														: "Polar"}
+												: "Polar"}
 								</h4>
-								<div className="h-80">{renderChart(planName, data, type)}</div>
+								<div className="h-80">
+									{renderChart(serviceName, data[selectedTimeRange], type)}
+								</div>
 							</div>
 						))}
 					</div>
@@ -225,17 +203,15 @@ export default function EnrollmentByPlanReport() {
 						<span className="font-bold">&larr;</span> Volver al Dashboard de Reportes
 					</Link>
 				</div>
-
 				<div className="flex items-center gap-4 mb-6">
-					<AssessmentIcon className="text-3xl text-amber-500" />
+					<DirectionsBusIcon className="text-3xl text-blue-500" />
 					<div>
-						<h1 className="text-2xl font-bold">Reporte de Matrículas por Plan</h1>
+						<h1 className="text-2xl font-bold">Reporte por Servicio de Transporte</h1>
 						<p className="text-gray-500">
-							Popularidad de razas por tipo de plan en diferentes períodos.
+							Distribución de matrículas según el tipo de transporte contratado.
 						</p>
 					</div>
 				</div>
-
 				<div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-wrap items-center justify-between gap-4">
 					<div>
 						<span className="font-semibold mr-4">Período:</span>
@@ -251,30 +227,24 @@ export default function EnrollmentByPlanReport() {
 					</div>
 					<div className="flex items-center gap-2">
 						<span className="font-semibold mr-2">Tipo de Gráfico:</span>
-						{(["bar", "pie", "doughnut", "polarArea", "line", "boxplot"] as ChartType[]).map(
-							(type) => (
-								<button
-									key={type}
-									onClick={() => {
-										setSingleChartType(type);
-										setViewMode("single");
-									}}
-									className={`mr-2 capitalize ${viewMode === "single" && singleChartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
-								>
-									{type === "bar"
-										? "Barras"
-										: type === "pie"
-											? "Torta"
-											: type === "doughnut"
-												? "Dona"
-												: type === "line"
-													? "Línea"
-													: type === "boxplot"
-														? "Caja"
-														: "Polar"}
-								</button>
-							),
-						)}
+						{(["bar", "pie", "doughnut", "polarArea"] as ChartType[]).map((type) => (
+							<button
+								key={type}
+								onClick={() => {
+									setSingleChartType(type);
+									setViewMode("single");
+								}}
+								className={`mr-2 capitalize ${viewMode === "single" && singleChartType === type ? "btn-primary btn-sm" : "btn-ghost btn-sm"}`}
+							>
+								{type === "bar"
+									? "Barras"
+									: type === "pie"
+										? "Torta"
+										: type === "doughnut"
+											? "Dona"
+											: "Polar"}
+							</button>
+						))}
 						<button
 							onClick={() => setViewMode("all")}
 							className={viewMode === "all" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
@@ -290,12 +260,12 @@ export default function EnrollmentByPlanReport() {
 				{!loading && reportData && (
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{Object.keys(reportData).length > 0 ? (
-							Object.entries(reportData).map(([planName, data]) =>
-								renderReportForPlan(planName, data),
+							Object.entries(reportData).map(([serviceName, data]) =>
+								renderReportForService(serviceName, data),
 							)
 						) : (
 							<p className="text-center text-gray-500 lg:col-span-2 py-12">
-								No hay datos de matrículas para generar reportes.
+								No hay datos de transporte para generar reportes.
 							</p>
 						)}
 					</div>

@@ -18,6 +18,7 @@ import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAtten
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
 import ReportsPage from "./pages/InternalUsersPage/children/ReportsPage";
 import EnrollmentByPlanReport from "./pages/InternalUsersPage/children/EnrollmentByPlanReport";
+import TransportReport from "./pages/InternalUsersPage/children/TransportReport";
 import RoleGuard from "./components/RoleGuard";
 
 // Import Client Pages
@@ -116,6 +117,14 @@ function AnimatedRoutes() {
 						element={
 							<RoleGuard allowed={["ADMIN", "DIRECTOR"]}>
 								<EnrollmentByPlanReport />
+							</RoleGuard>
+						}
+					/>
+					<Route
+						path="reportes/servicios-transporte"
+						element={
+							<RoleGuard allowed={["ADMIN", "DIRECTOR"]}>
+								<TransportReport />
 							</RoleGuard>
 						}
 					/>
