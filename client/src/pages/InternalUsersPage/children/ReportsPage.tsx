@@ -1,8 +1,8 @@
 // client/src/pages/InternalUsersPage/children/ReportsPage.tsx
 
 import React, { useState, useEffect } from "react";
-// FIX: Removed 'Line' from imports as it is not being used
 import { Bar, Doughnut, Pie, PolarArea } from "react-chartjs-2";
+import { motion, AnimatePresence } from "framer-motion";
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -22,7 +22,6 @@ import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 
-// Register all necessary Chart.js components
 ChartJS.register(
 	CategoryScale,
 	LinearScale,
@@ -36,7 +35,6 @@ ChartJS.register(
 	LineElement,
 );
 
-// --- Type Definitions ---
 interface BreedStat {
 	breed: string;
 	count: number;
@@ -45,7 +43,6 @@ type TimeRangeReport = Record<string, BreedStat[]>;
 type ReportData = Record<string, TimeRangeReport>;
 type ChartType = "bar" | "pie" | "doughnut" | "polarArea" | "line" | "boxplot";
 
-// --- Constants ---
 const TIME_RANGE_LABELS: Record<string, string> = {
 	last_month: "Últimos 30 días",
 	last_3_months: "Últimos 3 meses",
@@ -105,7 +102,8 @@ export default function ReportsPage() {
 			],
 		};
 
-		const chartOptions: ChartOptions = {
+		// FIX: Specify the generic type for ChartOptions to remove 'any'
+		const chartOptions: ChartOptions<ChartType> = {
 			responsive: true,
 			maintainAspectRatio: false,
 			plugins: {
@@ -113,7 +111,8 @@ export default function ReportsPage() {
 				title: { display: true, text: `Top 5 Razas - ${planName}` },
 				tooltip: {
 					callbacks: {
-						label: (context: TooltipItem<"pie" | "doughnut">) => {
+						// FIX: Use TooltipItem with a specific chart type generic
+						label: (context: TooltipItem<"pie" | "doughnut" | "polarArea" | "bar">) => {
 							const label = context.label || "";
 							const value = context.raw as number;
 							if (chartType === "pie" || chartType === "doughnut") {
@@ -140,38 +139,28 @@ export default function ReportsPage() {
 			</div>
 		);
 
-		let chartComponent;
-		switch (chartType) {
-			case "pie":
-				chartComponent = <Pie options={chartOptions} data={chartData} />;
-				break;
-			case "doughnut":
-				chartComponent = <Doughnut options={chartOptions} data={chartData} />;
-				break;
-			case "polarArea":
-				chartComponent = <PolarArea options={chartOptions} data={chartData} />;
-				break;
-			case "line":
-				chartComponent = backendNeededPlaceholder("Gráfico de Líneas (Evolución)");
-				break;
-			case "boxplot":
-				chartComponent = backendNeededPlaceholder("Diagrama de Caja (Edades)");
-				break;
-			case "bar":
-			default:
-				chartComponent = <Bar options={chartOptions} data={chartData} />;
-				break;
+		if (timeRangeData.length === 0) {
+			return (
+				<div className="flex items-center justify-center h-full text-gray-500">
+					No hay datos para este período.
+				</div>
+			);
 		}
 
-		return (
-			<div className="h-80">
-				{timeRangeData.length > 0 ? (
-					chartComponent
-				) : (
-					<p className="text-center text-gray-500 pt-24">No hay datos para este período.</p>
-				)}
-			</div>
-		);
+		switch (chartType) {
+			case "pie":
+				return <Pie options={chartOptions} data={chartData} />;
+			case "doughnut":
+				return <Doughnut options={chartOptions} data={chartData} />;
+			case "polarArea":
+				return <PolarArea options={chartOptions} data={chartData} />;
+			case "line":
+				return backendNeededPlaceholder("Gráfico de Líneas (Evolución)");
+			case "boxplot":
+				return backendNeededPlaceholder("Diagrama de Caja (Edades)");
+			default:
+				return <Bar options={chartOptions} data={chartData} />;
+		}
 	};
 
 	const renderReportForPlan = (planName: string, data: TimeRangeReport) => {
@@ -181,11 +170,39 @@ export default function ReportsPage() {
 			<div key={planName} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
 				<h3 className="text-xl font-bold text-gray-800 mb-4">{planName}</h3>
 				{viewMode === "single" ? (
-					renderChart(planName, data, singleChartType)
+					<div className="h-80">
+						<AnimatePresence mode="wait">
+							<motion.div
+								key={singleChartType}
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -10 }}
+								transition={{ duration: 0.25 }}
+								className="h-full w-full"
+							>
+								{renderChart(planName, data, singleChartType)}
+							</motion.div>
+						</AnimatePresence>
+					</div>
 				) : (
-					<div className="space-y-8">
+					<div className="space-y-12">
 						{chartTypes.map((type) => (
-							<div key={type}>{renderChart(planName, data, type)}</div>
+							<div key={type}>
+								<h4 className="font-bold text-center mb-2 capitalize text-gray-600">
+									{type === "bar"
+										? "Barras"
+										: type === "pie"
+											? "Torta"
+											: type === "doughnut"
+												? "Dona"
+												: type === "line"
+													? "Línea"
+													: type === "boxplot"
+														? "Caja"
+														: "Polar"}
+								</h4>
+								<div className="h-80">{renderChart(planName, data, type)}</div>
+							</div>
 						))}
 					</div>
 				)}
