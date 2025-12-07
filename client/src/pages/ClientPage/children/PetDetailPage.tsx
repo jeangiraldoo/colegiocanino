@@ -6,21 +6,23 @@ import "react-datepicker/dist/react-datepicker.css";
 import EnrollmentDetails from "../components/EnrollmentDetails";
 import apiClient from "../../../api/axiosConfig";
 
-// Define interfaces matching the backend response structure
+// --- Interfaces based on Backend Serializers ---
+
 interface Attendance {
 	id: number;
-	date: string;
-	status: string; // e.g., "present", "absent"
-	arrival_time: string | null;
+	date: string; // Format: YYYY-MM-DD
+	status: "present" | "advance_withdrawal" | "dispatched" | "absent";
+	arrival_time: string | null; // Format: HH:MM:SS
 	departure_time: string | null;
 	withdrawal_reason: string | null;
+	transport?: string; // Optional, depending on if BE sends it flattened
 }
 
 interface Canine {
 	id: number;
 	name: string;
 	breed: string;
-	// Add other canine fields if needed
+	photo?: string | null;
 }
 
 interface CanineAttendanceResponse {
@@ -30,64 +32,65 @@ interface CanineAttendanceResponse {
 
 export default function PetDetailPage() {
 	const { canineId } = useParams<{ canineId?: string }>();
+
+	// State for data
 	const [canine, setCanine] = useState<Canine | null>(null);
 	const [attendances, setAttendances] = useState<Attendance[]>([]);
 
-	// Loading state for the main data fetch
-	const [loadingData, setLoadingData] = useState(true);
+	// UI States
+	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Filter states
+	// Filter States
 	const [startDate, setStartDate] = useState<Date | null>(null);
 	const [endDate, setEndDate] = useState<Date | null>(null);
 	const [filteredAttendances, setFilteredAttendances] = useState<Attendance[]>([]);
 
-	// Pagination states
+	// Pagination States
 	const [currentPage, setCurrentPage] = useState(1);
 	const recordsPerPage = 5;
 
-	// Fetch real data from the backend
+	// 1. Fetch Real Data from Backend
 	useEffect(() => {
 		if (!canineId) return;
 
-		const loadCanineData = async () => {
-			setLoadingData(true);
+		const fetchDetails = async () => {
+			setLoading(true);
 			setError(null);
 			try {
-				// We use the specialized endpoint that returns canine info + attendance history
+				// Using Axios (apiClient) to fetch real data from the specific endpoint defined in HU-14
 				const response = await apiClient.get<CanineAttendanceResponse>(
 					`/api/canines/${canineId}/attendance/`,
 				);
 
 				setCanine(response.data.canine);
 				setAttendances(response.data.attendances);
-				setFilteredAttendances(response.data.attendances); // Init filtered list
+				setFilteredAttendances(response.data.attendances); // Initialize filtered list with all data
 			} catch (err: unknown) {
-				console.error("Error fetching canine details:", err);
-				setError("No se pudo cargar la información de la mascota.");
+				console.error("Error fetching attendance history:", err);
+				setError("No se pudo cargar el historial de asistencia. Intente nuevamente.");
 			} finally {
-				setLoadingData(false);
+				setLoading(false);
 			}
 		};
 
-		void loadCanineData();
+		void fetchDetails();
 	}, [canineId]);
 
-	// Filter logic applied to real data
+	// 2. Handle Filtering (Client-side filtering on real data)
 	const handleFilter = () => {
-		let filtered = attendances;
+		let result = attendances;
 
 		if (startDate || endDate) {
-			// Create boundary dates for comparison
 			const start = startDate ? new Date(startDate.getTime()) : null;
 			const end = endDate ? new Date(endDate.getTime()) : null;
 
+			// Normalize time boundaries
 			if (start) start.setHours(0, 0, 0, 0);
 			if (end) end.setHours(23, 59, 59, 999);
 
-			filtered = attendances.filter((att) => {
-				// Backend sends date as YYYY-MM-DD string
-				// We parse it to compare properly
+			result = attendances.filter((att) => {
+				// Parse YYYY-MM-DD from backend
 				const [year, month, day] = att.date.split("-").map(Number);
 				const attDate = new Date(year, month - 1, day);
 
@@ -97,11 +100,12 @@ export default function PetDetailPage() {
 				return true;
 			});
 		}
-		setFilteredAttendances(filtered);
-		setCurrentPage(1); // Reset pagination on filter
+
+		setFilteredAttendances(result);
+		setCurrentPage(1); // Reset to first page on filter change
 	};
 
-	// Pagination Logic
+	// 3. Pagination Logic
 	const currentRecords = useMemo(() => {
 		const indexOfLastRecord = currentPage * recordsPerPage;
 		const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
@@ -115,7 +119,8 @@ export default function PetDetailPage() {
 		setCurrentPage(pageNumber);
 	};
 
-	// Helper to format status text for display
+	// --- Helpers for UI formatting ---
+
 	const formatStatus = (status: string) => {
 		const statusMap: Record<string, string> = {
 			present: "Presente",
@@ -126,7 +131,12 @@ export default function PetDetailPage() {
 		return statusMap[status] || status;
 	};
 
-	// Helper to get day of week from date string
+	const formatTime = (timeStr: string | null) => {
+		if (!timeStr) return "—";
+		// Expecting HH:MM:SS, return HH:MM
+		return timeStr.slice(0, 5);
+	};
+
 	const getDayOfWeek = (dateStr: string) => {
 		const [year, month, day] = dateStr.split("-").map(Number);
 		const date = new Date(year, month - 1, day);
@@ -134,13 +144,27 @@ export default function PetDetailPage() {
 		return days[date.getDay()];
 	};
 
+	const getStatusColor = (status: string) => {
+		switch (status) {
+			case "present":
+				return "bg-green-100 text-green-800";
+			case "absent":
+				return "bg-red-100 text-red-800";
+			case "dispatched":
+				return "bg-blue-100 text-blue-800";
+			case "advance_withdrawal":
+				return "bg-yellow-100 text-yellow-800";
+			default:
+				return "bg-gray-100 text-gray-800";
+		}
+	};
+
 	if (error) {
 		return (
-			<div className="p-8 text-center text-red-600 font-montserrat">
-				{error}
-				<br />
-				<Link to="/portal-cliente/mis-mascotas" className="underline mt-4 block">
-					Volver
+			<div className="p-8 text-center font-montserrat">
+				<p className="text-red-600 mb-4">{error}</p>
+				<Link to="/portal-cliente/mis-mascotas" className="text-amber-600 underline">
+					Volver a mis mascotas
 				</Link>
 			</div>
 		);
@@ -152,39 +176,39 @@ export default function PetDetailPage() {
 				<div className="mb-6">
 					<Link
 						to="/portal-cliente/mis-mascotas"
-						className="text-amber-500 hover:underline flex items-center gap-2"
+						className="text-amber-500 hover:underline flex items-center gap-2 transition-colors"
 					>
 						<span className="font-bold">&larr;</span> Volver a Mis Mascotas
 					</Link>
 					<h1 className="text-2xl font-bold mt-2">
-						{/* Show real name or skeleton if loading */}
-						{loadingData ? "Cargando..." : `Detalle de ${canine?.name}`}
+						{loading ? "Cargando..." : `Historial de ${canine?.name}`}
 					</h1>
 				</div>
 
-				{/* HU-13: Real Enrollment Logic */}
-				{/* Only render if we have a valid ID. The component handles its own loading/error */}
+				{/* Enrollment Component (HU-13 Integration) */}
 				{canineId && <EnrollmentDetails canineId={canineId} />}
 
 				<div className="mt-8">
-					<h2 className="text-xl font-bold mb-4 text-gray-800">Historial de Asistencia</h2>
+					<h2 className="text-xl font-bold mb-4 text-gray-800">Registro de Asistencia</h2>
 
 					<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+						{/* Filter Section */}
 						<div className="flex flex-wrap items-center gap-4 mb-6">
 							<div className="flex-grow">
-								<label className="text-sm font-medium text-gray-600">Desde</label>
+								<label className="text-sm font-medium text-gray-600 block mb-1">Desde</label>
 								<DatePicker
 									selected={startDate}
 									onChange={(date) => setStartDate(date)}
 									selectsStart
 									startDate={startDate}
 									endDate={endDate}
-									className="input-primary w-full mt-1"
-									placeholderText="Fecha inicio"
+									className="input-primary w-full"
+									placeholderText="Seleccionar fecha"
+									dateFormat="dd/MM/yyyy"
 								/>
 							</div>
 							<div className="flex-grow">
-								<label className="text-sm font-medium text-gray-600">Hasta</label>
+								<label className="text-sm font-medium text-gray-600 block mb-1">Hasta</label>
 								<DatePicker
 									selected={endDate}
 									onChange={(date) => setEndDate(date)}
@@ -192,71 +216,71 @@ export default function PetDetailPage() {
 									startDate={startDate}
 									endDate={endDate}
 									minDate={startDate ?? undefined}
-									className="input-primary w-full mt-1"
-									placeholderText="Fecha fin"
+									className="input-primary w-full"
+									placeholderText="Seleccionar fecha"
+									dateFormat="dd/MM/yyyy"
 								/>
 							</div>
-							<button className="btn-primary self-end" onClick={handleFilter}>
+							<button
+								className="btn-primary self-end h-[42px]"
+								onClick={handleFilter}
+								disabled={loading}
+							>
 								Filtrar
 							</button>
 						</div>
 
-						{loadingData && <p className="text-center py-8">Cargando historial...</p>}
-
-						{!loadingData && filteredAttendances.length === 0 && (
-							<div className="text-center py-8">
-								<p className="text-gray-600">No se encontraron registros de asistencia.</p>
+						{/* Data Table */}
+						{loading ? (
+							<p className="text-center py-12 text-gray-500">Cargando registros...</p>
+						) : filteredAttendances.length === 0 ? (
+							<div className="text-center py-12 bg-gray-50 rounded-lg">
+								<p className="text-gray-500">No se encontraron registros de asistencia.</p>
 							</div>
-						)}
-
-						{!loadingData && filteredAttendances.length > 0 && (
+						) : (
 							<>
 								<div className="overflow-x-auto">
 									<table className="min-w-full divide-y divide-gray-200">
 										<thead className="bg-gray-50">
 											<tr>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												<th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
 													Fecha
 												</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												<th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
 													Estado
 												</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-													Entrada
+												<th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+													Llegada
 												</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												<th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
 													Salida
 												</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-													Notas
+												<th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+													Observaciones
 												</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
-											{currentRecords.map((att, index) => (
-												<tr key={att.id || index} className="hover:bg-gray-50">
+											{currentRecords.map((att) => (
+												<tr key={att.id} className="hover:bg-gray-50 transition-colors">
 													<td className="px-6 py-4 whitespace-nowrap">
 														<div className="font-bold text-gray-800">{att.date}</div>
-														<div className="text-sm text-gray-500">{getDayOfWeek(att.date)}</div>
+														<div className="text-xs text-gray-500">{getDayOfWeek(att.date)}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														<span
-															className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-																att.status === "present"
-																	? "bg-green-100 text-green-800"
-																	: att.status === "absent"
-																		? "bg-red-100 text-red-800"
-																		: "bg-yellow-100 text-yellow-800"
-															}`}
+															className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(att.status)}`}
 														>
 															{formatStatus(att.status)}
 														</span>
 													</td>
-													<td className="px-6 py-4 whitespace-nowrap">{att.arrival_time || "—"}</td>
-													<td className="px-6 py-4 whitespace-nowrap">
-														{att.departure_time || "—"}
+													<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+														{formatTime(att.arrival_time)}
 													</td>
-													<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+													<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+														{formatTime(att.departure_time)}
+													</td>
+													<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">
 														{att.withdrawal_reason || "—"}
 													</td>
 												</tr>
@@ -265,25 +289,22 @@ export default function PetDetailPage() {
 									</table>
 								</div>
 
+								{/* Pagination Controls */}
 								{totalPages > 1 && (
-									<div className="flex justify-between items-center mt-6">
+									<div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
 										<span className="text-sm text-gray-600">
 											Página {currentPage} de {totalPages}
 										</span>
 										<div className="flex items-center gap-2">
 											<button
-												className="btn-ghost"
+												className="btn-ghost text-sm px-3 py-1"
 												onClick={() => paginate(currentPage - 1)}
 												disabled={currentPage === 1}
 											>
 												Anterior
 											</button>
-
-											{/* Simple Pagination Numbers */}
-											<span className="text-sm font-bold">{currentPage}</span>
-
 											<button
-												className="btn-ghost"
+												className="btn-ghost text-sm px-3 py-1"
 												onClick={() => paginate(currentPage + 1)}
 												disabled={currentPage === totalPages}
 											>
