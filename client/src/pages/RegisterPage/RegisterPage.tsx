@@ -1,24 +1,40 @@
 // client/src/pages/RegisterPage/RegisterPage.tsx
 
-import { useState } from "react";
+import { useState, useMemo } from "react"; // Import useMemo
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@mui/material";
-import axios from "axios"; // 1. Importamos axios
+import { isAxiosError } from "axios";
+import apiClient from "../../api/axiosConfig";
+import { validationRules } from "../../utils/validationRules";
+
+// Icons
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import PhoneIcon from "@mui/icons-material/Phone";
+import HomeIcon from "@mui/icons-material/Home";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import HomeIcon from "@mui/icons-material/Home";
-import logoSrc from "../../assets/raices-caninas-logo.png";
-import rightImage from "../../assets/image-RegisterPage.png";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-// CAMBIO CLAVE 2: Se define un tipo para la estructura de los errores de la API.
+// Assets
+import logoSrc from "../../assets/logo.png";
+import rightImage from "../../assets/image-RegisterPage.png";
+import { Button } from "@mui/material";
+
+// Type definitions (unchanged)
 type ApiErrorResponse = {
 	email?: string[];
 	username?: string[];
 	document_id?: string[];
+	phone_number?: string[];
+};
+type PasswordCriteria = {
+	length: boolean;
+	uppercase: boolean;
+	lowercase: boolean;
+	number: boolean;
+	special: boolean;
 };
 
 export const RegisterPage = () => {
@@ -30,45 +46,64 @@ export const RegisterPage = () => {
 		documentId: "",
 		username: "",
 		email: "",
+		phoneNumber: "",
+		address: "",
 		password: "",
 		confirmPassword: "",
 	});
+
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [agreeTerms, setAgreeTerms] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 
+	// --- NEW: Real-time password validation state ---
+	const passwordCriteria: PasswordCriteria = useMemo(
+		() => ({
+			length: form.password.length >= 8,
+			uppercase: /[A-Z]/.test(form.password),
+			lowercase: /[a-z]/.test(form.password),
+			number: /\d/.test(form.password),
+			special: /[@$!%*?&]/.test(form.password),
+		}),
+		[form.password],
+	);
+	// ---------------------------------------------
+
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		setForm((prev) => ({ ...prev, [name]: value }));
 		setError(null);
-		setSuccess(null);
 	};
 
+	// ... (validate function remains unchanged)
 	const validate = () => {
-		if (Object.values(form).some((v) => v.trim() === ""))
-			return "Todos los campos son obligatorios.";
-		if (!/^\S+@\S+\.\S+$/.test(form.email)) return "El correo electrónico no es válido.";
-		if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
-		if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
-		if (!/^\d{6,12}$/.test(form.documentId)) return "La cédula debe contener entre 6 y 12 dígitos.";
-		if (!agreeTerms) return "Debes aceptar los lineamientos de la escuela.";
+		if (Object.values(form).some((v) => v.trim() === "")) return validationRules.messages.required;
+		if (!validationRules.isValidEmail(form.email)) return validationRules.messages.email;
+		if (!validationRules.isValidDocumentId(form.documentId))
+			return validationRules.messages.documentId;
+		if (!validationRules.isValidPhoneNumber(form.phoneNumber))
+			return validationRules.messages.phone;
+		if (!validationRules.isValidAddress(form.address)) return validationRules.messages.address;
+		if (!validationRules.isValidUsername(form.username)) return validationRules.messages.username;
+		if (!validationRules.isValidPassword(form.password)) return validationRules.messages.password;
+		if (form.password !== form.confirmPassword) return validationRules.messages.matchPassword;
+		if (!agreeTerms) return validationRules.messages.terms;
 		return "";
 	};
 
+	// ... (handleSubmit function remains unchanged)
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setError(null);
-		setSuccess(null);
-
 		const validationError = validate();
 		if (validationError) {
 			setError(validationError);
 			return;
 		}
 		setLoading(true);
-
+		setError(null);
+		setSuccess(null);
 		try {
 			const payload = {
 				first_name: form.firstName,
@@ -76,34 +111,27 @@ export const RegisterPage = () => {
 				document_id: form.documentId,
 				username: form.username,
 				email: form.email,
+				phone_number: form.phoneNumber,
+				address: form.address,
 				password: form.password,
 			};
-
-			const response = await axios.post("http://127.0.0.1:8000/api/register/", payload);
-
+			const response = await apiClient.post("/api/register/", payload);
 			if (response.status === 201) {
 				setSuccess("¡Registro exitoso! Serás redirigido para iniciar sesión.");
-				setTimeout(() => {
-					navigate("/login");
-				}, 2000);
+				setTimeout(() => navigate("/login"), 2000);
 			}
 		} catch (err: unknown) {
-			// CAMBIO CLAVE 3: Se usa `unknown` y se verifica el tipo de error.
-			console.error("Error en el registro:", err);
-			if (axios.isAxiosError(err) && err.response) {
+			if (isAxiosError(err) && err.response) {
 				const apiErrors = err.response.data as ApiErrorResponse;
 				let errorMessage = "Ocurrió un error en el registro.";
-
-				if (apiErrors.email?.[0]) {
-					errorMessage = `Correo electrónico: ${apiErrors.email[0]}`;
-				} else if (apiErrors.username?.[0]) {
-					errorMessage = `Nombre de usuario: ${apiErrors.username[0]}`;
-				} else if (apiErrors.document_id?.[0]) {
-					errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
-				}
+				if (apiErrors.email?.[0]) errorMessage = `Correo: ${apiErrors.email[0]}`;
+				else if (apiErrors.username?.[0]) errorMessage = `Usuario: ${apiErrors.username[0]}`;
+				else if (apiErrors.document_id?.[0]) errorMessage = `Cédula: ${apiErrors.document_id[0]}`;
+				else if (apiErrors.phone_number?.[0])
+					errorMessage = `Teléfono: ${apiErrors.phone_number[0]}`;
 				setError(errorMessage);
 			} else {
-				setError("No se pudo conectar con el servidor. Intenta de nuevo más tarde.");
+				setError("No se pudo conectar con el servidor.");
 			}
 		} finally {
 			setLoading(false);
@@ -111,59 +139,43 @@ export const RegisterPage = () => {
 	};
 
 	return (
-		<div className="min-h-screen w-full flex flex-col lg:flex-row login-page overflow-x-hidden">
-			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 overflow-y-auto relative">
-				<div className="absolute top-4 left-4 z-20">
+		<div className="min-h-screen w-screen flex flex-col lg:flex-row m-0 p-0 bg-white">
+			<div className="hidden lg:block lg:w-1/2 relative h-screen sticky top-0">
+				<img
+					src={rightImage}
+					alt="Personas felices con sus perros"
+					className="w-full h-full object-cover"
+				/>
+			</div>
+
+			<div className="w-full lg:w-1/2 bg-white flex flex-col justify-center items-center p-8 py-12 lg:py-8 relative min-h-screen">
+				<div className="absolute top-6 left-6 z-20">
 					<Button
 						component={Link}
 						to="/"
 						variant="outlined"
-						startIcon={<HomeIcon />}
+						startIcon={<ArrowBackIcon />}
 						sx={{
 							color: "#fbbf24",
 							borderColor: "#fbbf24",
 							fontFamily: "var(--font-lekton-bold)",
-							letterSpacing: "0.05em",
 							textTransform: "none",
-							padding: "0.5rem 1.5rem 0.5rem 1.75rem",
-							borderRadius: "0.5rem",
-							transition: "all 0.3s ease",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							"& .MuiButton-startIcon": {
-								marginRight: "0.75rem",
-								marginLeft: "-0.05rem",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-							},
-							"& .MuiSvgIcon-root": {
-								color: "#fbbf24",
-								fontSize: "1.2rem",
-								display: "block",
-								transform: "translate(-0.5rem, -0.5px)",
-							},
+							backgroundColor: "white",
 							"&:hover": {
 								borderColor: "#f59e0b",
 								backgroundColor: "rgba(251, 191, 36, 0.15)",
 								color: "#f59e0b",
-								transform: "translateY(-2px)",
-								boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
-								"& .MuiSvgIcon-root": {
-									color: "#f59e0b",
-								},
 							},
 						}}
 					>
 						Inicio
 					</Button>
 				</div>
-				<div className="max-w-md w-full">
+
+				<div className="max-w-md w-full mt-10 lg:mt-0">
 					<div className="flex justify-center mb-4">
 						<img src={logoSrc} alt="Logo Raíces Caninas" className="w-40 h-auto" />
 					</div>
-
 					<h1 className="text-2xl font-jua mb-2 text-center letter-space-md">
 						<span className="inline-block bg-block-amber text-white px-2 py-1 rounded-none font-jua letter-space-md">
 							REGÍSTRATE
@@ -175,131 +187,190 @@ export const RegisterPage = () => {
 					</h4>
 
 					<form onSubmit={handleSubmit} aria-label="Formulario de registro">
-						<label className="block">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Nombre
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="firstName"
-									value={form.firstName}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu nombre"
-								/>
+						<div className="space-y-4">
+							{/* ... (otros campos del formulario se mantienen igual) ... */}
+							<div className="flex flex-col md:flex-row gap-4">
+								<div className="w-full md:w-1/2">
+									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+										Nombre
+									</label>
+									<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+										<PersonOutlineIcon className="text-amber-400 mx-3" />
+										<input
+											type="text"
+											name="firstName"
+											value={form.firstName}
+											onChange={handleChange}
+											className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+											placeholder="Nombre"
+										/>
+									</div>
+								</div>
+								<div className="w-full md:w-1/2">
+									<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+										Apellido
+									</label>
+									<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+										<PersonOutlineIcon className="text-amber-400 mx-3" />
+										<input
+											type="text"
+											name="lastName"
+											value={form.lastName}
+											onChange={handleChange}
+											className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+											placeholder="Apellido"
+										/>
+									</div>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Apellido
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="lastName"
-									value={form.lastName}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu apellido"
-								/>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Cédula de ciudadanía
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<BadgeOutlinedIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="documentId"
+										value={form.documentId}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Tu número de documento"
+									/>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Cédula de ciudadanía
-							</span>
-							<div className="relative mt-1">
-								<BadgeOutlinedIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="documentId"
-									value={form.documentId}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Tu número de documento"
-								/>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Teléfono
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<PhoneIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="phoneNumber"
+										value={form.phoneNumber}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Ej: 3001234567"
+									/>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Nombre de usuario
-							</span>
-							<div className="relative mt-1">
-								<PersonOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="text"
-									name="username"
-									value={form.username}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="Elige un nombre de usuario"
-								/>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Dirección
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<HomeIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="address"
+										value={form.address}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Dirección de residencia"
+									/>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Correo electrónico
-							</span>
-							<div className="relative mt-1">
-								<MailOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type="email"
-									name="email"
-									value={form.email}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 font-lekton-bold input-primary placeholder"
-									placeholder="nombre@ejemplo.com"
-								/>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Nombre de usuario
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<PersonOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type="text"
+										name="username"
+										value={form.username}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Elige un nombre de usuario"
+									/>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Contraseña
-							</span>
-							<div className="relative mt-1">
-								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type={showPassword ? "text" : "password"}
-									name="password"
-									value={form.password}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="Mínimo 6 caracteres"
-								/>
-								<button
-									type="button"
-									className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
-									onClick={() => setShowPassword((s) => !s)}
-								>
-									{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-								</button>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Correo electrónico
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<MailOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type="email"
+										name="email"
+										value={form.email}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="nombre@ejemplo.com"
+									/>
+								</div>
 							</div>
-						</label>
 
-						<label className="block mt-3">
-							<span className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
-								Confirmar Contraseña
-							</span>
-							<div className="relative mt-1">
-								<LockOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
-								<input
-									type={showPassword ? "text" : "password"}
-									name="confirmPassword"
-									value={form.confirmPassword}
-									onChange={handleChange}
-									className="block w-full border rounded px-3 py-2 pl-10 pr-10 font-lekton-bold input-primary placeholder"
-									placeholder="Repite tu contraseña"
-								/>
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Contraseña
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<LockOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type={showPassword ? "text" : "password"}
+										name="password"
+										value={form.password}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Mínimo 8 caracteres"
+									/>
+									<button
+										type="button"
+										className="password-toggle pr-3"
+										onClick={() => setShowPassword((s) => !s)}
+									>
+										{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+									</button>
+								</div>
+
+								{/* --- NEW: Real-time password validation feedback --- */}
+								{form.password.length > 0 && (
+									<div className="space-y-1 text-xs mt-2 pl-1">
+										<p className={passwordCriteria.length ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.length ? "✓" : "•"} Mínimo 8 caracteres
+										</p>
+										<p className={passwordCriteria.uppercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.uppercase ? "✓" : "•"} Una mayúscula
+										</p>
+										<p className={passwordCriteria.lowercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.lowercase ? "✓" : "•"} Una minúscula
+										</p>
+										<p className={passwordCriteria.number ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.number ? "✓" : "•"} Un número
+										</p>
+										<p className={passwordCriteria.special ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.special ? "✓" : "•"} Un carácter especial (@$!%*?&)
+										</p>
+									</div>
+								)}
 							</div>
-						</label>
+
+							<div>
+								<label className="text-sm font-lekton-bold subtittle-primary letter-space-lg">
+									Confirmar Contraseña
+								</label>
+								<div className="relative mt-1 flex items-center border rounded input-primary focus-within:border-amber-400 focus-within:shadow-md">
+									<LockOutlineIcon className="text-amber-400 mx-3" />
+									<input
+										type={showPassword ? "text" : "password"}
+										name="confirmPassword"
+										value={form.confirmPassword}
+										onChange={handleChange}
+										className="w-full bg-transparent border-none focus:ring-0 font-lekton-bold placeholder"
+										placeholder="Repite tu contraseña"
+									/>
+								</div>
+							</div>
+						</div>
 
 						<label className="flex items-center gap-2 mt-4">
 							<input
@@ -321,7 +392,7 @@ export const RegisterPage = () => {
 							<div
 								role="alert"
 								aria-live="assertive"
-								className="text-red-600 mt-3 text-center font-lekton-bold"
+								className="text-red-600 mt-3 text-center font-lekton-bold text-sm"
 							>
 								{error}
 							</div>
@@ -330,7 +401,7 @@ export const RegisterPage = () => {
 							<div
 								role="alert"
 								aria-live="polite"
-								className="text-green-600 mt-3 text-center font-lekton-bold"
+								className="text-green-600 mt-3 text-center font-lekton-bold text-sm"
 							>
 								{success}
 							</div>
@@ -352,13 +423,6 @@ export const RegisterPage = () => {
 						</div>
 					</form>
 				</div>
-			</div>
-			<div className="hidden lg:block lg:w-1/2 relative min-h-screen">
-				<img
-					src={rightImage}
-					alt="Personas felices con sus perros"
-					className="w-full h-full object-cover"
-				/>
 			</div>
 		</div>
 	);
