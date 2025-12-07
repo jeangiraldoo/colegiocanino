@@ -372,18 +372,18 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 			plan = plan if plan is not None else self.instance.plan
 
 		# Validate dates
-		if enrollment_date and expiration_date:
-			if expiration_date <= enrollment_date:
-				raise serializers.ValidationError(
-					{
-						"expiration_date": "La fecha de expiración debe ser posterior a la fecha de inscripción."
-					}
-				)
+		if enrollment_date and expiration_date and expiration_date <= enrollment_date:
+			raise serializers.ValidationError(
+				{
+					"expiration_date": (
+						"La fecha de expiración debe ser posterior a la fecha de inscripción."
+					)
+				}
+			)
 
 		# Validate plan is active
-		if plan:
-			if not plan.active:
-				raise serializers.ValidationError({"plan": "El plan seleccionado no está activo."})
+		if plan and not plan.active:
+			raise serializers.ValidationError({"plan": "El plan seleccionado no está activo."})
 
 		return data
 
