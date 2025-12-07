@@ -2,7 +2,7 @@
 
 /**
  * Validation rules to match Backend constraints and elicitation requirements.
- * Ensures consistency across all forms in the application.
+ * Centralizing regex patterns ensures consistency and maintainability.
  * 
  * Backend constraints:
  * - username: max_length=150
@@ -34,6 +34,9 @@ const MAX_FIRST_NAME_LENGTH = 150;
 const MAX_LAST_NAME_LENGTH = 150;
 const MAX_PHONE_NUMBER_LENGTH = 15;
 const MAX_DOCUMENT_ID_LENGTH = 50;
+
+// Regex for phone number: 7 to 15 digits
+const PHONE_REGEX = /^\d{7,15}$/;
 
 export const validationRules = {
 	isValidEmail: (email: string): boolean => {
@@ -80,6 +83,15 @@ export const validationRules = {
 		return trimmed.length <= MAX_PHONE_NUMBER_LENGTH;
 	},
 
+	isValidPhoneNumber: (phone: string): boolean => {
+		return PHONE_REGEX.test(phone);
+	},
+
+	isValidAddress: (address: string): boolean => {
+		// Basic check: not empty and at least 5 characters long
+		return address.trim().length >= 5;
+	},
+
 	// Helper messages for UI
 	messages: {
 		email: "El correo electrónico no es válido.",
@@ -88,10 +100,13 @@ export const validationRules = {
 		documentId: "La cédula debe contener entre 6 y 12 dígitos numéricos.",
 		username: `El nombre de usuario debe tener entre 3 y ${MAX_USERNAME_LENGTH} caracteres.`,
 		firstName: `El nombre debe tener máximo ${MAX_FIRST_NAME_LENGTH} caracteres.`,
+		phone: "El teléfono debe contener solo números (7 a 15 dígitos).",
+		address: "La dirección es obligatoria y debe ser válida.",
 		lastName: `El apellido debe tener máximo ${MAX_LAST_NAME_LENGTH} caracteres.`,
 		phoneNumber: `El número de teléfono debe tener máximo ${MAX_PHONE_NUMBER_LENGTH} caracteres.`,
 		documentIdLength: `La cédula debe tener máximo ${MAX_DOCUMENT_ID_LENGTH} caracteres.`,
 		required: "Este campo es obligatorio.",
 		matchPassword: "Las contraseñas no coinciden.",
+		terms: "Debes aceptar los lineamientos de la escuela.",
 	},
 };
