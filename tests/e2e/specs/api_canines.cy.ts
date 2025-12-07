@@ -120,7 +120,9 @@ describe("API - Canines Endpoints", () => {
                 url: `${API_URL}/canines/`,
                 headers: {
                     Authorization: `Bearer ${authToken}`,
+                    Accept: "application/json",
                 },
+                failOnStatusCode: false,
             }).then((response) => {
                 expect(response.status).to.eq(200);
                 expect(response.body).to.be.an("array");

@@ -9,9 +9,9 @@ describe("API - Enrollments Endpoints", () => {
 
     // Test data
     const testUser = {
-        username: `enrolluser_${Date.now()}`,
+        username: `Monica`,
         email: `enrolluser_${Date.now()}@example.com`,
-        password: "testpass123",
+        password: "M@n1c4_0909",
         first_name: "Enroll",
         last_name: "User",
     };
@@ -38,10 +38,19 @@ describe("API - Enrollments Endpoints", () => {
         // Register a user and get auth token
         cy.request({
             method: "POST",
-            url: `${API_URL}/register/`,
-            body: testUser,
+            url: `${API_URL}/token/`,
+            body: {
+                username: testUser.username,
+                password: testUser.password,
+            },
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            failOnStatusCode: false,
         }).then((response) => {
             authToken = response.body.access;
+            cy.log("Auth Token: " + response);
             clientId = response.body.user.client_profile?.id;
 
             // Create a canine
@@ -50,6 +59,8 @@ describe("API - Enrollments Endpoints", () => {
                 url: `${API_URL}/canines/`,
                 headers: {
                     Authorization: `Bearer ${authToken}`,
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
                 },
                 body: {
                     ...testCanine,
