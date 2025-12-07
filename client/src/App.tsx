@@ -15,10 +15,12 @@ import RegisterUser from "./pages/InternalUsersPage/children/RegisterUser";
 import ManageUsers from "./pages/InternalUsersPage/children/ManageUsers";
 import RegisterAttendance from "./pages/InternalUsersPage/children/RegisterAttendance";
 import ViewAttendance from "./pages/InternalUsersPage/children/ViewAttendance";
+import ListCanines from "./pages/InternalUsersPage/children/ListCanines";
 import ReportsPage from "./pages/InternalUsersPage/children/ReportsPage";
 import EnrollmentByPlanReport from "./pages/InternalUsersPage/children/EnrollmentByPlanReport";
 import TransportReport from "./pages/InternalUsersPage/children/TransportReport";
 import RoleGuard from "./components/RoleGuard";
+import UserTypeGuard from "./components/UserTypeGuard";
 
 // Import Client Pages
 import ClientPage from "./pages/ClientPage/ClientPage";
@@ -60,7 +62,14 @@ function AnimatedRoutes() {
 				/>
 
 				{/* --- Internal Users Routes --- */}
-				<Route path="/internal-users" element={<InternalUsers />}>
+				<Route
+					path="/internal-users"
+					element={
+						<UserTypeGuard allowedUserType="internal">
+							<InternalUsers />
+						</UserTypeGuard>
+					}
+				>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route
 						path="dashboard"
@@ -102,6 +111,14 @@ function AnimatedRoutes() {
 							</RoleGuard>
 						}
 					/>
+					<Route
+						path="listar-caninos"
+						element={
+							<RoleGuard allowed={["ADMIN", "COACH", "DIRECTOR"]}>
+								<ListCanines />
+							</RoleGuard>
+						}
+					/>
 					{/* --- Nested Routes for Reports --- */}
 					<Route
 						path="reportes"
@@ -130,7 +147,14 @@ function AnimatedRoutes() {
 				</Route>
 
 				{/* --- Client Portal Routes --- */}
-				<Route path="/portal-cliente" element={<ClientPage />}>
+				<Route
+					path="/portal-cliente"
+					element={
+						<UserTypeGuard allowedUserType="client">
+							<ClientPage />
+						</UserTypeGuard>
+					}
+				>
 					<Route index element={<Navigate to="dashboard" replace />} />
 					<Route path="dashboard" element={<ClientDashboard />} />
 					<Route path="mis-mascotas" element={<MyPets />} />

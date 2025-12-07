@@ -12,6 +12,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import PetsIcon from "@mui/icons-material/Pets";
 import AssessmentIcon from "@mui/icons-material/Assessment"; // <-- NEW IMPORT
 import logoSrc from "../../assets/logo.png";
 
@@ -126,6 +127,7 @@ export const InternalUsersPage = () => {
 			manageUsers: true,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 			reports: true,
 		},
 		DIRECTOR: {
@@ -134,6 +136,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 			reports: true,
 		},
 		ADVISOR: {
@@ -142,6 +145,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: false,
 			viewAttendance: false,
+			listCanines: false,
 			reports: false,
 		},
 		COACH: {
@@ -150,6 +154,7 @@ export const InternalUsersPage = () => {
 			manageUsers: false,
 			registerAttendance: true,
 			viewAttendance: true,
+			listCanines: true,
 			reports: false,
 		},
 	}[role ?? "ADVISOR"] ?? {
@@ -158,6 +163,7 @@ export const InternalUsersPage = () => {
 		manageUsers: false,
 		registerAttendance: false,
 		viewAttendance: false,
+		listCanines: false,
 		reports: false,
 	};
 
@@ -227,6 +233,16 @@ export const InternalUsersPage = () => {
 						<Link to="visualizar-asistencia" className="sidebar-link has-hover-indicator">
 							<VisibilityIcon className="sidebar-icon" />
 							<span className="sidebar-text">Visualizar asistencia</span>
+						</Link>
+					)}
+
+					{canAccess.listCanines && (
+						<Link
+							to="listar-caninos"
+							className={`sidebar-link has-hover-indicator ${isActive("listar-caninos") ? "active" : ""}`}
+						>
+							<PetsIcon className="sidebar-icon" />
+							<span className="sidebar-text">Listar caninos</span>
 						</Link>
 					)}
 					{/* --- NEW LINK FOR HU-7 --- */}
