@@ -800,6 +800,8 @@ class MonthlyIncomeReportView(APIView):
 		}
 
 		return Response(response_data)
+
+
 class ReportsViewSet(ViewSet):
 	permission_classes = [IsAuthenticated]
 

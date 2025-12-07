@@ -14,11 +14,11 @@ from .views import (
 	ReportsViewSet,
 	TransportServiceViewSet,
 	UserViewSet,
-	verify_password,
 	canine_attendance_view,
 	profile_view,
 	register_view,
 	user_type_view,
+	verify_password,
 )
 
 router = DefaultRouter()
