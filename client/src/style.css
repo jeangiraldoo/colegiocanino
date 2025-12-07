@@ -1168,13 +1168,11 @@ input:focus {
 .custom-datepicker .react-datepicker__year-dropdown-menu::-webkit-scrollbar {
 	width: 8px;
 }
-.custom-datepicker
-	.react-datepicker__year-dropdown-menu::-webkit-scrollbar-thumb {
+.custom-datepicker .react-datepicker__year-dropdown-menu::-webkit-scrollbar-thumb {
 	background: rgba(15, 23, 42, 0.06);
 	border-radius: 6px;
 }
-.custom-datepicker
-	.react-datepicker__year-dropdown-menu::-webkit-scrollbar-track {
+.custom-datepicker .react-datepicker__year-dropdown-menu::-webkit-scrollbar-track {
 	background: transparent;
 }
 
@@ -1382,4 +1380,81 @@ input:focus {
 
 /* ----------------------------
    End of file — kept all functional rules
+   ---------------------------- */
+
+/* ----------------------------
+   EnrollCanine Upload & Form Styles
+   ---------------------------- */
+.form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.error-text {
+	color: #b91c1c;
+	font-size: 0.8rem;
+	margin-top: 4px;
+	font-weight: 500;
+}
+
+.input-error {
+	border-color: #b91c1c !important;
+	box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.08) !important;
+}
+
+.upload-box {
+	border: 2px dashed rgba(16, 24, 40, 0.12);
+	border-radius: 12px;
+	padding: 24px;
+	background: rgba(16, 24, 40, 0.02);
+	transition:
+		border-color 0.2s ease,
+		background 0.2s ease;
+	min-height: 160px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.upload-box:hover {
+	border-color: var(--amber-400);
+	background: rgba(245, 158, 11, 0.04);
+}
+
+.upload-placeholder {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	text-align: center;
+}
+
+.upload-preview {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.upload-img {
+	max-width: 200px;
+	max-height: 200px;
+	border-radius: 10px;
+	object-fit: cover;
+	box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+}
+
+.upload-filename {
+	color: var(--muted-color);
+	font-size: 0.875rem;
+	font-weight: 500;
+	max-width: 280px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ----------------------------
+   End of EnrollCanine styles
    ---------------------------- */

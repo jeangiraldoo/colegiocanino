@@ -9,11 +9,10 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
+import { validationRules } from "../../../utils/validationRules";
 
-const getAuthHeader = () => {
-	const token =
-		localStorage.getItem("access_token") ||
-		sessionStorage.getItem("access_token");
+const getAuthHeader = (): Record<string, string> => {
+	const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 	return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -43,19 +42,13 @@ const INITIAL: FormState = {
 	photo: null,
 };
 
-interface DatePickerRef {
-	setOpen?: (open: boolean) => void;
-}
-
 export const RegisterUser = () => {
 	const navigate = useNavigate();
-	const datePickerRef = useRef<DatePickerRef | null>(null);
+	const datePickerRef = useRef<DatePicker | null>(null);
 	const today = new Date();
 
 	const [form, setForm] = useState<FormState>(INITIAL);
-	const [errors, setErrors] = useState<
-		Partial<Record<keyof FormState, string>>
-	>({});
+	const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 	const [success, setSuccess] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [showPassword, setShowPassword] = useState(false);
@@ -65,15 +58,54 @@ export const RegisterUser = () => {
 
 	const validate = (): boolean => {
 		const e: typeof errors = {};
-		if (!/^\d{6,12}$/.test(form.document_id.trim()))
-			e.document_id = "Cédula inválida (6-12 dígitos)";
-		if (!form.username.trim()) e.username = "Nombre de usuario requerido";
-		if (!form.name.trim()) e.name = "Nombre requerido";
-		if (!form.last_name.trim()) e.last_name = "Apellido requerido";
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-			e.email = "Email inválido";
-		if (!form.birthdate) e.birthdate = "Fecha de nacimiento requerida";
-		if (form.password.length < 6) e.password = "Contraseña mínimo 6 caracteres";
+
+		// Document ID validation (backend: max_length=50, elicitation: 6-12 digits)
+		if (!form.document_id.trim()) {
+			e.document_id = validationRules.messages.required;
+		} else if (!validationRules.isValidDocumentId(form.document_id)) {
+			e.document_id = validationRules.messages.documentId;
+		}
+
+		// Username validation (backend: max_length=150, minimum 3)
+		if (!form.username.trim()) {
+			e.username = validationRules.messages.required;
+		} else if (!validationRules.isValidUsername(form.username)) {
+			e.username = validationRules.messages.username;
+		}
+
+		// First name validation (backend: max_length=150)
+		if (!form.name.trim()) {
+			e.name = validationRules.messages.required;
+		} else if (!validationRules.isValidFirstName(form.name)) {
+			e.name = validationRules.messages.firstName;
+		}
+
+		// Last name validation (backend: max_length=150)
+		if (!form.last_name.trim()) {
+			e.last_name = validationRules.messages.required;
+		} else if (!validationRules.isValidLastName(form.last_name)) {
+			e.last_name = validationRules.messages.lastName;
+		}
+
+		// Email validation
+		if (!form.email.trim()) {
+			e.email = validationRules.messages.required;
+		} else if (!validationRules.isValidEmail(form.email)) {
+			e.email = validationRules.messages.email;
+		}
+
+		// Birthdate validation
+		if (!form.birthdate) {
+			e.birthdate = validationRules.messages.required;
+		}
+
+		// Password validation (elicitation: 8 chars with complexity, backend accepts 6+)
+		if (!form.password) {
+			e.password = validationRules.messages.required;
+		} else if (!validationRules.isValidPassword(form.password)) {
+			e.password = validationRules.messages.password;
+		}
+
 		setErrors(e);
 		return Object.keys(e).length === 0;
 	};
@@ -99,8 +131,7 @@ export const RegisterUser = () => {
 		reader.readAsDataURL(f);
 	};
 
-	const formatDate = (d: Date | null) =>
-		d ? d.toISOString().slice(0, 10) : "";
+	const formatDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
 	const handleSubmit = async (ev: React.FormEvent) => {
 		ev.preventDefault();
@@ -137,10 +168,7 @@ export const RegisterUser = () => {
 			if (!createRes.ok) {
 				const bodyText = await createRes.text().catch(() => "");
 				try {
-					const jsonErr = JSON.parse(bodyText || "{}") as Record<
-						string,
-						unknown
-					>;
+					const jsonErr = JSON.parse(bodyText || "{}") as Record<string, unknown>;
 					const newErrors: typeof errors = {};
 					if (jsonErr && typeof jsonErr === "object") {
 						for (const k of Object.keys(jsonErr)) {
@@ -160,9 +188,7 @@ export const RegisterUser = () => {
 									else newErrors[uk as keyof typeof newErrors] = msgs;
 								}
 							} else {
-								const msgs = Array.isArray(v)
-									? (v as string[]).join(" ")
-									: String(v);
+								const msgs = Array.isArray(v) ? (v as string[]).join(" ") : String(v);
 								if (k === "photo") newErrors.photo = String(msgs);
 								else newErrors[k as keyof typeof newErrors] = String(msgs);
 							}
@@ -183,7 +209,6 @@ export const RegisterUser = () => {
 			}
 
 			const created = await createRes.json().catch(() => null);
-			console.log("created internal user response:", created);
 			setSuccess("Usuario interno creado correctamente.");
 
 			const internalId =
@@ -195,10 +220,7 @@ export const RegisterUser = () => {
 				null;
 
 			if (!internalId) {
-				console.warn(
-					"Could not determine internal user id from response:",
-					created,
-				);
+				console.warn("Could not determine internal user id from response:", created);
 			}
 
 			if (fileObj && internalId) {
@@ -220,13 +242,9 @@ export const RegisterUser = () => {
 					);
 
 					if (!patchRes.ok) {
-						console.warn(
-							"photo upload failed",
-							await patchRes.text().catch(() => ""),
-						);
+						console.warn("photo upload failed", await patchRes.text().catch(() => ""));
 					} else {
-						const patched = await patchRes.json().catch(() => null);
-						console.log("photo upload result:", patched);
+						await patchRes.json().catch(() => null);
 						setSuccess("Usuario interno y foto registrados correctamente.");
 					}
 				} catch (e) {
@@ -251,10 +269,7 @@ export const RegisterUser = () => {
 						},
 					);
 					if (!bdRes.ok) {
-						console.warn(
-							"birthdate patch failed (ignored):",
-							await bdRes.text().catch(() => ""),
-						);
+						console.warn("birthdate patch failed (ignored):", await bdRes.text().catch(() => ""));
 					}
 				} catch (e) {
 					console.warn("birthdate patch error (ignored):", e);
@@ -263,20 +278,16 @@ export const RegisterUser = () => {
 
 			try {
 				const createdUserId =
-					(created && created.user && (created.user.id ?? created.user.pk)) ||
-					null;
+					(created && created.user && (created.user.id ?? created.user.pk)) || null;
 				if (createdUserId && form.internal_user_type_id === "ADMIN") {
-					const patchRes = await fetch(
-						`/api/users/${encodeURIComponent(createdUserId)}/`,
-						{
-							method: "PATCH",
-							headers: {
-								"Content-Type": "application/json",
-								...getAuthHeader(),
-							},
-							body: JSON.stringify({ is_staff: true }),
+					const patchRes = await fetch(`/api/users/${encodeURIComponent(createdUserId)}/`, {
+						method: "PATCH",
+						headers: {
+							"Content-Type": "application/json",
+							...getAuthHeader(),
 						},
-					);
+						body: JSON.stringify({ is_staff: true }),
+					});
 					if (!patchRes.ok) {
 						console.warn(
 							"could not mark user is_staff (backend may ignore):",
@@ -313,9 +324,7 @@ export const RegisterUser = () => {
 						</div>
 						<div>
 							<h2 className="form-header-title">Registrar usuario interno</h2>
-							<p className="text-sm text-gray-500">
-								Rellena los datos para crear el usuario
-							</p>
+							<p className="text-sm text-gray-500">Rellena los datos para crear el usuario</p>
 						</div>
 					</div>
 				</header>
@@ -385,15 +394,11 @@ export const RegisterUser = () => {
 						<input
 							className="input-primary input-lg"
 							value={form.document_id}
-							onChange={(e) =>
-								handleChange("document_id", e.target.value.replace(/\D/g, ""))
-							}
+							onChange={(e) => handleChange("document_id", e.target.value.replace(/\D/g, ""))}
 							placeholder="Ej. 12345678"
 							aria-label="documento"
 						/>
-						{errors.document_id && (
-							<p className="field-error">{errors.document_id}</p>
-						)}
+						{errors.document_id && <p className="field-error">{errors.document_id}</p>}
 					</div>
 
 					<div className="form-row">
@@ -405,9 +410,7 @@ export const RegisterUser = () => {
 							placeholder="usuario123"
 							aria-label="username"
 						/>
-						{errors.username && (
-							<p className="field-error">{errors.username}</p>
-						)}
+						{errors.username && <p className="field-error">{errors.username}</p>}
 					</div>
 
 					<div className="form-row">
@@ -415,9 +418,7 @@ export const RegisterUser = () => {
 						<select
 							className="input-primary input-lg"
 							value={form.internal_user_type_id}
-							onChange={(e) =>
-								handleChange("internal_user_type_id", e.target.value)
-							}
+							onChange={(e) => handleChange("internal_user_type_id", e.target.value)}
 						>
 							<option value="DIRECTOR">Director</option>
 							<option value="ADVISOR">Asesor de ventas</option>
@@ -445,9 +446,7 @@ export const RegisterUser = () => {
 							onChange={(e) => handleChange("last_name", e.target.value)}
 							placeholder="Apellido(s)"
 						/>
-						{errors.last_name && (
-							<p className="field-error">{errors.last_name}</p>
-						)}
+						{errors.last_name && <p className="field-error">{errors.last_name}</p>}
 					</div>
 
 					<div className="form-row">
@@ -486,9 +485,7 @@ export const RegisterUser = () => {
 								calendarClassName="custom-datepicker"
 							/>
 						</div>
-						{errors.birthdate && (
-							<p className="field-error">{errors.birthdate}</p>
-						)}
+						{errors.birthdate && <p className="field-error">{errors.birthdate}</p>}
 					</div>
 
 					<div className="form-row">
@@ -501,23 +498,19 @@ export const RegisterUser = () => {
 								className="input-primary input-lg input-with-left-icon"
 								value={form.password}
 								onChange={(e) => handleChange("password", e.target.value)}
-								placeholder="Mínimo 6 caracteres"
+								placeholder="Mín. 8 caracteres: mayúscula, minúscula, número y símbolo"
 							/>
 							<button
 								type="button"
 								className="password-toggle"
 								onClick={() => setShowPassword((s) => !s)}
-								aria-label={
-									showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-								}
+								aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
 								title={showPassword ? "Ocultar" : "Mostrar"}
 							>
 								{showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
 							</button>
 						</div>
-						{errors.password && (
-							<p className="field-error">{errors.password}</p>
-						)}
+						{errors.password && <p className="field-error">{errors.password}</p>}
 					</div>
 
 					<div className="form-actions">
@@ -533,9 +526,7 @@ export const RegisterUser = () => {
 						</button>
 					</div>
 
-					{success && (
-						<div className="mt-4 text-sm text-green-700">{success}</div>
-					)}
+					{success && <div className="mt-4 text-sm text-green-700">{success}</div>}
 					{error && <div className="mt-4 text-sm text-red-700">{error}</div>}
 				</form>
 			</div>

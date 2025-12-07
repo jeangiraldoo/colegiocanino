@@ -3,202 +3,278 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageTransition from "../../../components/PageTransition";
+import apiClient from "../../../api/axiosConfig";
 import PetsIcon from "@mui/icons-material/Pets";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
-// --- Simulación de datos para el dashboard ---
-type CanineInfo = {
+// --- Types based on Backend Serializers ---
+interface Canine {
 	id: number;
 	name: string;
-};
+}
 
-type LastAttendance = {
-	canineName: string;
-	entryTime: string;
+interface Enrollment {
+	id: number;
+	plan_name: string;
+	expiration_date: string;
+	status: boolean;
+}
+
+interface Attendance {
+	date: string;
+	arrival_time: string | null;
 	status: string;
-};
+}
 
-type DashboardData = {
-	canines: CanineInfo[];
-	lastAttendance: Record<string, LastAttendance>; // Un objeto para buscar por ID de canino
-};
-
-const fetchDashboardData = async (): Promise<DashboardData> => {
-	await new Promise((res) => setTimeout(res, 500)); // Simular delay de API
-	return {
-		canines: [
-			{ id: 11, name: "Toby" },
-			{ id: 12, name: "Luna" },
-		],
-		lastAttendance: {
-			"11": {
-				canineName: "Toby - Hoy",
-				entryTime: "08:05 AM",
-				status: "A tiempo",
-			},
-			"12": {
-				canineName: "Luna - Hoy",
-				entryTime: "08:45 AM",
-				status: "Tarde",
-			},
-		},
-	};
-};
+interface ProfileResponse {
+	canines: Canine[];
+}
 
 export default function ClientDashboard() {
 	const navigate = useNavigate();
-	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-		null,
-	);
-	const [selectedCanineId, setSelectedCanineId] = useState<string>("11"); // Por defecto, el primer canino
-	const [loading, setLoading] = useState(true);
 
+	// State
+	const [canines, setCanines] = useState<Canine[]>([]);
+	const [selectedCanineId, setSelectedCanineId] = useState<string>("");
+
+	// Data for cards
+	const [activeEnrollment, setActiveEnrollment] = useState<Enrollment | null>(null);
+	const [lastAttendance, setLastAttendance] = useState<Attendance | null>(null);
+
+	// UI State
+	const [loadingMain, setLoadingMain] = useState(true);
+	const [loadingDetails, setLoadingDetails] = useState(false);
+
+	// 1. Load Canines on mount
 	useEffect(() => {
-		const loadData = async () => {
-			setLoading(true);
+		const fetchCanines = async () => {
 			try {
-				const data = await fetchDashboardData();
-				setDashboardData(data);
-				if (data.canines.length > 0) {
-					setSelectedCanineId(String(data.canines[0].id));
+				setLoadingMain(true);
+				const response = await apiClient.get<ProfileResponse>("/api/profile/");
+				const dogs = response.data.canines || [];
+				setCanines(dogs);
+
+				// Select the first dog by default if available
+				if (dogs.length > 0) {
+					setSelectedCanineId(String(dogs[0].id));
 				}
 			} catch (error) {
-				console.error("Error al cargar los datos del dashboard:", error);
+				console.error("Error loading dashboard profile:", error);
 			} finally {
-				setLoading(false);
+				setLoadingMain(false);
 			}
 		};
-		void loadData();
+		void fetchCanines();
 	}, []);
 
-	const selectedAttendance = dashboardData?.lastAttendance[selectedCanineId];
+	// 2. Load Details (Enrollment & Attendance) when selected dog changes
+	useEffect(() => {
+		if (!selectedCanineId) return;
+
+		const fetchDetails = async () => {
+			setLoadingDetails(true);
+			setActiveEnrollment(null);
+			setLastAttendance(null);
+
+			try {
+				// Fetch Active Enrollment (HU-13 Requirement)
+				const enrollmentRes = await apiClient.get<Enrollment[]>(
+					`/api/enrollments/?canine_id=${selectedCanineId}&status=true`,
+				);
+				if (enrollmentRes.data.length > 0) {
+					setActiveEnrollment(enrollmentRes.data[0]);
+				}
+
+				// Fetch Last Attendance (Bonus: keeping dashboard consistent)
+				// We verify if there is an enrollment first to query attendance properly,
+				// or query attendance directly by canine if endpoint supports it.
+				// Assuming we query by active enrollment for now or just fetch logs:
+				// NOTE: Ideally backend should support /api/attendance/?canine_id=...
+				// Using the enrollment ID from the previous call if available:
+				if (enrollmentRes.data.length > 0) {
+					const enrollmentId = enrollmentRes.data[0].id;
+					const attendanceRes = await apiClient.get<Attendance[]>(
+						`/api/attendance/?enrollment_id=${enrollmentId}&ordering=-date`,
+					);
+					if (attendanceRes.data.length > 0) {
+						setLastAttendance(attendanceRes.data[0]);
+					}
+				}
+			} catch (error) {
+				console.error("Error loading canine details:", error);
+			} finally {
+				setLoadingDetails(false);
+			}
+		};
+
+		void fetchDetails();
+	}, [selectedCanineId]);
+
+	// Helper to format status
+	const getStatusLabel = (status: string) => {
+		const map: Record<string, string> = {
+			present: "Presente",
+			absent: "Ausente",
+			dispatched: "Despachado",
+			advance_withdrawal: "Retiro Anticipado",
+		};
+		return map[status] || status;
+	};
 
 	return (
 		<PageTransition>
 			<div className="font-montserrat">
 				<h1 className="text-2xl font-bold mb-6">Mi Panel de Cliente</h1>
 
-				{loading ? (
-					<p>Cargando panel...</p>
+				{loadingMain ? (
+					<div className="animate-pulse flex space-x-4">
+						<div className="h-32 bg-gray-200 rounded-lg w-full"></div>
+						<div className="h-32 bg-gray-200 rounded-lg w-full"></div>
+					</div>
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{/* Card para HU-13: Visualización de matrícula */}
-						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-							<div className="flex items-center gap-4">
-								<div className="bg-amber-100 p-3 rounded-full">
-									<AssignmentIcon className="text-amber-500" />
-								</div>
-								<div>
-									<h3 className="text-lg font-bold">Estado de Matrícula</h3>
-									<p className="text-gray-500 text-sm">Plan Anual Activo</p>
-								</div>
-							</div>
-							<p className="mt-4 text-gray-600">
-								Tu plan vence el: **31 de Octubre, 2026**. Incluye servicio de
-								transporte completo.
-							</p>
-							<button className="mt-4 btn-ghost w-full">Ver Detalles</button>
-						</div>
+						{/* --- Card 1: Estado de Matrícula (HU-13 Real Data) --- */}
+						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-between">
+							<div>
+								<div className="flex items-center justify-between mb-4">
+									<div className="flex items-center gap-4">
+										<div className="bg-amber-100 p-3 rounded-full">
+											<AssignmentIcon className="text-amber-500" />
+										</div>
+										<h3 className="text-lg font-bold">Estado de Matrícula</h3>
+									</div>
 
-						{/* Card para HU-14: Visualización de asistencia (AHORA DINÁMICA) */}
-						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-							<div className="flex items-center justify-between gap-4">
-								<div className="flex items-center gap-4">
-									<div className="bg-green-100 p-3 rounded-full">
-										<EventAvailableIcon className="text-green-600" />
-									</div>
-									<div>
-										<h3 className="text-lg font-bold">Última Asistencia</h3>
-									</div>
+									{/* Selector de Canino */}
+									{canines.length > 1 && (
+										<select
+											value={selectedCanineId}
+											onChange={(e) => setSelectedCanineId(e.target.value)}
+											className="input-primary text-sm py-1 px-2 h-auto"
+										>
+											{canines.map((dog) => (
+												<option key={dog.id} value={dog.id}>
+													{dog.name}
+												</option>
+											))}
+										</select>
+									)}
 								</div>
-								{dashboardData && dashboardData.canines.length > 1 && (
-									<select
-										value={selectedCanineId}
-										onChange={(e) => setSelectedCanineId(e.target.value)}
-										className="input-primary text-sm"
-									>
-										{dashboardData.canines.map((canine) => (
-											<option key={canine.id} value={canine.id}>
-												{canine.name}
-											</option>
-										))}
-									</select>
+
+								{loadingDetails ? (
+									<p className="text-gray-400 text-sm">Cargando información...</p>
+								) : activeEnrollment ? (
+									<>
+										<p className="text-amber-600 font-bold text-md mb-1">
+											{activeEnrollment.plan_name}
+										</p>
+										<p className="text-gray-600 text-sm">
+											Vence el: <strong>{activeEnrollment.expiration_date}</strong>
+										</p>
+										<div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+											Activo
+										</div>
+									</>
+								) : (
+									<p className="text-gray-500 text-sm italic">
+										{canines.length > 0
+											? "Este canino no tiene una matrícula activa."
+											: "No tienes mascotas registradas."}
+									</p>
 								)}
 							</div>
 
-							{selectedAttendance ? (
-								<>
-									<p className="text-gray-500 text-sm mt-1">
-										{selectedAttendance.canineName}
-									</p>
-									<p className="mt-4 text-gray-600">
-										Llegada: **{selectedAttendance.entryTime}** (
-										{selectedAttendance.status}). Salida: Aún en el colegio.
-									</p>
-								</>
-							) : (
-								<p className="mt-4 text-gray-600">
-									No hay registros de asistencia para hoy.
-								</p>
+							{canines.length > 0 && (
+								<button
+									className="mt-4 btn-ghost w-full text-sm"
+									onClick={() => navigate(`/portal-cliente/mis-mascotas/${selectedCanineId}`)}
+								>
+									Ver Detalles del Plan
+								</button>
 							)}
-
-							<button
-								className="mt-4 btn-ghost w-full"
-								onClick={() =>
-									navigate(`/portal-cliente/mis-mascotas/${selectedCanineId}`)
-								}
-							>
-								Ver Historial de Asistencia
-							</button>
 						</div>
 
-						{/* Card para HU-11: Modificación de perfil */}
-						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-							<div className="flex items-center gap-4">
-								<div className="bg-blue-100 p-3 rounded-full">
-									<AccountCircleIcon className="text-blue-600" />
+						{/* --- Card 2: Última Asistencia (Real Data) --- */}
+						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-between">
+							<div>
+								<div className="flex items-center gap-4 mb-4">
+									<div className="bg-green-100 p-3 rounded-full">
+										<EventAvailableIcon className="text-green-600" />
+									</div>
+									<h3 className="text-lg font-bold">Última Asistencia</h3>
 								</div>
-								<div>
-									<h3 className="text-lg font-bold">Mi Perfil</h3>
-									<p className="text-gray-500 text-sm">
-										Mantén tus datos actualizados
-									</p>
-								</div>
+
+								{loadingDetails ? (
+									<p className="text-gray-400 text-sm">Consultando...</p>
+								) : lastAttendance ? (
+									<>
+										<p className="text-gray-800 font-semibold">{lastAttendance.date}</p>
+										<p className="text-gray-600 text-sm mt-1">
+											Estado:{" "}
+											<span className="font-medium">{getStatusLabel(lastAttendance.status)}</span>
+										</p>
+										<p className="text-gray-600 text-sm">
+											Llegada:{" "}
+											{lastAttendance.arrival_time
+												? lastAttendance.arrival_time.slice(0, 5)
+												: "--:--"}
+										</p>
+									</>
+								) : (
+									<p className="text-gray-500 text-sm italic">No hay registros recientes.</p>
+								)}
 							</div>
-							<p className="mt-4 text-gray-600">
-								Revisa y actualiza tu información de contacto y contraseña.
-							</p>
+
+							{selectedCanineId && (
+								<button
+									className="mt-4 btn-ghost w-full text-sm"
+									onClick={() => navigate(`/portal-cliente/mis-mascotas/${selectedCanineId}`)}
+								>
+									Ver Historial Completo
+								</button>
+							)}
+						</div>
+
+						{/* --- Card 3: Acciones Rápidas (Static links) --- */}
+						<div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col justify-between">
+							<div>
+								<div className="flex items-center gap-4 mb-4">
+									<div className="bg-blue-100 p-3 rounded-full">
+										<AccountCircleIcon className="text-blue-600" />
+									</div>
+									<h3 className="text-lg font-bold">Mi Perfil</h3>
+								</div>
+								<p className="text-gray-600 text-sm">
+									Actualiza tus datos personales, dirección y contraseña.
+								</p>
+							</div>
 							<button
-								className="mt-4 btn-ghost w-full"
+								className="mt-4 btn-ghost w-full text-sm"
 								onClick={() => navigate("/portal-cliente/perfil")}
 							>
 								Editar Perfil
 							</button>
 						</div>
 
-						{/* Card para HU-12: Registrar nueva matrícula */}
-						<div className="bg-amber-400 text-white p-6 rounded-lg shadow-sm border border-gray-100 md:col-span-2 lg:col-span-3">
+						{/* --- Card 4: Matrícula (CTA) --- */}
+						<div className="bg-amber-400 text-white p-6 rounded-lg shadow-sm border border-gray-100 md:col-span-2 lg:col-span-3 flex flex-col md:flex-row items-center justify-between gap-4">
 							<div className="flex items-center gap-4">
 								<div className="bg-white/20 p-3 rounded-full">
 									<PetsIcon />
 								</div>
 								<div>
-									<h3 className="text-lg font-bold">
-										¿Nuevo miembro en la familia?
-									</h3>
-									<p className="text-white/80 text-sm">
-										Inscribe a tu canino en nuestros planes.
+									<h3 className="text-lg font-bold">¿Nuevo miembro en la familia?</h3>
+									<p className="text-white/90 text-sm">
+										Inscribe a tu canino en nuestros planes mensuales o anuales.
 									</p>
 								</div>
 							</div>
-							<p className="mt-4">
-								Ofrecemos planes mensuales, bimestrales y anuales con opción de
-								transporte.
-							</p>
-							<button className="mt-4 bg-white text-amber-500 font-bold py-2 px-4 rounded-lg w-full">
-								Matricular un Nuevo Canino
+							<button
+								className="bg-white text-amber-500 font-bold py-2 px-6 rounded-lg hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap"
+								onClick={() => navigate("/portal-cliente/matricular-canino")}
+							>
+								Matricular Canino
 							</button>
 						</div>
 					</div>
