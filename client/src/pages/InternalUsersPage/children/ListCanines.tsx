@@ -89,17 +89,17 @@ export default function ListCanines() {
 	// Client-side filtering
 	const filtered = useMemo(() => {
 		let result = canines;
-		
+
 		// Filter by breed
 		if (filterBreed) {
 			result = result.filter((c) => c.breed === filterBreed);
 		}
-		
+
 		// Filter by size
 		if (filterSize) {
 			result = result.filter((c) => c.size === filterSize);
 		}
-		
+
 		// Filter by search query (name, breed, owner)
 		const q = searchQuery.trim().toLowerCase();
 		if (q) {
@@ -252,122 +252,122 @@ export default function ListCanines() {
 								</thead>
 								<tbody>
 									{filtered.map((canine, idx) => {
-											const rowKey = String(canine.id ?? `canine-${idx}`);
-											const photoUrl = resolvePhoto(canine.photo);
-											return (
-												<tr key={rowKey}>
-													<td style={{ padding: 12 }}>
-														<div
-															style={{
-																width: 44,
-																height: 44,
-																borderRadius: 8,
-																overflow: "hidden",
-																background: "#F3F4F6",
-																display: "flex",
-																alignItems: "center",
-																justifyContent: "center",
-															}}
-														>
-															{photoUrl ? (
-																<img
-																	src={photoUrl}
-																	alt={canine.name}
-																	style={{
-																		width: "100%",
-																		height: "100%",
-																		objectFit: "cover",
-																	}}
-																	onError={(e) => {
-																		const img = e.currentTarget as HTMLImageElement;
-																		if (img.dataset?.tried) return;
-																		if (img.dataset) img.dataset.tried = "1";
-																		img.src = "https://via.placeholder.com/150?text=🐕";
-																	}}
-																/>
-															) : (
-																<PetsIcon style={{ color: "#6B7280" }} />
-															)}
-														</div>
-													</td>
-													<td
+										const rowKey = String(canine.id ?? `canine-${idx}`);
+										const photoUrl = resolvePhoto(canine.photo);
+										return (
+											<tr key={rowKey}>
+												<td style={{ padding: 12 }}>
+													<div
 														style={{
-															padding: "12px 16px",
+															width: 44,
+															height: 44,
+															borderRadius: 8,
+															overflow: "hidden",
+															background: "#F3F4F6",
+															display: "flex",
+															alignItems: "center",
+															justifyContent: "center",
+														}}
+													>
+														{photoUrl ? (
+															<img
+																src={photoUrl}
+																alt={canine.name}
+																style={{
+																	width: "100%",
+																	height: "100%",
+																	objectFit: "cover",
+																}}
+																onError={(e) => {
+																	const img = e.currentTarget as HTMLImageElement;
+																	if (img.dataset?.tried) return;
+																	if (img.dataset) img.dataset.tried = "1";
+																	img.src = "https://via.placeholder.com/150?text=🐕";
+																}}
+															/>
+														) : (
+															<PetsIcon style={{ color: "#6B7280" }} />
+														)}
+													</div>
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--text-color)",
+														fontWeight: 700,
+													}}
+												>
+													{canine.name}
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--muted-color)",
+													}}
+												>
+													{canine.breed}
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--muted-color)",
+													}}
+												>
+													{canine.age} {canine.age === 1 ? "año" : "años"}
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--text-color)",
+													}}
+												>
+													<span
+														style={{
+															background: "rgba(14,165,233,0.06)",
 															color: "var(--text-color)",
+															padding: "6px 10px",
+															borderRadius: 10,
 															fontWeight: 700,
+															fontSize: 12,
 														}}
 													>
-														{canine.name}
-													</td>
-													<td
+														{SIZE_LABELS[canine.size] ?? canine.size}
+													</span>
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--muted-color)",
+													}}
+												>
+													{canine.client_name || "N/A"}
+												</td>
+												<td
+													style={{
+														padding: "12px 16px",
+														color: "var(--text-color)",
+													}}
+												>
+													<span
 														style={{
-															padding: "12px 16px",
-															color: "var(--muted-color)",
+															background: canine.status
+																? "rgba(34,197,94,0.1)"
+																: "rgba(239,68,68,0.1)",
+															color: canine.status ? "#16a34a" : "#dc2626",
+															padding: "6px 10px",
+															borderRadius: 10,
+															fontWeight: 700,
+															fontSize: 12,
 														}}
 													>
-														{canine.breed}
-													</td>
-													<td
-														style={{
-															padding: "12px 16px",
-															color: "var(--muted-color)",
-														}}
-													>
-														{canine.age} {canine.age === 1 ? "año" : "años"}
-													</td>
-													<td
-														style={{
-															padding: "12px 16px",
-															color: "var(--text-color)",
-														}}
-													>
-														<span
-															style={{
-																background: "rgba(14,165,233,0.06)",
-																color: "var(--text-color)",
-																padding: "6px 10px",
-																borderRadius: 10,
-																fontWeight: 700,
-																fontSize: 12,
-															}}
-														>
-															{SIZE_LABELS[canine.size] ?? canine.size}
-														</span>
-													</td>
-													<td
-														style={{
-															padding: "12px 16px",
-															color: "var(--muted-color)",
-														}}
-													>
-														{canine.client_name || "N/A"}
-													</td>
-													<td
-														style={{
-															padding: "12px 16px",
-															color: "var(--text-color)",
-														}}
-													>
-														<span
-															style={{
-																background: canine.status
-																	? "rgba(34,197,94,0.1)"
-																	: "rgba(239,68,68,0.1)",
-																color: canine.status ? "#16a34a" : "#dc2626",
-																padding: "6px 10px",
-																borderRadius: 10,
-																fontWeight: 700,
-																fontSize: 12,
-															}}
-														>
-															{canine.status ? "Activo" : "Inactivo"}
-														</span>
-													</td>
-												</tr>
-											);
-										})}
-									</tbody>
-								</table>
+														{canine.status ? "Activo" : "Inactivo"}
+													</span>
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
 						</div>
 					)}
 				</div>
@@ -375,4 +375,3 @@ export default function ListCanines() {
 		</PageTransition>
 	);
 }
-
