@@ -22,9 +22,9 @@ export const LoginPage = () => {
 	const navigate = useNavigate();
 
 	const validate = () => {
-		if (!username) return "Ingresa el usuario.";
+		if (!username || !username.trim()) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
-		if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
+		// Password validation is handled by backend
 		return "";
 	};
 

@@ -9,8 +9,9 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PageTransition from "../../../components/PageTransition";
+import { validationRules } from "../../../utils/validationRules";
 
-const getAuthHeader = () => {
+const getAuthHeader = (): Record<string, string> => {
 	const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 	return token ? { Authorization: `Bearer ${token}` } : {};
 };
@@ -41,13 +42,9 @@ const INITIAL: FormState = {
 	photo: null,
 };
 
-interface DatePickerRef {
-	setOpen?: (open: boolean) => void;
-}
-
 export const RegisterUser = () => {
 	const navigate = useNavigate();
-	const datePickerRef = useRef<DatePickerRef | null>(null);
+	const datePickerRef = useRef<DatePicker | null>(null);
 	const today = new Date();
 
 	const [form, setForm] = useState<FormState>(INITIAL);
@@ -61,14 +58,54 @@ export const RegisterUser = () => {
 
 	const validate = (): boolean => {
 		const e: typeof errors = {};
-		if (!/^\d{6,12}$/.test(form.document_id.trim()))
-			e.document_id = "Cédula inválida (6-12 dígitos)";
-		if (!form.username.trim()) e.username = "Nombre de usuario requerido";
-		if (!form.name.trim()) e.name = "Nombre requerido";
-		if (!form.last_name.trim()) e.last_name = "Apellido requerido";
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email inválido";
-		if (!form.birthdate) e.birthdate = "Fecha de nacimiento requerida";
-		if (form.password.length < 6) e.password = "Contraseña mínimo 6 caracteres";
+
+		// Document ID validation (backend: max_length=50, elicitation: 6-12 digits)
+		if (!form.document_id.trim()) {
+			e.document_id = validationRules.messages.required;
+		} else if (!validationRules.isValidDocumentId(form.document_id)) {
+			e.document_id = validationRules.messages.documentId;
+		}
+
+		// Username validation (backend: max_length=150, minimum 3)
+		if (!form.username.trim()) {
+			e.username = validationRules.messages.required;
+		} else if (!validationRules.isValidUsername(form.username)) {
+			e.username = validationRules.messages.username;
+		}
+
+		// First name validation (backend: max_length=150)
+		if (!form.name.trim()) {
+			e.name = validationRules.messages.required;
+		} else if (!validationRules.isValidFirstName(form.name)) {
+			e.name = validationRules.messages.firstName;
+		}
+
+		// Last name validation (backend: max_length=150)
+		if (!form.last_name.trim()) {
+			e.last_name = validationRules.messages.required;
+		} else if (!validationRules.isValidLastName(form.last_name)) {
+			e.last_name = validationRules.messages.lastName;
+		}
+
+		// Email validation
+		if (!form.email.trim()) {
+			e.email = validationRules.messages.required;
+		} else if (!validationRules.isValidEmail(form.email)) {
+			e.email = validationRules.messages.email;
+		}
+
+		// Birthdate validation
+		if (!form.birthdate) {
+			e.birthdate = validationRules.messages.required;
+		}
+
+		// Password validation (elicitation: 8 chars with complexity, backend accepts 6+)
+		if (!form.password) {
+			e.password = validationRules.messages.required;
+		} else if (!validationRules.isValidPassword(form.password)) {
+			e.password = validationRules.messages.password;
+		}
+
 		setErrors(e);
 		return Object.keys(e).length === 0;
 	};
@@ -172,7 +209,6 @@ export const RegisterUser = () => {
 			}
 
 			const created = await createRes.json().catch(() => null);
-			console.log("created internal user response:", created);
 			setSuccess("Usuario interno creado correctamente.");
 
 			const internalId =
@@ -208,8 +244,7 @@ export const RegisterUser = () => {
 					if (!patchRes.ok) {
 						console.warn("photo upload failed", await patchRes.text().catch(() => ""));
 					} else {
-						const patched = await patchRes.json().catch(() => null);
-						console.log("photo upload result:", patched);
+						await patchRes.json().catch(() => null);
 						setSuccess("Usuario interno y foto registrados correctamente.");
 					}
 				} catch (e) {
@@ -463,7 +498,7 @@ export const RegisterUser = () => {
 								className="input-primary input-lg input-with-left-icon"
 								value={form.password}
 								onChange={(e) => handleChange("password", e.target.value)}
-								placeholder="Mínimo 6 caracteres"
+								placeholder="Mín. 8 caracteres: mayúscula, minúscula, número y símbolo"
 							/>
 							<button
 								type="button"
