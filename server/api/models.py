@@ -129,9 +129,9 @@ class TransportService(models.Model):
 	"""Transport service model"""
 
 	class Type(models.TextChoices):
-		FULL = "full", _("full service")
-		MEDIUM = "medium", _("medium service (Only morning or afternoon)")
-		NO_SERVICE = "no_service", _("no service")
+		FULL = "full", _("Servicio completo")
+		MEDIUM = "medium", _("Servicio medio (Solo mañana o tarde)")
+		NO_SERVICE = "no_service", _("No servicio")
 
 	type = models.CharField(max_length=20, choices=Type.choices)
 

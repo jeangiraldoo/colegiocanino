@@ -1,3 +1,5 @@
+// client/src/pages/InternalUsersPage/InternalUsers.tsx
+
 import React, { useEffect, useState } from "react";
 import apiClient from "../../api/axiosConfig";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -11,6 +13,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PetsIcon from "@mui/icons-material/Pets";
+import AssessmentIcon from "@mui/icons-material/Assessment"; // <-- NEW IMPORT
 import logoSrc from "../../assets/logo.png";
 
 export const InternalUsersPage = () => {
@@ -24,7 +27,7 @@ export const InternalUsersPage = () => {
 	const isActive = (p: string) => loc.pathname.endsWith(p);
 
 	const [role] = useState<string | null>(() => {
-		return localStorage.getItem("user_role") || null;
+		return localStorage.getItem("user_role") || sessionStorage.getItem("user_role") || null;
 	});
 
 	async function resolveAccessToken() {
@@ -73,7 +76,7 @@ export const InternalUsersPage = () => {
 						return { token: newAccess, storage: s.name };
 					}
 				} catch {
-					// ignore and continue
+					/* ignore and continue */
 				}
 			}
 		}
@@ -111,11 +114,12 @@ export const InternalUsersPage = () => {
 					[data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || "";
 				setUsername(display);
 			} catch {
-				// silent fail, keep username empty
+				/* silent fail */
 			}
 		})();
 	}, []);
 
+	// Define role permissions
 	const canAccess = {
 		ADMIN: {
 			dashboard: true,
@@ -124,6 +128,7 @@ export const InternalUsersPage = () => {
 			registerAttendance: true,
 			viewAttendance: true,
 			listCanines: true,
+			reports: true,
 		},
 		DIRECTOR: {
 			dashboard: true,
@@ -132,6 +137,7 @@ export const InternalUsersPage = () => {
 			registerAttendance: true,
 			viewAttendance: true,
 			listCanines: true,
+			reports: true,
 		},
 		ADVISOR: {
 			dashboard: true,
@@ -140,6 +146,7 @@ export const InternalUsersPage = () => {
 			registerAttendance: false,
 			viewAttendance: false,
 			listCanines: false,
+			reports: false,
 		},
 		COACH: {
 			dashboard: false,
@@ -148,14 +155,16 @@ export const InternalUsersPage = () => {
 			registerAttendance: true,
 			viewAttendance: true,
 			listCanines: true,
+			reports: false,
 		},
-	}[role ?? "ADMIN"] ?? {
+	}[role ?? "ADVISOR"] ?? {
 		dashboard: false,
 		registerUsers: false,
 		manageUsers: false,
 		registerAttendance: false,
 		viewAttendance: false,
 		listCanines: false,
+		reports: false,
 	};
 
 	return (
@@ -171,12 +180,10 @@ export const InternalUsersPage = () => {
 					<div className="flex items-center gap-3 w-full">
 						<img src={logoSrc} alt="Logo" className="sidebar-logo" />
 					</div>
-
 					<div className="last-login-box font-montserrat">
 						<CalendarTodayIcon className="last-login-icon" />
 						<span className="last-login-text">Ult. sesión: {lastLogin}</span>
 					</div>
-
 					<div className="mt-3 flex items-center gap-3">
 						<div className="user-avatar">
 							<PersonIcon className="user-icon" />
@@ -204,28 +211,24 @@ export const InternalUsersPage = () => {
 							<span className="sidebar-text">Dashboard</span>
 						</Link>
 					)}
-
 					{canAccess.registerUsers && (
 						<Link to="registrar-usuarios" className="sidebar-link has-hover-indicator">
 							<PersonAddIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar usuarios</span>
 						</Link>
 					)}
-
 					{canAccess.manageUsers && (
 						<Link to="administrar-usuarios" className="sidebar-link has-hover-indicator">
 							<SupervisorAccountIcon className="sidebar-icon" />
 							<span className="sidebar-text">Administrar Usuarios</span>
 						</Link>
 					)}
-
 					{canAccess.registerAttendance && (
 						<Link to="registrar-asistencia" className="sidebar-link has-hover-indicator">
 							<EventAvailableIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar asistencia</span>
 						</Link>
 					)}
-
 					{canAccess.viewAttendance && (
 						<Link to="visualizar-asistencia" className="sidebar-link has-hover-indicator">
 							<VisibilityIcon className="sidebar-icon" />
@@ -242,24 +245,24 @@ export const InternalUsersPage = () => {
 							<span className="sidebar-text">Listar caninos</span>
 						</Link>
 					)}
+					{/* --- NEW LINK FOR HU-7 --- */}
+					{canAccess.reports && (
+						<Link to="reportes" className="sidebar-link has-hover-indicator">
+							<AssessmentIcon className="sidebar-icon" />
+							<span className="sidebar-text">Reportes</span>
+						</Link>
+					)}
 				</nav>
 				<div className="p-4 border-t" style={{ borderColor: "rgba(15,23,32,0.06)" }}>
 					<Link to="configuracion" className="sidebar-action has-hover-indicator font-montserrat">
 						<SettingsIcon className="sidebar-icon-action" />
 						<span className="sidebar-text-action">Configuración</span>
 					</Link>
-
 					<button
 						type="button"
 						onClick={() => {
-							localStorage.removeItem("access_token");
-							localStorage.removeItem("refresh_token");
-							localStorage.removeItem("user_type");
-							localStorage.removeItem("user_role");
-							localStorage.removeItem("client_id");
-							sessionStorage.removeItem("access_token");
-							sessionStorage.removeItem("refresh_token");
-							sessionStorage.removeItem("client_id");
+							localStorage.clear();
+							sessionStorage.clear();
 							window.location.href = "/login";
 						}}
 						className="sidebar-logout has-hover-indicator mt-3 w-full text-left rounded text-sm font-montserrat"
@@ -269,7 +272,6 @@ export const InternalUsersPage = () => {
 					</button>
 				</div>
 			</aside>
-
 			<main className="flex-1 p-6 main-scroll" role="main">
 				<Outlet />
 			</main>
