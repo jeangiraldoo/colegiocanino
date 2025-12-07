@@ -4,13 +4,10 @@ describe("API - Canines Endpoints", () => {
     let clientId: number;
     let canineId: number;
 
-    // Test data
+    // Test credentials - use an existing user
     const testUser = {
-        username: `canineowner_${Date.now()}`,
-        email: `canineowner_${Date.now()}@example.com`,
-        password: "testpass123",
-        first_name: "Canine",
-        last_name: "Owner",
+        username: "Monica",
+        password: "M@n1c4_0909",
     };
 
     const testCanine = {
@@ -28,14 +25,35 @@ describe("API - Canines Endpoints", () => {
     };
 
     before(() => {
-        // Register a user and get auth token
+        // Login to get auth token
         cy.request({
             method: "POST",
-            url: `${API_URL}/register/`,
-            body: testUser,
-        }).then((response) => {
-            authToken = response.body.access;
-            clientId = response.body.user.client_profile?.id;
+            url: "http://localhost:8000/api/token/",
+            body: {
+                username: testUser.username,
+                password: testUser.password,
+            },
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            failOnStatusCode: false,
+        }).then((loginResponse) => {
+            authToken = loginResponse.body.access;
+
+            // Get client ID using the user-type endpoint
+            cy.request({
+                method: "GET",
+                url: `${API_URL}/user-type/`,
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                    Accept: "application/json",
+                },
+                failOnStatusCode: false,
+            }).then((userTypeResponse) => {
+                // The user-type endpoint returns client_id directly
+                clientId = userTypeResponse.body.client_id;
+            });
         });
     });
 
@@ -46,7 +64,9 @@ describe("API - Canines Endpoints", () => {
                 url: `${API_URL}/canines/`,
                 headers: {
                     Authorization: `Bearer ${authToken}`,
+                    Accept: "application/json",
                 },
+                failOnStatusCode: false,
                 body: {
                     ...testCanine,
                     client: clientId,
