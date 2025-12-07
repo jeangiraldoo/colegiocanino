@@ -56,7 +56,7 @@ class IsDirectorOrAdmin(BasePermission):
 		# Check if user has internal profile with Director or Admin role
 		if hasattr(request.user, "internal_profile"):
 			role = request.user.internal_profile.role
-			return role in [InternalUser.Roles.DIRECTOR, InternalUser.Roles.ADMIN]
+			return role in {InternalUser.Roles.DIRECTOR, InternalUser.Roles.ADMIN}
 
 		return False
 
@@ -252,7 +252,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 		"""
 		Override to require Director or Admin permissions for update/partial_update/destroy.
 		"""
-		if self.action in ["update", "partial_update", "destroy"]:
+		if self.action in {"update", "partial_update", "destroy"}:
 			return [IsDirectorOrAdmin()]
 		return [IsAuthenticated()]
 
@@ -631,7 +631,6 @@ class EnrollmentsByPlanReportView(APIView):
 	permission_classes = [IsDirectorOrAdmin]
 
 	def get(self, request):
-		
 		# Get query parameters for filtering
 		status_filter = request.query_params.get("status", None)
 		active_only = request.query_params.get("active_only", None)
@@ -710,7 +709,6 @@ class MonthlyIncomeReportView(APIView):
 	permission_classes = [IsDirectorOrAdmin]
 
 	def get(self, request):
-		
 		# Get query parameters for filtering
 		year = request.query_params.get("year", None)
 		year_from = request.query_params.get("year_from", None)
@@ -752,38 +750,29 @@ class MonthlyIncomeReportView(APIView):
 
 		# Build response data
 		monthly_income = []
-		total_income = Decimal("0")
-		total_enrollments = 0
 
 		for entry in monthly_data:
-			month_date = entry["month"]
-			income = entry["total_income"] or Decimal("0")
-			count = entry["enrollment_count"]
-
 			monthly_income.append(
 				{
-					"year": month_date.year,
-					"month": month_date.month,
-					"month_name": month_date.strftime("%B"),  # Full month name
-					"month_short": month_date.strftime("%b"),  # Short month name
-					"date": month_date.strftime("%Y-%m"),  # Format: YYYY-MM
-					"income": str(income),  # Convert Decimal to string
-					"enrollment_count": count,
+					"year": entry["month"].year,
+					"month": entry["month"].month,
+					"month_name": entry["month"].strftime("%B"),
+					"month_short": entry["month"].strftime("%b"),
+					"date": entry["month"].strftime("%Y-%m"),
+					"income": str(entry["total_income"] or Decimal("0")),
+					"enrollment_count": entry["enrollment_count"],
 				}
 			)
 
-			total_income += income
-			total_enrollments += count
-
-		avg_monthly_income = total_income / len(monthly_income) if monthly_income else Decimal("0")
-
-		# Find min and max income months
-		if monthly_income:
-			max_month = max(monthly_income, key=lambda x: Decimal(x["income"]))
-			min_month = min(monthly_income, key=lambda x: Decimal(x["income"]))
-		else:
-			max_month = None
-			min_month = None
+		total_income = (
+			sum(Decimal(item["income"]) for item in monthly_income)
+			if monthly_income
+			else Decimal("0")
+		)
+		total_enrollments = sum(item["enrollment_count"] for item in monthly_income)
+		avg_monthly_income = (
+			(total_income / len(monthly_income)) if monthly_income else Decimal("0")
+		)
 
 		response_data = {
 			"summary": {
@@ -792,21 +781,13 @@ class MonthlyIncomeReportView(APIView):
 				"average_monthly_income": str(avg_monthly_income),
 				"months_count": len(monthly_income),
 				"max_month": (
-					{
-						"date": max_month["date"],
-						"month_name": max_month["month_name"],
-						"income": max_month["income"],
-					}
-					if max_month
+					max(monthly_income, key=lambda x: Decimal(x["income"]))
+					if monthly_income
 					else None
 				),
 				"min_month": (
-					{
-						"date": min_month["date"],
-						"month_name": min_month["month_name"],
-						"income": min_month["income"],
-					}
-					if min_month
+					min(monthly_income, key=lambda x: Decimal(x["income"]))
+					if monthly_income
 					else None
 				),
 			},
