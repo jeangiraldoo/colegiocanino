@@ -351,6 +351,50 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 		]
 		read_only_fields = ["creation_date"]
 
+	def validate(self, data):
+		"""
+		Validate enrollment data:
+		- expiration_date must be after enrollment_date
+		- plan must be active
+		"""
+		enrollment_date = data.get("enrollment_date")
+		expiration_date = data.get("expiration_date")
+		plan = data.get("plan")
+
+		# Get existing values if updating
+		if self.instance:
+			enrollment_date = (
+				enrollment_date if enrollment_date is not None else self.instance.enrollment_date
+			)
+			expiration_date = (
+				expiration_date if expiration_date is not None else self.instance.expiration_date
+			)
+			plan = plan if plan is not None else self.instance.plan
+
+		# Validate dates
+		if enrollment_date and expiration_date and expiration_date <= enrollment_date:
+			raise serializers.ValidationError(
+				{
+					"expiration_date": (
+						"La fecha de expiración debe ser posterior a la fecha de inscripción."
+					)
+				}
+			)
+
+		# Validate plan is active
+		if plan and not plan.active:
+			raise serializers.ValidationError({"plan": "El plan seleccionado no está activo."})
+
+		return data
+
+	def validate_canine(self, value):
+		"""
+		Validate that the canine is active.
+		"""
+		if not value.status:
+			raise serializers.ValidationError("No se puede inscribir un canino inactivo.")
+		return value
+
 
 class AttendanceSerializer(serializers.ModelSerializer):
 	"""Attendance serializer"""

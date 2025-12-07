@@ -7,16 +7,18 @@ from .views import (
 	ClientViewSet,
 	DashboardStatsView,
 	EnrollmentPlanViewSet,
+	EnrollmentsByPlanReportView,
 	EnrollmentViewSet,
 	InternalUserViewSet,
+	MonthlyIncomeReportView,
 	ReportsViewSet,
 	TransportServiceViewSet,
 	UserViewSet,
-	verify_password,
 	canine_attendance_view,
 	profile_view,
 	register_view,
 	user_type_view,
+	verify_password,
 )
 
 router = DefaultRouter()
@@ -37,5 +39,15 @@ urlpatterns = [
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),
 	path("user-type/", user_type_view, name="user-type"),
+	path(
+		"reports/enrollments-by-plan/",
+		EnrollmentsByPlanReportView.as_view(),
+		name="enrollments-by-plan-report",
+	),
+	path(
+		"reports/monthly-income/",
+		MonthlyIncomeReportView.as_view(),
+		name="monthly-income-report",
+	),
 	path("auth/verify-password/", verify_password, name="verify-password"),
 ]
