@@ -58,32 +58,32 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 	// Validate form fields according to backend constraints
 	const validate = (): boolean => {
 		const e: typeof errors = {};
-		
+
 		// Document ID validation (backend: max_length=50, elicitation: 6-12 digits)
 		if (form.document_id && !validationRules.isValidDocumentId(form.document_id)) {
 			e.document_id = validationRules.messages.documentId;
 		}
-		
+
 		// Username validation (backend: max_length=150, minimum 3)
 		if (form.username && !validationRules.isValidUsername(form.username)) {
 			e.username = validationRules.messages.username;
 		}
-		
+
 		// First name validation (backend: max_length=150)
 		if (form.name && !validationRules.isValidFirstName(form.name)) {
 			e.name = validationRules.messages.firstName;
 		}
-		
+
 		// Last name validation (backend: max_length=150)
 		if (form.last_name && !validationRules.isValidLastName(form.last_name)) {
 			e.last_name = validationRules.messages.lastName;
 		}
-		
+
 		// Email validation
 		if (form.email && !validationRules.isValidEmail(form.email)) {
 			e.email = validationRules.messages.email;
 		}
-		
+
 		setErrors(e);
 		return Object.keys(e).length === 0;
 	};
@@ -104,12 +104,12 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 
 	async function submit(e?: React.FormEvent) {
 		e?.preventDefault();
-		
+
 		// Validate before submitting
 		if (!validate()) {
 			return;
 		}
-		
+
 		setSaving(true);
 
 		try {
@@ -310,7 +310,11 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 							setErrors((prev) => ({ ...prev, name: undefined }));
 						}}
 					/>
-					{errors.name && <p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>{errors.name}</p>}
+					{errors.name && (
+						<p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+							{errors.name}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -323,7 +327,11 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 							setErrors((prev) => ({ ...prev, last_name: undefined }));
 						}}
 					/>
-					{errors.last_name && <p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>{errors.last_name}</p>}
+					{errors.last_name && (
+						<p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+							{errors.last_name}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -336,7 +344,11 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 							setErrors((prev) => ({ ...prev, email: undefined }));
 						}}
 					/>
-					{errors.email && <p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>{errors.email}</p>}
+					{errors.email && (
+						<p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+							{errors.email}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -349,7 +361,11 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 							setErrors((prev) => ({ ...prev, username: undefined }));
 						}}
 					/>
-					{errors.username && <p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>{errors.username}</p>}
+					{errors.username && (
+						<p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+							{errors.username}
+						</p>
+					)}
 					<small style={{ color: "#6b7280" }}>
 						No cambies el usuario si no es necesario (evita conflicto)
 					</small>
@@ -368,7 +384,11 @@ export default function UpdateUser({ user, onCancel, onSave }: Props) {
 							setErrors((prev) => ({ ...prev, document_id: undefined }));
 						}}
 					/>
-					{errors.document_id && <p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>{errors.document_id}</p>}
+					{errors.document_id && (
+						<p className="field-error" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+							{errors.document_id}
+						</p>
+					)}
 				</div>
 
 				<div>

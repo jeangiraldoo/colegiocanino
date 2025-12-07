@@ -3,7 +3,7 @@
 /**
  * Validation rules to match Backend constraints and elicitation requirements.
  * Centralizing regex patterns ensures consistency and maintainability.
- * 
+ *
  * Backend constraints:
  * - username: max_length=150
  * - first_name: max_length=150
@@ -11,7 +11,7 @@
  * - phone_number: max_length=15
  * - document_id: max_length=50, unique=True
  * - password: MIN_PASSWORD_LENGTH = 6 (backend), but elicitation requires 8 with complexity
- * 
+ *
  * Elicitation requirements (Pregunta 9):
  * - Mínimo 8 caracteres
  * - Usar Mayúsculas y Minúsculas
@@ -79,12 +79,7 @@ export const validationRules = {
 
 	isValidPhoneNumber: (phone: string): boolean => {
 		if (!phone || phone.trim().length === 0) return true; // Optional field
-		const trimmed = phone.trim();
-		return trimmed.length <= MAX_PHONE_NUMBER_LENGTH;
-	},
-
-	isValidPhoneNumber: (phone: string): boolean => {
-		return PHONE_REGEX.test(phone);
+		return PHONE_REGEX.test(phone.trim());
 	},
 
 	isValidAddress: (address: string): boolean => {
