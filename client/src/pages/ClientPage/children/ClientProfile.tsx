@@ -1,9 +1,16 @@
 // client/src/pages/ClientPage/children/ClientProfile.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { isAxiosError } from "axios";
 import PageTransition from "../../../components/PageTransition";
 import apiClient from "../../../api/axiosConfig";
+import { validationRules } from "../../../utils/validationRules";
 
+// Icons
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+
+// Define types matching backend serializers
 type UserProfile = {
 	username: string;
 	email: string;
@@ -14,19 +21,57 @@ type UserProfile = {
 	document_id: string;
 };
 
-type ProfileData = {
-	user: UserProfile;
+type ProfileData = { user: UserProfile };
+
+// Define a strict type for the update payload
+type UpdateProfilePayload = {
+	user: Partial<UserProfile> & { password?: string };
+};
+
+// Type for password validation criteria
+type PasswordCriteria = {
+	length: boolean;
+	uppercase: boolean;
+	lowercase: boolean;
+	number: boolean;
+	special: boolean;
 };
 
 export default function ClientProfile() {
+	// State for profile data
 	const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
 	const [profile, setProfile] = useState<UserProfile | null>(null);
+
+	// UI States
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [successMsg, setSuccessMsg] = useState<string | null>(null);
 	const [isEditMode, setIsEditMode] = useState(false);
 	const [saving, setSaving] = useState(false);
+
+	// Password management states
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
+	const [confirmNewPassword, setConfirmNewPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+
+	const passwordCriteria: PasswordCriteria = useMemo(
+		() => ({
+			length: newPassword.length >= 8,
+			uppercase: /[A-Z]/.test(newPassword),
+			lowercase: /[a-z]/.test(newPassword),
+			number: /\d/.test(newPassword),
+			special: /[@$!%*?&]/.test(newPassword),
+		}),
+		[newPassword],
+	);
+
+	const hasChanges = useMemo(() => {
+		if (!initialProfile || !profile) return false;
+		const profileChanged = JSON.stringify(initialProfile) !== JSON.stringify(profile);
+		const passwordChanged = newPassword.length > 0;
+		return profileChanged || passwordChanged;
+	}, [initialProfile, profile, newPassword]);
 
 	useEffect(() => {
 		const fetchProfile = async () => {
@@ -36,13 +81,12 @@ export default function ClientProfile() {
 				setProfile(response.data.user);
 				setInitialProfile(response.data.user);
 			} catch (err) {
-				console.error("Error al cargar el perfil:", err);
-				setError("No se pudo cargar la información del perfil. Por favor, intenta de nuevo.");
+				console.error("Error fetching profile:", err);
+				setError("No se pudo cargar la información del perfil.");
 			} finally {
 				setLoading(false);
 			}
 		};
-
 		void fetchProfile();
 	}, []);
 
@@ -54,18 +98,78 @@ export default function ClientProfile() {
 	const handleSaveChanges = async () => {
 		if (!profile) return;
 		setSaving(true);
+		setError(null);
+		setSuccessMsg(null);
+
+		// --- Password Verification Logic ---
+		if (newPassword) {
+			if (!currentPassword) {
+				setError("Ingresa tu contraseña actual para verificar el cambio.");
+				setSaving(false);
+				return;
+			}
+			if (newPassword === currentPassword) {
+				setError("La nueva contraseña no puede ser igual a la actual.");
+				setSaving(false);
+				return;
+			}
+			if (!validationRules.isValidPassword(newPassword)) {
+				setError(validationRules.messages.password);
+				setSaving(false);
+				return;
+			}
+			if (newPassword !== confirmNewPassword) {
+				setError("Las nuevas contraseñas no coinciden.");
+				setSaving(false);
+				return;
+			}
+
+			// Verify current password with the new backend endpoint
+			try {
+				const verifyResponse = await apiClient.post("/api/auth/verify-password/", {
+					password: currentPassword,
+				});
+				if (!verifyResponse.data.valid) {
+					setError("La contraseña actual es incorrecta.");
+					setSaving(false);
+					return;
+				}
+			} catch (err: unknown) {
+				console.error("Error verifying password:", err);
+				setError("Error al verificar la contraseña. Intente de nuevo.");
+				setSaving(false);
+				return;
+			}
+		}
+
 		try {
-			const payload = { user: profile };
+			const payload: UpdateProfilePayload = { user: { ...profile } };
+			if (newPassword) {
+				payload.user.password = newPassword;
+			}
+
 			await apiClient.patch("/api/profile/", payload);
+
 			setInitialProfile(profile);
 			setIsEditMode(false);
-			// Limpiar campos de contraseña después de guardar
+			setSuccessMsg("Perfil actualizado correctamente.");
 			setCurrentPassword("");
 			setNewPassword("");
-		} catch (_err) {
-			// CORRECCIÓN CLAVE: Se renombra 'err' a '_err' para indicar que no se usa.
-			console.error("Error al guardar el perfil:", _err);
-			setError("No se pudieron guardar los cambios.");
+			setConfirmNewPassword("");
+		} catch (err: unknown) {
+			console.error("Error saving profile:", err);
+			if (isAxiosError(err) && err.response?.data) {
+				const data = err.response.data as Record<string, unknown>;
+				const userErrors =
+					typeof data.user === "object" && data.user !== null
+						? (data.user as Record<string, string[]>)
+						: undefined;
+				const emailError = userErrors?.email?.[0];
+				const detail = typeof data.detail === "string" ? data.detail : undefined;
+				setError(`Error: ${detail || emailError || "Error de validación del servidor."}`);
+			} else {
+				setError("No se pudieron guardar los cambios.");
+			}
 		} finally {
 			setSaving(false);
 		}
@@ -75,11 +179,13 @@ export default function ClientProfile() {
 		setProfile(initialProfile);
 		setCurrentPassword("");
 		setNewPassword("");
+		setConfirmNewPassword("");
 		setIsEditMode(false);
+		setError(null);
+		setSuccessMsg(null);
 	};
 
 	if (loading) return <p className="text-center p-8">Cargando perfil...</p>;
-	if (error) return <p className="text-red-600 text-center p-8">{error}</p>;
 
 	return (
 		<PageTransition>
@@ -92,6 +198,17 @@ export default function ClientProfile() {
 						</button>
 					)}
 				</div>
+
+				{error && (
+					<div className="p-4 mb-6 bg-red-50 text-red-600 rounded-lg border border-red-100 text-sm">
+						{error}
+					</div>
+				)}
+				{successMsg && (
+					<div className="p-4 mb-6 bg-green-50 text-green-700 rounded-lg border border-green-100 text-sm">
+						{successMsg}
+					</div>
+				)}
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 					<div className="lg:col-span-2 space-y-8">
@@ -171,26 +288,75 @@ export default function ClientProfile() {
 							<form className="space-y-4">
 								<div>
 									<label className="form-label">Contraseña Actual</label>
-									<input
-										type="password"
-										className="input-primary w-full mt-1"
-										placeholder="••••••••"
-										value={currentPassword}
-										onChange={(e) => setCurrentPassword(e.target.value)}
-										disabled={!isEditMode}
-									/>
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={currentPassword}
+											onChange={(e) => setCurrentPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+										<button
+											type="button"
+											className="absolute right-3 top-1/2 -translate-y-1/2 password-toggle"
+											onClick={() => setShowPassword((s) => !s)}
+											disabled={!isEditMode}
+										>
+											{showPassword ? (
+												<VisibilityOffIcon fontSize="small" />
+											) : (
+												<VisibilityIcon fontSize="small" />
+											)}
+										</button>
+									</div>
 								</div>
 								<div>
 									<label className="form-label">Nueva Contraseña</label>
-									<input
-										type="password"
-										className="input-primary w-full mt-1"
-										placeholder="••••••••"
-										value={newPassword}
-										onChange={(e) => setNewPassword(e.target.value)}
-										disabled={!isEditMode}
-									/>
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={newPassword}
+											onChange={(e) => setNewPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+									</div>
 								</div>
+								<div>
+									<label className="form-label">Confirmar Nueva Contraseña</label>
+									<div className="relative">
+										<input
+											type={showPassword ? "text" : "password"}
+											className="input-primary w-full mt-1 pr-10"
+											placeholder="••••••••"
+											value={confirmNewPassword}
+											onChange={(e) => setConfirmNewPassword(e.target.value)}
+											disabled={!isEditMode}
+										/>
+									</div>
+								</div>
+
+								{isEditMode && newPassword.length > 0 && (
+									<div className="space-y-1 text-xs mt-2 pl-1">
+										<p className={passwordCriteria.length ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.length ? "✓" : "•"} Mínimo 8 caracteres
+										</p>
+										<p className={passwordCriteria.uppercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.uppercase ? "✓" : "•"} Una mayúscula
+										</p>
+										<p className={passwordCriteria.lowercase ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.lowercase ? "✓" : "•"} Una minúscula
+										</p>
+										<p className={passwordCriteria.number ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.number ? "✓" : "•"} Un número
+										</p>
+										<p className={passwordCriteria.special ? "text-green-600" : "text-gray-500"}>
+											{passwordCriteria.special ? "✓" : "•"} Un carácter especial (@$!%*?&)
+										</p>
+									</div>
+								)}
 							</form>
 						</div>
 					</div>
@@ -201,7 +367,11 @@ export default function ClientProfile() {
 						<button className="btn-ghost" onClick={handleCancel} disabled={saving}>
 							Cancelar
 						</button>
-						<button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+						<button
+							className="btn-primary"
+							onClick={handleSaveChanges}
+							disabled={saving || !hasChanges}
+						>
 							{saving ? "Guardando..." : "Guardar Cambios"}
 						</button>
 					</div>
