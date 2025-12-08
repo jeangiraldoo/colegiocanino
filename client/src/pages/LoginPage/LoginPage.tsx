@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@mui/material";
+import ReCAPTCHA from "react-google-recaptcha";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PetsIcon from "@mui/icons-material/Pets";
@@ -18,12 +19,15 @@ export const LoginPage = () => {
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState<boolean>(() => !!localStorage.getItem("access_token"));
 	const [showPassword, setShowPassword] = useState(false);
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+	const recaptchaRef = useRef<ReCAPTCHA>(null);
 
 	const navigate = useNavigate();
 
 	const validate = () => {
 		if (!username || !username.trim()) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
+		if (!captchaToken) return "Por favor, completa el captcha.";
 		// Password validation is handled by backend
 		return "";
 	};
@@ -50,6 +54,8 @@ export const LoginPage = () => {
 				const body = res.data ?? {};
 				setError(body.detail || "Credenciales inválidas");
 				setLoading(false);
+				recaptchaRef.current?.reset();
+				setCaptchaToken(null);
 				return;
 			}
 			const data = res.data ?? {};
@@ -243,6 +249,17 @@ export const LoginPage = () => {
 							>
 								¿Olvidaste tu contraseña?
 							</a>
+						</div>
+
+						<div className="mt-4 flex justify-center">
+							<ReCAPTCHA
+								ref={recaptchaRef}
+								sitekey="6LcvQyQsAAAAAMnj13iM7U89OTlTSt72jng-RDZb"
+								onChange={(token) => {
+									console.log("Captcha resuelto. Token:", token);
+									setCaptchaToken(token);
+								}}
+							/>
 						</div>
 
 						{error && (
