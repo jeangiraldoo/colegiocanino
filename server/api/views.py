@@ -560,12 +560,12 @@ def verify_recaptcha_view(request):
 
 	if not token:
 		return Response(
-			{"success": False, "error": "missing token"},
-			status=status.HTTP_400_BAD_REQUEST,
+			{"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST
 		)
 
 	# read secret from environment
 	import os
+
 	try:
 		import requests
 	except Exception:
@@ -591,7 +591,7 @@ def verify_recaptcha_view(request):
 			resp_text = resp.text
 		except Exception:
 			resp_text = None
-		if resp.status_code == status.HTTP_200_OK:
+		if resp.status_code == 200:
 			data = resp.json()
 		else:
 			data = {

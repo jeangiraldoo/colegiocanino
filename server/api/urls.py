@@ -19,7 +19,7 @@ from .views import (
 	register_view,
 	user_type_view,
 	verify_password,
-    verify_recaptcha_view,
+	verify_recaptcha_view,
 )
 
 router = DefaultRouter()
