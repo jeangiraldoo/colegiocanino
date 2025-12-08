@@ -18,8 +18,6 @@ from .views import (
 	register_view,
 	user_type_view,
 	verify_password,
-	EnrollmentsByPlanReportView,
-	MonthlyIncomeReportView,
 )
 
 router = DefaultRouter()
@@ -35,8 +33,16 @@ router.register("reports", ReportsViewSet, basename="reports")
 
 urlpatterns = [
 	path("", include(router.urls)),
-	path("reports/enrollments-by-plan-detailed/", EnrollmentsByPlanReportView.as_view(), name="enrollments-by-plan-detailed"),
-	path("reports/monthly-income/", MonthlyIncomeReportView.as_view(), name="monthly-income"),
+	path(
+		"reports/enrollments-by-plan-detailed/",
+		EnrollmentsByPlanReportView.as_view(),
+		name="enrollments-by-plan-detailed",
+	),
+	path(
+		"reports/monthly-income/",
+		MonthlyIncomeReportView.as_view(),
+		name="monthly-income",
+	),
 	path("register/", register_view, name="register"),
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),

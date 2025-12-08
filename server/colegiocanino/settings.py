@@ -20,6 +20,7 @@ except ImportError:
 
 try:
 	from dotenv import load_dotenv
+
 	load_dotenv()
 except ImportError:
 	pass
@@ -29,6 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 try:
 	from dotenv import load_dotenv
+
 	load_dotenv(os.path.join(BASE_DIR, ".env"))
 except ImportError:
 	pass

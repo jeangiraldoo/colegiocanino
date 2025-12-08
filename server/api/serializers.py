@@ -396,7 +396,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 		return value
 
 
-
 class AttendanceSerializer(serializers.ModelSerializer):
 	"""Attendance serializer"""
 
