@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import timedelta, date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -567,64 +567,183 @@ def canine_attendance_view(request, canine_id):
 		return Response({"error": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-class DashboardStatsView(APIView):
+class EnrollmentsByPlanReportView(APIView):
 	"""
-	Dashboard statistics endpoint.
+	Report endpoint for enrollments grouped by plan type.
 	"""
 
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
-		"""Get dashboard statistics"""
-		today = timezone.now().date()
+		# Get query parameters for filtering
+		status_filter = request.query_params.get("status", None)
+		active_only = request.query_params.get("active_only", None)
+		include_empty = request.query_params.get("include_empty", None)
 
-		# Basic counts
-		total_clients = Client.objects.count()
-		total_canines = Canine.objects.filter(status=True).count()
-		total_enrollments = Enrollment.objects.count()
-		active_enrollments = Enrollment.objects.filter(status=True).count()
-		total_attendance_today = Attendance.objects.filter(date=today).count()
+		print(f"DEBUG: EnrollmentsByPlanReportView called. User: {request.user}")
 
-		enrollments_by_plan = dict(
-			Enrollment.objects.values("plan__name")
-			.annotate(count=Count("id"))
-			.values_list("plan__name", "count")
+		plans = EnrollmentPlan.objects.all().annotate(
+			total_enrollments=Count("enrollments"),
+			active_enrollments=Count("enrollments", filter=Q(enrollments__status=True)),
+			inactive_enrollments=Count("enrollments", filter=Q(enrollments__status=False)),
 		)
 
-		attendance_by_size = dict(
-			Attendance.objects.values("enrollment__canine__size")
-			.annotate(count=Count("id"))
-			.values_list("enrollment__canine__size", "count")
-		)
+		print(f"DEBUG: Total plans found: {plans.count()}")
+		for p in plans:
+			print(f"DEBUG: Plan {p.name}: Total={p.total_enrollments}, Active={p.active_enrollments}")
 
-		attendance_by_status = dict(
-			Attendance.objects.values("status")
-			.annotate(count=Count("id"))
-			.values_list("status", "count")
-		)
+		if status_filter is not None:
+			status_bool = status_filter.lower() == "true"
+			# If status is filtered, we only count enrollments with that status
+			plans = EnrollmentPlan.objects.filter(active=True).annotate(
+				total_enrollments=Count("enrollments", filter=Q(enrollments__status=status_bool)),
+				active_enrollments=Count(
+					"enrollments",
+					filter=Q(enrollments__status=True) & Q(enrollments__status=status_bool),
+				),
+				inactive_enrollments=Count(
+					"enrollments",
+					filter=Q(enrollments__status=False) & Q(enrollments__status=status_bool),
+				),
+			)
 
-		# Upcoming expirations (next 30 days)
-		thirty_days_from_now = today + timedelta(days=30)
-		upcoming_expirations = Enrollment.objects.filter(
-			status=True,
-			expiration_date__lte=thirty_days_from_now,
-			expiration_date__gte=today,
-		).count()
+		# Order by total enrollments
+		plans = plans.order_by("-total_enrollments")
 
-		stats = {
-			"total_clients": total_clients,
-			"total_canines": total_canines,
-			"total_enrollments": total_enrollments,
-			"active_enrollments": active_enrollments,
-			"total_attendance_today": total_attendance_today,
-			"enrollments_by_plan": enrollments_by_plan,
-			"attendance_by_size": attendance_by_size,
-			"attendance_by_status": attendance_by_status,
-			"upcoming_expirations": upcoming_expirations,
+		report_data = []
+
+		for plan in plans:
+			# Filter logic
+			if active_only and active_only.lower() == "true":
+				if plan.active_enrollments == 0:
+					continue
+			elif plan.total_enrollments == 0 and not include_empty:
+				continue
+
+			plan_data = {
+				"plan_id": plan.id,
+				"plan_name": plan.name,
+				"duration": plan.duration,
+				"duration_display": plan.get_duration_display(),
+				"price": str(plan.price),
+				"total_enrollments": plan.total_enrollments,
+				"active_enrollments": plan.active_enrollments,
+				"inactive_enrollments": plan.inactive_enrollments,
+			}
+			report_data.append(plan_data)
+
+		# Calculate summary statistics
+		total_all_enrollments = sum(item["total_enrollments"] for item in report_data)
+		total_active = sum(item["active_enrollments"] for item in report_data)
+		total_inactive = sum(item["inactive_enrollments"] for item in report_data)
+
+		response_data = {
+			"summary": {
+				"total_plans": len(report_data),
+				"total_enrollments": total_all_enrollments,
+				"total_active_enrollments": total_active,
+				"total_inactive_enrollments": total_inactive,
+			},
+			"plans": report_data,
 		}
 
-		serializer = DashboardStatsSerializer(stats)
-		return Response(serializer.data)
+		return Response(response_data)
+
+
+class MonthlyIncomeReportView(APIView):
+	"""
+	Report endpoint for monthly income from enrollments.
+	"""
+
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		# Get query parameters for filtering
+		year = request.query_params.get("year", None)
+		year_from = request.query_params.get("year_from", None)
+		year_to = request.query_params.get("year_to", None)
+		status_filter = request.query_params.get("status", None)
+
+		# Base queryset - get enrollments with plan price
+		enrollments = Enrollment.objects.select_related("plan").all()
+
+		# Apply status filter if provided
+		if status_filter is not None:
+			status_bool = status_filter.lower() == "true"
+			enrollments = enrollments.filter(status=status_bool)
+
+		# Apply year filters
+		try:
+			if year:
+				# Filter by specific year
+				enrollments = enrollments.filter(enrollment_date__year=int(year))
+			elif year_from or year_to:
+				# Filter by year range
+				if year_from:
+					enrollments = enrollments.filter(enrollment_date__year__gte=int(year_from))
+				if year_to:
+					enrollments = enrollments.filter(enrollment_date__year__lte=int(year_to))
+		except (ValueError, TypeError):
+			return Response(
+				{"error": "Year parameters must be valid integers"},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		# Group by year and month, and sum the plan prices
+		monthly_data = (
+			enrollments.annotate(month=TruncMonth("enrollment_date"))
+			.values("month")
+			.annotate(total_income=Sum("plan__price"), enrollment_count=Count("id"))
+			.order_by("month")
+		)
+
+		# Build response data
+		monthly_income = []
+
+		for entry in monthly_data:
+			monthly_income.append(
+				{
+					"year": entry["month"].year,
+					"month": entry["month"].month,
+					"month_name": entry["month"].strftime("%B"),
+					"month_short": entry["month"].strftime("%b"),
+					"date": entry["month"].strftime("%Y-%m"),
+					"income": str(entry["total_income"] or Decimal("0")),
+					"enrollment_count": entry["enrollment_count"],
+				}
+			)
+
+		total_income = (
+			sum(Decimal(item["income"]) for item in monthly_income)
+			if monthly_income
+			else Decimal("0")
+		)
+		total_enrollments = sum(item["enrollment_count"] for item in monthly_income)
+		avg_monthly_income = (
+			(total_income / len(monthly_income)) if monthly_income else Decimal("0")
+		)
+
+		response_data = {
+			"summary": {
+				"total_income": str(total_income),
+				"total_enrollments": total_enrollments,
+				"average_monthly_income": str(avg_monthly_income),
+				"months_count": len(monthly_income),
+				"max_month": (
+					max(monthly_income, key=lambda x: Decimal(x["income"]))
+					if monthly_income
+					else None
+				),
+				"min_month": (
+					min(monthly_income, key=lambda x: Decimal(x["income"]))
+					if monthly_income
+					else None
+				),
+			},
+			"monthly_data": monthly_income,
+		}
+
+		return Response(response_data)
 
 
 class EnrollmentsByPlanReportView(APIView):
