@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@mui/material";
+import ReCAPTCHA from "react-google-recaptcha";
 import LockOutlineIcon from "@mui/icons-material/LockOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PetsIcon from "@mui/icons-material/Pets";
@@ -18,12 +19,15 @@ export const LoginPage = () => {
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState<boolean>(() => !!localStorage.getItem("access_token"));
 	const [showPassword, setShowPassword] = useState(false);
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+	const recaptchaRef = useRef<ReCAPTCHA>(null);
 
 	const navigate = useNavigate();
 
 	const validate = () => {
 		if (!username || !username.trim()) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
+		if (!captchaToken) return "Por favor, completa el captcha.";
 		// Password validation is handled by backend
 		return "";
 	};
@@ -38,6 +42,43 @@ export const LoginPage = () => {
 		}
 		setLoading(true);
 		try {
+			// Verify captcha token server-side before exchanging credentials
+			if (captchaToken) {
+				try {
+					// proceed to verify captcha token server-side
+					const verifyRes = await apiClient.post(
+						"/api/recaptcha/verify/",
+						{ token: captchaToken },
+						{
+							headers: { "Content-Type": "application/json", Accept: "application/json" },
+							validateStatus: () => true,
+						},
+					);
+					if (!(verifyRes.status >= 200 && verifyRes.status < 300)) {
+						setError("Error verificando el captcha. Intenta nuevamente.");
+						recaptchaRef.current?.reset();
+						setCaptchaToken(null);
+						setLoading(false);
+						return;
+					}
+					const vdata = verifyRes.data ?? {};
+					if (!vdata.success) {
+						setError("Verificación de captcha fallida. Intenta de nuevo.");
+						recaptchaRef.current?.reset();
+						setCaptchaToken(null);
+						setLoading(false);
+						return;
+					}
+				} catch (err) {
+					console.error("Captcha verify error", err);
+					setError("Error verificando captcha. Intenta de nuevo.");
+					recaptchaRef.current?.reset();
+					setCaptchaToken(null);
+					setLoading(false);
+					return;
+				}
+			}
+
 			const res = await apiClient.post(
 				"/api/token/",
 				{ username, password },
@@ -50,6 +91,8 @@ export const LoginPage = () => {
 				const body = res.data ?? {};
 				setError(body.detail || "Credenciales inválidas");
 				setLoading(false);
+				recaptchaRef.current?.reset();
+				setCaptchaToken(null);
 				return;
 			}
 			const data = res.data ?? {};
@@ -243,6 +286,17 @@ export const LoginPage = () => {
 							>
 								¿Olvidaste tu contraseña?
 							</a>
+						</div>
+
+						<div className="mt-4 flex justify-center">
+							<ReCAPTCHA
+								ref={recaptchaRef}
+								sitekey="6LcvQyQsAAAAAMnj13iM7U89OTlTSt72jng-RDZb"
+								onChange={(token) => {
+									console.log("Captcha resuelto. Token:", token);
+									setCaptchaToken(token);
+								}}
+							/>
 						</div>
 
 						{error && (

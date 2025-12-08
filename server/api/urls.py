@@ -18,6 +18,7 @@ from .views import (
 	register_view,
 	user_type_view,
 	verify_password,
+	verify_recaptcha_view,
 )
 
 router = DefaultRouter()
@@ -58,4 +59,5 @@ urlpatterns = [
 		name="monthly-income-report",
 	),
 	path("auth/verify-password/", verify_password, name="verify-password"),
+	path("recaptcha/verify/", verify_recaptcha_view, name="recaptcha-verify"),
 ]
