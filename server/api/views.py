@@ -540,7 +540,6 @@ def user_type_view(request):
 	return Response({"user_type": "unknown"})
 
 
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def verify_recaptcha_view(request):
@@ -560,18 +559,27 @@ def verify_recaptcha_view(request):
 	# no debug logging in production
 
 	if not token:
-		return Response({"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST)
+		return Response(
+			{"success": False, "error": "missing token"},
+			status=status.HTTP_400_BAD_REQUEST,
+		)
 
 	# read secret from environment
 	import os
 	try:
 		import requests
 	except Exception:
-		return Response({"success": False, "error": "requests lib not available on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+		return Response(
+			{"success": False, "error": "requests lib not available on server"},
+			status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
 
 	secret = os.environ.get("RECAPTCHA_SECRET") or os.environ.get("RECAPTCHA_SECRET_KEY")
 	if not secret:
-		return Response({"success": False, "error": "recaptcha secret not configured on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+		return Response(
+			{"success": False, "error": "recaptcha secret not configured on server"},
+			status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
 
 	try:
 		resp = requests.post(
@@ -583,12 +591,20 @@ def verify_recaptcha_view(request):
 			resp_text = resp.text
 		except Exception:
 			resp_text = None
-		if resp.status_code == 200:
+		if resp.status_code == status.HTTP_200_OK:
 			data = resp.json()
 		else:
-			data = {"success": False, "error": "verify request failed", "status_code": resp.status_code, "body": resp_text}
+			data = {
+				"success": False,
+				"error": "verify request failed",
+				"status_code": resp.status_code,
+				"body": resp_text,
+			}
 	except Exception as e:
-		return Response({"success": False, "error": "verify request exception", "detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+		return Response(
+			{"success": False, "error": "verify request exception", "detail": str(e)},
+			status=status.HTTP_502_BAD_GATEWAY,
+		)
 
 	return Response(data)
 
