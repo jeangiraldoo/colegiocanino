@@ -1458,3 +1458,47 @@ input:focus {
 /* ----------------------------
    End of EnrollCanine styles
    ---------------------------- */
+
+/* Animations */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes scaleIn {
+	from {
+		transform: scale(0.95);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+.animate-fade-in {
+	animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-scale-in {
+	animation: scaleIn 0.3s ease-out forwards;
+}
+
+/* Active state for sidebar links */
+.sidebar-link.active {
+	background-color: var(--hover-bg);
+	transform: translateX(4px);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+}
+.sidebar-link.active::before {
+	opacity: 1;
+	transform: translateX(0);
+}
+.sidebar-link.active::after {
+	opacity: 1;
+	transform: translateX(0);
+}

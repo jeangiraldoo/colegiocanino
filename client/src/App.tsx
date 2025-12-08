@@ -35,7 +35,7 @@ function AnimatedRoutes() {
 
 	return (
 		<AnimatePresence mode="wait">
-			<Routes location={location} key={location.pathname}>
+			<Routes location={location} key={location.pathname.split("/")[1]}>
 				<Route
 					path="/login"
 					element={
