@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PetsIcon from "@mui/icons-material/Pets";
 import SchoolIcon from "@mui/icons-material/School";
@@ -13,8 +13,72 @@ import EmailIcon from "@mui/icons-material/Email";
 import logoFooter from "../../assets/logo-footer.png";
 import landing from "../../assets/landing.png";
 import imageRegisterPage from "../../assets/image-RegisterPage.png";
+import apiClient from "../../api/axiosConfig";
 
 export const HomePage = () => {
+	const navigate = useNavigate();
+
+	const redirectByType = (type: string | null, roleStr?: string | null) => {
+		if (type === "client") {
+			navigate("/portal-cliente/dashboard", { replace: true });
+			return;
+		}
+		if (type === "internal") {
+			const r = (roleStr || "").toUpperCase();
+			if (r === "COACH") {
+				navigate("/internal-users/registrar-asistencia", { replace: true });
+				return;
+			}
+			navigate("/internal-users/dashboard", { replace: true });
+			return;
+		}
+		navigate("/", { replace: true });
+	};
+
+	const handleGoToDashboard = async () => {
+		const access = localStorage.getItem("access_token");
+		if (!access) {
+			navigate("/login");
+			return;
+		}
+		const storedType = localStorage.getItem("user_type");
+		const storedRole = localStorage.getItem("user_role");
+		if (storedType) {
+			redirectByType(storedType, storedRole);
+			return;
+		}
+		try {
+			const res = await apiClient.get("/api/user-type/", {
+				headers: { Authorization: `Bearer ${access}`, Accept: "application/json" },
+				validateStatus: () => true,
+			});
+			if (res.status >= 200 && res.status < 300) {
+				const data = res.data ?? {};
+				if (data.user_type) {
+					localStorage.setItem("user_type", String(data.user_type));
+					if (data.role) localStorage.setItem("user_role", String(data.role));
+					if (data.client_id) localStorage.setItem("client_id", String(data.client_id));
+					redirectByType(data.user_type, data.role);
+					return;
+				}
+			}
+		} catch {
+			// fall through to login
+		}
+		// if we couldn't determine type, ask the user to login
+		navigate("/login");
+	};
+
+	const handleLoginClick = () => {
+		const access = localStorage.getItem("access_token");
+		if (access) {
+			// if token present, redirect to dashboard
+			handleGoToDashboard();
+			return;
+		}
+		navigate("/login");
+	};
+
 	return (
 		<div className="min-h-screen w-screen bg-white font-montserrat overflow-x-hidden">
 			{/* Navbar */}
@@ -26,21 +90,7 @@ export const HomePage = () => {
 						className="h-16 w-auto"
 						style={{ mixBlendMode: "multiply" }}
 					/>
-					<div className="flex items-center gap-6">
-						<Link
-							to="/login"
-							style={{
-								color: "#1f2937",
-								textDecoration: "none",
-								transition: "color 0.3s",
-								fontSize: "1rem",
-							}}
-							onMouseEnter={(e) => (e.currentTarget.style.color = "#fbbf24")}
-							onMouseLeave={(e) => (e.currentTarget.style.color = "#1f2937")}
-							className="font-lekton-bold letter-space-lg"
-						>
-							INICIAR SESIÓN
-						</Link>
+					<div className="flex items-center gap-4">
 						<Link
 							to="/register"
 							style={{
@@ -66,6 +116,23 @@ export const HomePage = () => {
 						>
 							REGISTRARSE
 						</Link>
+						<button
+							onClick={handleGoToDashboard}
+							style={{
+								backgroundColor: "#111827",
+								color: "#ffffff",
+								padding: "0.5rem 1rem",
+								borderRadius: "0.5rem",
+								fontWeight: "700",
+								border: "none",
+								cursor: "pointer",
+							}}
+							onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0b1220")}
+							onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111827")}
+							className="inline-flex items-center gap-2"
+						>
+							<span className="text-sm font-lekton-bold">IR AL DASHBOARD</span>
+						</button>
 					</div>
 				</div>
 			</nav>
@@ -92,7 +159,7 @@ export const HomePage = () => {
 							Donde tu mejor amigo aprende jugando. Entrenamiento profesional con amor y dedicación.
 						</p>
 
-						<div className="flex flex-wrap gap-4">
+						<div className="flex flex-wrap gap-6">
 							<Link
 								to="/register"
 								style={{
@@ -122,8 +189,8 @@ export const HomePage = () => {
 								<span className="font-lekton-bold letter-space-lg">COMIENZA AHORA</span>
 								<ArrowForwardIcon />
 							</Link>
-							<Link
-								to="/login"
+							<button
+								onClick={handleLoginClick}
 								style={{
 									display: "inline-flex",
 									alignItems: "center",
@@ -148,9 +215,10 @@ export const HomePage = () => {
 									e.currentTarget.style.color = "#1f2937";
 									e.currentTarget.style.transform = "translateY(0)";
 								}}
+								className="font-lekton-bold letter-space-lg"
 							>
 								<span className="font-lekton-bold letter-space-lg">INICIAR SESIÓN</span>
-							</Link>
+							</button>
 						</div>
 
 						<div className="mt-10 flex items-center gap-8">
