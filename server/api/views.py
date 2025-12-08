@@ -538,6 +538,50 @@ def user_type_view(request):
 	return Response({"user_type": "unknown"})
 
 
+
+	@api_view(["POST"])
+	@permission_classes([AllowAny])
+	def verify_recaptcha_view(request):
+		"""
+		Verify reCAPTCHA token sent from the frontend.
+
+		Expects JSON body: { "token": "..." }
+		Returns the Google verification payload.
+		"""
+		# try to get token from JSON body or POST form
+		token = None
+		try:
+			token = request.data.get("token")
+		except Exception:
+			token = request.POST.get("token") if hasattr(request, "POST") else None
+
+		if not token:
+			return Response({"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST)
+
+		# read secret from environment
+		import os
+		try:
+			import requests
+		except Exception:
+			return Response({"success": False, "error": "requests lib not available on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+		secret = os.environ.get("RECAPTCHA_SECRET") or os.environ.get("RECAPTCHA_SECRET_KEY")
+		if not secret:
+			return Response({"success": False, "error": "recaptcha secret not configured on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+		try:
+			resp = requests.post(
+				"https://www.google.com/recaptcha/api/siteverify",
+				data={"secret": secret, "response": token},
+				timeout=5,
+			)
+			data = resp.json() if resp.status_code == 200 else {"success": False, "error": "verify request failed", "status_code": resp.status_code}
+		except Exception as e:
+			return Response({"success": False, "error": "verify request exception", "detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+		return Response(data)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def canine_attendance_view(request, canine_id):
