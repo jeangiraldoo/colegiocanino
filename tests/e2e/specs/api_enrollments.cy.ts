@@ -365,6 +365,19 @@ describe("API - Enrollments Endpoints", () => {
     });
 
     describe("DELETE /api/enrollments/:id/", () => {
+        it("should delete enrollment successfully", () => {
+            cy.request({
+                method: "DELETE",
+                url: `${API_URL}/enrollments/${enrollmentId}/`,
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                },
+            }).then((response) => {
+                expect(response.status).to.eq(204);
+            });
+        });
+
+        
         it("should return 404 when trying to get deleted enrollment", () => {
             cy.request({
                 method: "GET",
