@@ -29,7 +29,6 @@ from .serializers import (
 	AttendanceSerializer,
 	CanineSerializer,
 	ClientSerializer,
-	DashboardStatsSerializer,
 	EnrollmentPlanSerializer,
 	EnrollmentSerializer,
 	InternalUserSerializer,
@@ -565,66 +564,6 @@ def canine_attendance_view(request, canine_id):
 
 	except Client.DoesNotExist:
 		return Response({"error": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
-class DashboardStatsView(APIView):
-	"""
-	Dashboard statistics endpoint.
-	"""
-
-	permission_classes = [IsAuthenticated]
-
-	def get(self, request):
-		"""Get dashboard statistics"""
-		today = timezone.now().date()
-
-		# Basic counts
-		total_clients = Client.objects.count()
-		total_canines = Canine.objects.filter(status=True).count()
-		total_enrollments = Enrollment.objects.count()
-		active_enrollments = Enrollment.objects.filter(status=True).count()
-		total_attendance_today = Attendance.objects.filter(date=today).count()
-
-		enrollments_by_plan = dict(
-			Enrollment.objects.values("plan__name")
-			.annotate(count=Count("id"))
-			.values_list("plan__name", "count")
-		)
-
-		attendance_by_size = dict(
-			Attendance.objects.values("enrollment__canine__size")
-			.annotate(count=Count("id"))
-			.values_list("enrollment__canine__size", "count")
-		)
-
-		attendance_by_status = dict(
-			Attendance.objects.values("status")
-			.annotate(count=Count("id"))
-			.values_list("status", "count")
-		)
-
-		# Upcoming expirations (next 30 days)
-		thirty_days_from_now = today + timedelta(days=30)
-		upcoming_expirations = Enrollment.objects.filter(
-			status=True,
-			expiration_date__lte=thirty_days_from_now,
-			expiration_date__gte=today,
-		).count()
-
-		stats = {
-			"total_clients": total_clients,
-			"total_canines": total_canines,
-			"total_enrollments": total_enrollments,
-			"active_enrollments": active_enrollments,
-			"total_attendance_today": total_attendance_today,
-			"enrollments_by_plan": enrollments_by_plan,
-			"attendance_by_size": attendance_by_size,
-			"attendance_by_status": attendance_by_status,
-			"upcoming_expirations": upcoming_expirations,
-		}
-
-		serializer = DashboardStatsSerializer(stats)
-		return Response(serializer.data)
 
 
 class EnrollmentsByPlanReportView(APIView):
