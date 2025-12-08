@@ -591,7 +591,7 @@ def verify_recaptcha_view(request):
 			resp_text = resp.text
 		except Exception:
 			resp_text = None
-		if resp.status_code == 200:
+		if resp.status_code == status.HTTP_200_OK:
 			data = resp.json()
 		else:
 			data = {
