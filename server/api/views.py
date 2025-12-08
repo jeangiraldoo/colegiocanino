@@ -40,6 +40,8 @@ from .serializers import (
 
 UserModel = get_user_model()
 
+# logger removed; keep file without debug logging
+
 
 class IsDirectorOrAdmin(BasePermission):
 	"""
@@ -539,47 +541,56 @@ def user_type_view(request):
 
 
 
-	@api_view(["POST"])
-	@permission_classes([AllowAny])
-	def verify_recaptcha_view(request):
-		"""
-		Verify reCAPTCHA token sent from the frontend.
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verify_recaptcha_view(request):
+	"""
+	Verify reCAPTCHA token sent from the frontend.
 
-		Expects JSON body: { "token": "..." }
-		Returns the Google verification payload.
-		"""
-		# try to get token from JSON body or POST form
-		token = None
+	Expects JSON body: { "token": "..." }
+	Returns the Google verification payload.
+	"""
+	# try to get token from JSON body or POST form
+	token = None
+	try:
+		token = request.data.get("token")
+	except Exception:
+		token = request.POST.get("token") if hasattr(request, "POST") else None
+
+	# no debug logging in production
+
+	if not token:
+		return Response({"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST)
+
+	# read secret from environment
+	import os
+	try:
+		import requests
+	except Exception:
+		return Response({"success": False, "error": "requests lib not available on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+	secret = os.environ.get("RECAPTCHA_SECRET") or os.environ.get("RECAPTCHA_SECRET_KEY")
+	if not secret:
+		return Response({"success": False, "error": "recaptcha secret not configured on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+	try:
+		resp = requests.post(
+			"https://www.google.com/recaptcha/api/siteverify",
+			data={"secret": secret, "response": token},
+			timeout=5,
+		)
 		try:
-			token = request.data.get("token")
+			resp_text = resp.text
 		except Exception:
-			token = request.POST.get("token") if hasattr(request, "POST") else None
+			resp_text = None
+		if resp.status_code == 200:
+			data = resp.json()
+		else:
+			data = {"success": False, "error": "verify request failed", "status_code": resp.status_code, "body": resp_text}
+	except Exception as e:
+		return Response({"success": False, "error": "verify request exception", "detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
-		if not token:
-			return Response({"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST)
-
-		# read secret from environment
-		import os
-		try:
-			import requests
-		except Exception:
-			return Response({"success": False, "error": "requests lib not available on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-		secret = os.environ.get("RECAPTCHA_SECRET") or os.environ.get("RECAPTCHA_SECRET_KEY")
-		if not secret:
-			return Response({"success": False, "error": "recaptcha secret not configured on server"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-		try:
-			resp = requests.post(
-				"https://www.google.com/recaptcha/api/siteverify",
-				data={"secret": secret, "response": token},
-				timeout=5,
-			)
-			data = resp.json() if resp.status_code == 200 else {"success": False, "error": "verify request failed", "status_code": resp.status_code}
-		except Exception as e:
-			return Response({"success": False, "error": "verify request exception", "detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
-
-		return Response(data)
+	return Response(data)
 
 
 @api_view(["GET"])

@@ -42,6 +42,43 @@ export const LoginPage = () => {
 		}
 		setLoading(true);
 		try {
+			// Verify captcha token server-side before exchanging credentials
+			if (captchaToken) {
+				try {
+					// proceed to verify captcha token server-side
+					const verifyRes = await apiClient.post(
+						"/api/recaptcha/verify/",
+						{ token: captchaToken },
+						{
+							headers: { "Content-Type": "application/json", Accept: "application/json" },
+							validateStatus: () => true,
+						},
+					);
+					if (!(verifyRes.status >= 200 && verifyRes.status < 300)) {
+						setError("Error verificando el captcha. Intenta nuevamente.");
+						recaptchaRef.current?.reset();
+						setCaptchaToken(null);
+						setLoading(false);
+						return;
+					}
+					const vdata = verifyRes.data ?? {};
+					if (!vdata.success) {
+						setError("Verificación de captcha fallida. Intenta de nuevo.");
+						recaptchaRef.current?.reset();
+						setCaptchaToken(null);
+						setLoading(false);
+						return;
+					}
+				} catch (err) {
+					console.error("Captcha verify error", err);
+					setError("Error verificando captcha. Intenta de nuevo.");
+					recaptchaRef.current?.reset();
+					setCaptchaToken(null);
+					setLoading(false);
+					return;
+				}
+			}
+
 			const res = await apiClient.post(
 				"/api/token/",
 				{ username, password },
