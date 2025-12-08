@@ -144,13 +144,14 @@ describe("API - Enrollments Endpoints", () => {
                 }
             });
 
-            const testEnrollment = {
-                canine: canineId,
-                plan: planId,
-                transport_service: transportServiceId,
-                enrollment_date: "2025-12-01",
-                expiration_date: "2025-12-31",
-            };
+            const enrollmentPayload = {
+				canine: 1,
+				plan: 1,
+				transport_service: 1,
+				enrollment_date: "2025-12-01",
+				expiration_date: "2025-12-31",
+				status: true,
+			};
 
             // Create an enrollment
             cy.request({
@@ -161,8 +162,10 @@ describe("API - Enrollments Endpoints", () => {
                     Accept: "application/json",
                 },
                 failOnStatusCode: false,
-                body: testEnrollment,
+                body: enrollmentPayload,
             }).then((enrollmentResponse) => {
+                console.log(enrollmentResponse.body);
+                expect(enrollmentResponse.status).to.eq(201);
                 if (enrollmentResponse.status === 201) {
                     enrollmentId = enrollmentResponse.body.id;
                 }
@@ -207,9 +210,9 @@ describe("API - Enrollments Endpoints", () => {
             expirationDate.setDate(expirationDate.getDate() + 30);
 
             const enrollmentData = {
-                canine: canineId,
-                plan: planId,
-                transport_service: transportServiceId,
+                canine: 1,
+                plan: 1,
+                transport_service: 1,
                 enrollment_date: today.toISOString().split("T")[0],
                 expiration_date: expirationDate.toISOString().split("T")[0],
                 status: true,
@@ -227,9 +230,9 @@ describe("API - Enrollments Endpoints", () => {
             }).then((response) => {
                 expect(response.status).to.eq(201);
                 expect(response.body).to.have.property("id");
-                expect(response.body).to.have.property("canine", canineId);
-                expect(response.body).to.have.property("plan", planId);
-                expect(response.body).to.have.property("transport_service", transportServiceId);
+                expect(response.body).to.have.property("canine", 1);
+                expect(response.body).to.have.property("plan", 1);
+                expect(response.body).to.have.property("transport_service", 1);
                 expect(response.body).to.have.property("status", true);
 
                 // Save enrollment ID for later tests
