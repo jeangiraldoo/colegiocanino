@@ -140,7 +140,12 @@ export default function EditEnrollmentModal({
 				const returned = res.data ?? null;
 				setExistingEnrollment(returned);
 				setExistingEnrollmentId(returned?.id ?? returned?.pk ?? existingEnrollmentId);
-			} catch {}
+			} catch (e) {
+				// If something unexpected happens updating local state, log and continue
+				// (non-fatal for the save flow)
+				// eslint-disable-next-line no-console
+				console.warn("Ignored error updating local enrollment state:", e);
+			}
 
 			if (onSaved) onSaved();
 			onClose();
@@ -177,7 +182,7 @@ export default function EditEnrollmentModal({
 				transport_service:
 					form.transport_service_id || e.transport_service || e.transport_service_id || null,
 				enrollment_date: form.enrollment_date || e.enrollment_date || undefined,
-				status: !Boolean(e.status),
+				status: !e.status,
 			};
 
 			const patch = await apiClient.patch(`/api/enrollments/${idToUse}/`, payload, {
