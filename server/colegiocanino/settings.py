@@ -105,6 +105,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
 	"http://localhost:5173",  # Vite dev server
 	"http://localhost:3000",  # Alternative frontend port
+	"https://colegiocanino-einc.vercel.app/"
 ]
 CORS_ALLOW_CREDENTIALS = True
 
