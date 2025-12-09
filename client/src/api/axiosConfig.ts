@@ -2,9 +2,17 @@
 
 import axios from "axios";
 
-// Crea una instancia de axios con configuración base
+// Determine API base URL. Prioritize Vite env var `VITE_API_BASE` so deployments
+// or local overrides can change the target. Fall back to the Render URL per request.
+// Example: set VITE_API_BASE=https://colegiocanino.onrender.com
+const baseURL =
+	(import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_API_BASE ??
+	"https://colegiocanino.onrender.com";
+
+// Create axios instance that will resolve requests like `/api/...` against the
+// configured baseURL (so `/api/...` -> `https://colegiocanino.onrender.com/api/...`).
 const apiClient = axios.create({
-	baseURL: "/", // La base URL es la raíz, ya que Vite se encargará del proxy a /api/
+	baseURL,
 });
 
 // Interceptor para añadir el token de autenticación a cada petición
