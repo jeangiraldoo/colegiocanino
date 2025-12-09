@@ -15,7 +15,8 @@ dependencies = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.23",
     "go-task-bin>=3.45.5",
-    "gunicorn"
+    "gunicorn",
+    "psycopg[binary]>=3.3.2",
 ]
 readme = "README.md"
 authors = [

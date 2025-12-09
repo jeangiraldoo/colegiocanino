@@ -105,7 +105,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
 	"http://localhost:5173",  # Vite dev server
 	"http://localhost:3000",  # Alternative frontend port
-	"https://colegiocanino-einc.vercel.app/"
+	"https://colegiocanino-einc.vercel.app"
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -128,21 +128,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "colegiocanino.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-if dj_database_url and DATABASE_URL:
-	default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
-else:
-	default_db = {
-		"ENGINE": "django.db.backends.sqlite3",
-		"NAME": BASE_DIR / "db.sqlite3",
-	}
-
-DATABASES = {"default": default_db}
+DATABASES = {
+	"default": dj_database_url.parse(os.environ.get("DATABASE_URL"))
+}
 
 REST_FRAMEWORK = {
 	"DEFAULT_AUTHENTICATION_CLASSES": (
