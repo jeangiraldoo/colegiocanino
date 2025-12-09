@@ -15,6 +15,7 @@ dependencies = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.23",
     "go-task-bin>=3.45.5",
+    "gunicorn"
 ]
 readme = "README.md"
 authors = [
