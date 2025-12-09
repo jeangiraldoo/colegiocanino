@@ -35,11 +35,35 @@ try:
 except ImportError:
 	pass
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY")
+def _clean_env_str(name: str, default: str = "") -> str:
+	"""Read environment variable and clean common problematic characters.
+
+	This removes surrounding quotes, zero-bytes and NBSP (\u00a0) which
+	sometimes appear when copying values from GUIs or editors.
+	"""
+	val = os.getenv(name, default)
+	if val is None:
+		return default
+	# Ensure string
+	s = str(val)
+	# Remove surrounding quotes if present
+	if s.startswith('"') and s.endswith('"'):
+		s = s[1:-1]
+	# Remove zero bytes and NBSP and replace NBSP with normal space
+	s = s.replace("\x00", "")
+	s = s.replace("\u00a0", " ")
+	s = s.replace("\xa0", " ")
+	# Strip whitespace
+	return s.strip()
+
+
+SECRET_KEY = _clean_env_str("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -188,5 +212,6 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+# Read and sanitize email credentials to avoid stray non-ascii / invisible chars
+EMAIL_HOST_USER = _clean_env_str("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = _clean_env_str("EMAIL_HOST_PASSWORD")

@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import timedelta
 from decimal import Decimal
 
@@ -44,7 +45,7 @@ from .serializers import (
 
 UserModel = get_user_model()
 
-# logger removed; keep file without debug logging
+logger = logging.getLogger(__name__)
 
 
 class IsDirectorOrAdmin(BasePermission):
@@ -952,12 +953,29 @@ def password_reset_request(request):
 
 	reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
 
-	send_mail(
-		subject="Password Reset Request",
-		message=f"Click the link to reset your password: {reset_url}",
-		from_email="no-reply@example.com",
-		recipient_list=[email],
+	import os
+
+	from django.conf import settings
+
+	# use logging instead of print to satisfy linters
+	logger.debug(
+		"DEBUG EMAIL_HOST_USER: env=%s settings=%s",
+		os.getenv("EMAIL_HOST_USER"),
+		getattr(settings, "EMAIL_HOST_USER", None),
 	)
+	logger.debug("DEBUG EMAIL_HOST_PASSWORD: %s", os.getenv("EMAIL_HOST_PASSWORD"))
+
+	try:
+		send_mail(
+			subject="Password Reset Request",
+			message=f"Click the link to reset your password: {reset_url}",
+			from_email=getattr(settings, "EMAIL_HOST_USER", None),
+			recipient_list=[email],
+			fail_silently=False,
+		)
+	except Exception:
+		logger.exception("ERROR ENVIANDO EMAIL")
+		raise
 
 	return Response({"detail": "Password reset email sent."})
 
@@ -982,3 +1000,23 @@ def password_reset_confirm(request, uidb64, token):
 	user.save()
 
 	return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def password_reset_validate(_request, uidb64, token):
+	"""Validate uidb64 and token for password reset links.
+
+	Returns 200 if valid, 400 if not. This allows the frontend to protect the
+	reset form so only valid token holders can enter the form.
+	"""
+	try:
+		uid = force_str(urlsafe_base64_decode(uidb64))
+		user = UserModel.objects.get(pk=uid)
+	except (TypeError, ValueError, OverflowError, UserModel.DoesNotExist):
+		return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
+
+	if not default_token_generator.check_token(user, token):
+		return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+	return Response({"detail": "Token valid."}, status=status.HTTP_200_OK)

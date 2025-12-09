@@ -99,6 +99,41 @@ input.input-primary:-webkit-autofill:focus {
 	box-shadow: 0 0 0px 1000px #ffffff inset !important;
 }
 
+/* Animations for entry / exit used in reset form */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes fadeOutDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+}
+.animate-fade-in {
+	animation: fadeInUp 420ms cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+.animate-fade-out {
+	animation: fadeOutDown 420ms cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+
+/* make password toggle buttons visually neutral */
+.password-toggle {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+}
+
 /* ----------------------------
    Sidebar / navigation
    ---------------------------- */
@@ -1027,6 +1062,39 @@ input:focus {
 	fill: currentColor !important;
 	width: 18px !important;
 	height: 18px !important;
+}
+
+/* Reset password page: align input icons and padding like LoginPage */
+.reset-password .relative input.input-primary {
+	padding-left: 56px !important;
+	box-sizing: border-box;
+}
+@media (max-width: 640px) {
+	.reset-password .relative input.input-primary {
+		padding-left: 48px !important;
+	}
+}
+
+.reset-password .relative > .MuiSvgIcon-root,
+.reset-password .relative svg.MuiSvgIcon-root,
+.reset-password .relative .absolute.left-4 {
+	position: absolute !important;
+	pointer-events: none !important;
+	z-index: 9999 !important;
+	color: var(--amber-400) !important;
+	fill: currentColor !important;
+}
+
+/* Ensure primary button inside reset-password uses Montserrat */
+.reset-password .btn-primary {
+	font-family:
+		"Montserrat",
+		system-ui,
+		-apple-system,
+		"Segoe UI",
+		Roboto,
+		"Helvetica Neue",
+		Arial !important;
 }
 
 .login-page .paw-item {
