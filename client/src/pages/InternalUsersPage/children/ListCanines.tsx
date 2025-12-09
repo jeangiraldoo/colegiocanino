@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import PageTransition from "../../../components/PageTransition";
 import PetsIcon from "@mui/icons-material/Pets";
 import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
 import apiClient from "../../../api/axiosConfig";
+import EditEnrollmentModal from "../../../components/EditEnrollmentModal";
 
 const getAuthHeader = () => {
 	const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
@@ -55,36 +57,44 @@ export default function ListCanines() {
 		return Array.from(breeds).sort();
 	}, [canines]);
 
-	useEffect(() => {
-		const loadCanines = async () => {
-			setLoading(true);
-			setError(null);
+	const [modalCanine, setModalCanine] = useState<{
+		id: number;
+		name: string;
+		enrollmentId: number | null;
+	} | null>(null);
 
-			try {
-				const headers = { Accept: "application/json", ...getAuthHeader() };
-				const response = await apiClient.get("/api/canines/", {
-					headers,
-					validateStatus: () => true,
-				});
+	const fetchCanines = async () => {
+		setLoading(true);
+		setError(null);
 
-				if (response.status >= 200 && response.status < 300) {
-					const data = Array.isArray(response.data) ? response.data : [];
-					setCanines(data);
-				} else if (response.status === 401) {
-					setError("No autorizado. Por favor, inicia sesión nuevamente.");
-				} else {
-					setError("Error al cargar los caninos. Intenta de nuevo.");
-				}
-			} catch (err) {
-				console.error("Error loading canines:", err);
-				setError("Error de conexión. Verifica tu conexión a internet.");
-			} finally {
-				setLoading(false);
+		try {
+			const headers = { Accept: "application/json", ...getAuthHeader() };
+			const response = await apiClient.get("/api/canines/", {
+				headers,
+				validateStatus: () => true,
+			});
+
+			if (response.status >= 200 && response.status < 300) {
+				const data = Array.isArray(response.data) ? response.data : [];
+				setCanines(data);
+			} else if (response.status === 401) {
+				setError("No autorizado. Por favor, inicia sesión nuevamente.");
+			} else {
+				setError("Error al cargar los caninos. Intenta de nuevo.");
 			}
-		};
+		} catch (err) {
+			console.error("Error loading canines:", err);
+			setError("Error de conexión. Verifica tu conexión a internet.");
+		} finally {
+			setLoading(false);
+		}
+	};
 
-		loadCanines();
+	useEffect(() => {
+		fetchCanines();
 	}, []);
+
+	// toggle now handled inside modal
 
 	// Client-side filtering
 	const filtered = useMemo(() => {
@@ -138,9 +148,7 @@ export default function ListCanines() {
 						}}
 					>
 						<div>
-							<h1 style={{ margin: 0, fontSize: 22, color: "var(--text-color)" }}>
-								Listar caninos
-							</h1>
+							<h1 style={{ margin: 0, fontSize: 22, color: "var(--text-color)" }}>Caninos</h1>
 							<p style={{ margin: 0, color: "var(--muted-color)" }}>
 								Visualiza y filtra los caninos matriculados
 							</p>
@@ -248,6 +256,7 @@ export default function ListCanines() {
 										<th style={{ width: 120 }}>Tamaño</th>
 										<th>Dueño</th>
 										<th style={{ width: 100 }}>Estado</th>
+										<th style={{ width: 180, textAlign: "center" }}>Acciones</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -363,6 +372,59 @@ export default function ListCanines() {
 														{canine.status ? "Activo" : "Inactivo"}
 													</span>
 												</td>
+
+												<td style={{ padding: "12px 16px", textAlign: "center" }}>
+													{(() => {
+														const raw = (
+															localStorage.getItem("user_role") ||
+															sessionStorage.getItem("user_role") ||
+															""
+														).toString();
+														const role = raw ? raw.toUpperCase() : "";
+														if (role === "ADMIN" || role === "DIRECTOR") {
+															return (
+																<div
+																	style={{
+																		display: "flex",
+																		gap: 8,
+																		justifyContent: "center",
+																		alignItems: "center",
+																	}}
+																>
+																	<button
+																		onClick={() =>
+																			setModalCanine({
+																				id: canine.id,
+																				name: canine.name,
+																				enrollmentId: null,
+																			})
+																		}
+																		title={`Editar matrícula ${canine.name}`}
+																		aria-label={`Editar matrícula ${canine.name}`}
+																		style={{
+																			background: "transparent",
+																			border: "1px solid rgba(15,23,42,0.06)",
+																			width: 36,
+																			height: 36,
+																			borderRadius: 8,
+																			display: "inline-flex",
+																			alignItems: "center",
+																			justifyContent: "center",
+																			cursor: "pointer",
+																		}}
+																	>
+																		<EditIcon
+																			style={{ fontSize: 18, color: "var(--text-color)" }}
+																		/>
+																	</button>
+																</div>
+															);
+														}
+														return (
+															<span style={{ color: "var(--muted-color)", fontSize: 13 }}>—</span>
+														);
+													})()}
+												</td>
 											</tr>
 										);
 									})}
@@ -372,6 +434,19 @@ export default function ListCanines() {
 					)}
 				</div>
 			</div>
+
+			{modalCanine && (
+				<EditEnrollmentModal
+					canineId={modalCanine.id}
+					canineName={modalCanine.name}
+					enrollmentId={modalCanine.enrollmentId}
+					onClose={() => setModalCanine(null)}
+					onSaved={() => {
+						setModalCanine(null);
+						fetchCanines();
+					}}
+				/>
+			)}
 		</PageTransition>
 	);
 }

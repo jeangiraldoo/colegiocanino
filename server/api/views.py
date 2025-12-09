@@ -1,7 +1,6 @@
 import json
 from datetime import timedelta
 from decimal import Decimal
-
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth
@@ -15,6 +14,13 @@ from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser, Is
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from rest_framework import status
 
 from .models import (
 	Attendance,
@@ -929,3 +935,52 @@ def verify_password(request):
 	if user.check_password(password):
 		return Response({"valid": True})
 	return Response({"valid": False})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_request(request):
+    email = request.data.get("email")
+    if not email:
+        return Response({"detail": "Email is required."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = UserModel.objects.get(email=email)
+    except UserModel.DoesNotExist:
+        return Response({"detail": "Password reset email sent."})
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+
+    reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
+
+    send_mail(
+        subject="Password Reset Request",
+        message=f"Click the link to reset your password: {reset_url}",
+        from_email="no-reply@example.com",
+        recipient_list=[email],
+    )
+
+    return Response({"detail": "Password reset email sent."})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_confirm(request, uidb64, token):
+    new_password = request.data.get("new_password")
+    if not new_password:
+        return Response({"detail": "New password is required."},
+                        status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = UserModel.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, UserModel.DoesNotExist):
+        return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not default_token_generator.check_token(user, token):
+        return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user.set_password(new_password)
+    user.save()
+
+    return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
