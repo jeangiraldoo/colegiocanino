@@ -7,6 +7,7 @@ import { HomePage } from "./pages/HomePage/HomePage";
 import { RegisterPage } from "./pages/RegisterPage/RegisterPage";
 import PageTransition from "./components/PageTransition";
 import "./style.css";
+import ToastContainer from "./components/Toast";
 
 // Import Internal User Pages
 import InternalUsers from "./pages/InternalUsersPage/InternalUsers";
@@ -171,6 +172,7 @@ function App() {
 	return (
 		<Router>
 			<AnimatedRoutes />
+			<ToastContainer />
 		</Router>
 	);
 }
