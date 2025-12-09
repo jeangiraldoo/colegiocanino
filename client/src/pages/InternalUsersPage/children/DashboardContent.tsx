@@ -266,12 +266,27 @@ export default function DashboardContent() {
 		lastValue !== null && prevValue !== null && prevValue !== 0
 			? ((lastValue - prevValue) / prevValue) * 100
 			: null;
-	const bestMonth = incomeData?.monthly_data?.reduce((a, b) =>
-		parseFloat(a.income) > parseFloat(b.income) ? a : b,
-	);
-	const worstMonth = incomeData?.monthly_data?.reduce((a, b) =>
-		parseFloat(a.income) < parseFloat(b.income) ? a : b,
-	);
+
+	const bestMonth =
+	incomeData?.monthly_data && incomeData.monthly_data.length
+		? incomeData.monthly_data.reduce((a, b) =>
+			parseFloat(a.income) > parseFloat(b.income) ? a : b
+		)
+		: null;
+
+	const worstMonth =
+	incomeData?.monthly_data && incomeData.monthly_data.length
+		? incomeData.monthly_data.reduce((a, b) =>
+			parseFloat(a.income) < parseFloat(b.income) ? a : b
+		)
+		: null;
+
+	//const bestMonth = incomeData?.monthly_data?.reduce((a, b) =>
+	//	parseFloat(a.income) > parseFloat(b.income) ? a : b,
+	//);
+	//const worstMonth = incomeData?.monthly_data?.reduce((a, b) =>
+	//	parseFloat(a.income) < parseFloat(b.income) ? a : b,
+	//);
 
 	const plansChartData = {
 		labels: planLabels,
