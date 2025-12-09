@@ -4,8 +4,18 @@ version = "0.0.1"
 description = "Website for a fictional pet school"
 requires-python = ">=3.13,<4.0"
 dependencies = [
-	"django>=5.2",
-	"python-dotenv>=1.1.1"
+    "django>=5.2",
+    "djangorestframework>=3.16,<3.17",
+    "drf-spectacular>=0.28,<0.29",
+    "djangorestframework-simplejwt>=2.8",
+    "python-dotenv>=1.1.1",
+    "dj-database-url>=1.0.0",
+    "django-cors-headers",
+    "Pillow",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.23",
+    "go-task-bin>=3.45.5",
+    "gunicorn"
 ]
 readme = "README.md"
 authors = [
@@ -15,6 +25,10 @@ authors = [
 	{name = "Jean Giraldo"}
 ]
 
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project.optional-dependencies]
 dev = [
 	"raices_caninas[lint]"
@@ -23,9 +37,15 @@ lint = [
 	"ruff>=0.14.0"
 ]
 
+[tool.setuptools.packages.find]
+include = ["server*"]
+
 [tool.ruff]
 line-length = 100
 indent-width = 4
+exclude = [
+    "**/migrations/",
+]
 
 [tool.ruff.format]
 indent-style = "tab"
@@ -33,5 +53,15 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 preview = true
-select = ["E", "F", "B"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "T20", "SIM", "ARG", "PTH", "PL", "RUF"]
 extend-select = ["E501"]
+ignore = [
+    "W191",     # Ignore tab indentation warnings since we use tabs
+    "ARG002",   # Unused method argument (common in Django views)
+    "PLR6301",  # Method could be a function (common in Django class-based views)
+    "PLC0415",  # Import should be at top-level (Django manage.py pattern)
+    "PTH118",   # Use Path with / operator (Django settings compatibility)
+    "N806",     # Variable in function should be lowercase (Django conventions)
+    "N802",     # Function name should be lowercase (Django conventions)
+    "RUF012",   # Mutable class default (common in Django models)
+]
