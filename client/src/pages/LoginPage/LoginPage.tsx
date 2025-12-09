@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import ForgotPasswordModal from "../../components/ForgotPasswordModal";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@mui/material";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -21,6 +22,8 @@ export const LoginPage = () => {
 	const [showPassword, setShowPassword] = useState(false);
 	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 	const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+	const [forgotOpen, setForgotOpen] = useState(false);
 
 	const navigate = useNavigate();
 
@@ -282,16 +285,19 @@ export const LoginPage = () => {
 						</label>
 
 						<div className="mt-3 text-right">
-							<a
-								href="#"
-								onClick={(e) => e.preventDefault()}
+							<button
+								type="button"
+								onClick={() => setForgotOpen(true)}
 								role="link"
 								aria-label="Recuperar contraseña"
-								className="link-amber underline font-lekton-bold no-italic text-sm letter-space-lg"
+								className="link-amber underline font-lekton-bold no-italic text-sm letter-space-lg bg-transparent border-none cursor-pointer"
+								style={{ padding: 0, background: "none" }}
 							>
 								¿Olvidaste tu contraseña?
-							</a>
+							</button>
 						</div>
+
+						<ForgotPasswordModal open={forgotOpen} onClose={() => setForgotOpen(false)} />
 
 						{/* Do not render actual reCAPTCHA when running under Cypress; tests bypass verification via header */}
 						{!isCypress && (

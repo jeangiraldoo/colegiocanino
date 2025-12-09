@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { LoginPage } from "./pages/LoginPage/LoginPage";
 import { HomePage } from "./pages/HomePage/HomePage";
 import { RegisterPage } from "./pages/RegisterPage/RegisterPage";
+import ResetPassword from "./pages/ResetPassword/ResetPassword";
 import PageTransition from "./components/PageTransition";
 import "./style.css";
 import ToastContainer from "./components/Toast";
@@ -50,6 +51,14 @@ function AnimatedRoutes() {
 					element={
 						<PageTransition>
 							<RegisterPage />
+						</PageTransition>
+					}
+				/>
+				<Route
+					path="/reset-password/:uid/:token"
+					element={
+						<PageTransition>
+							<ResetPassword />
 						</PageTransition>
 					}
 				/>

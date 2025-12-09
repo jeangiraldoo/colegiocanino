@@ -16,6 +16,7 @@ from .views import (
 	canine_attendance_view,
 	password_reset_confirm,
 	password_reset_request,
+	password_reset_validate,
 	profile_view,
 	register_view,
 	user_type_view,
@@ -66,6 +67,11 @@ urlpatterns = [
 		"auth/password_reset_confirm/<uidb64>/<token>/",
 		password_reset_confirm,
 		name="password_reset_confirm",
+	),
+	path(
+		"auth/password_reset_validate/<uidb64>/<token>/",
+		password_reset_validate,
+		name="password_reset_validate",
 	),
 	path("recaptcha/verify/", verify_recaptcha_view, name="recaptcha-verify"),
 ]
