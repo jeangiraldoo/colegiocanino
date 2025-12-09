@@ -6,7 +6,6 @@ from .views import (
 	AttendanceViewSet,
 	CanineViewSet,
 	ClientViewSet,
-	DashboardStatsView,
 	EnrollmentPlanViewSet,
 	EnrollmentsByPlanReportView,
 	EnrollmentViewSet,
@@ -22,6 +21,7 @@ from .views import (
 	verify_password,
 	password_reset_request,
 	password_reset_confirm
+	verify_recaptcha_view,
 )
 
 router = DefaultRouter()
@@ -37,7 +37,16 @@ router.register("reports", ReportsViewSet, basename="reports")
 
 urlpatterns = [
 	path("", include(router.urls)),
-	path("dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
+	path(
+		"reports/enrollments-by-plan-detailed/",
+		EnrollmentsByPlanReportView.as_view(),
+		name="enrollments-by-plan-detailed",
+	),
+	path(
+		"reports/monthly-income/",
+		MonthlyIncomeReportView.as_view(),
+		name="monthly-income",
+	),
 	path("register/", register_view, name="register"),
 	path("profile/", profile_view, name="profile"),
 	path("canines/<int:canine_id>/attendance/", canine_attendance_view, name="canine-attendance"),
@@ -55,4 +64,5 @@ urlpatterns = [
 	path("auth/verify-password/", verify_password, name="verify-password"),
 	path("auth/password_reset/", password_reset_request, name="password_reset"),
 	path('auth/password_reset_confirm/<uidb64>/<token>/', password_reset_confirm, name='password_reset_confirm'),
+	path("recaptcha/verify/", verify_recaptcha_view, name="recaptcha-verify"),
 ]

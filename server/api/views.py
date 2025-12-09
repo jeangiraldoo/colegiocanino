@@ -35,7 +35,6 @@ from .serializers import (
 	AttendanceSerializer,
 	CanineSerializer,
 	ClientSerializer,
-	DashboardStatsSerializer,
 	EnrollmentPlanSerializer,
 	EnrollmentSerializer,
 	InternalUserSerializer,
@@ -45,6 +44,8 @@ from .serializers import (
 )
 
 UserModel = get_user_model()
+
+# logger removed; keep file without debug logging
 
 
 class IsDirectorOrAdmin(BasePermission):
@@ -544,6 +545,75 @@ def user_type_view(request):
 	return Response({"user_type": "unknown"})
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verify_recaptcha_view(request):
+	"""
+	Verify reCAPTCHA token sent from the frontend.
+
+	Expects JSON body: { "token": "..." }
+	Returns the Google verification payload.
+	"""
+	# try to get token from JSON body or POST form
+	token = None
+	try:
+		token = request.data.get("token")
+	except Exception:
+		token = request.POST.get("token") if hasattr(request, "POST") else None
+
+	# no debug logging in production
+
+	if not token:
+		return Response(
+			{"success": False, "error": "missing token"}, status=status.HTTP_400_BAD_REQUEST
+		)
+
+	# read secret from environment
+	import os
+
+	try:
+		import requests
+	except Exception:
+		return Response(
+			{"success": False, "error": "requests lib not available on server"},
+			status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
+
+	secret = os.environ.get("RECAPTCHA_SECRET") or os.environ.get("RECAPTCHA_SECRET_KEY")
+	if not secret:
+		return Response(
+			{"success": False, "error": "recaptcha secret not configured on server"},
+			status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
+
+	try:
+		resp = requests.post(
+			"https://www.google.com/recaptcha/api/siteverify",
+			data={"secret": secret, "response": token},
+			timeout=5,
+		)
+		try:
+			resp_text = resp.text
+		except Exception:
+			resp_text = None
+		if resp.status_code == status.HTTP_200_OK:
+			data = resp.json()
+		else:
+			data = {
+				"success": False,
+				"error": "verify request failed",
+				"status_code": resp.status_code,
+				"body": resp_text,
+			}
+	except Exception as e:
+		return Response(
+			{"success": False, "error": "verify request exception", "detail": str(e)},
+			status=status.HTTP_502_BAD_GATEWAY,
+		)
+
+	return Response(data)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def canine_attendance_view(request, canine_id):
@@ -571,66 +641,6 @@ def canine_attendance_view(request, canine_id):
 
 	except Client.DoesNotExist:
 		return Response({"error": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
-class DashboardStatsView(APIView):
-	"""
-	Dashboard statistics endpoint.
-	"""
-
-	permission_classes = [IsAuthenticated]
-
-	def get(self, request):
-		"""Get dashboard statistics"""
-		today = timezone.now().date()
-
-		# Basic counts
-		total_clients = Client.objects.count()
-		total_canines = Canine.objects.filter(status=True).count()
-		total_enrollments = Enrollment.objects.count()
-		active_enrollments = Enrollment.objects.filter(status=True).count()
-		total_attendance_today = Attendance.objects.filter(date=today).count()
-
-		enrollments_by_plan = dict(
-			Enrollment.objects.values("plan__name")
-			.annotate(count=Count("id"))
-			.values_list("plan__name", "count")
-		)
-
-		attendance_by_size = dict(
-			Attendance.objects.values("enrollment__canine__size")
-			.annotate(count=Count("id"))
-			.values_list("enrollment__canine__size", "count")
-		)
-
-		attendance_by_status = dict(
-			Attendance.objects.values("status")
-			.annotate(count=Count("id"))
-			.values_list("status", "count")
-		)
-
-		# Upcoming expirations (next 30 days)
-		thirty_days_from_now = today + timedelta(days=30)
-		upcoming_expirations = Enrollment.objects.filter(
-			status=True,
-			expiration_date__lte=thirty_days_from_now,
-			expiration_date__gte=today,
-		).count()
-
-		stats = {
-			"total_clients": total_clients,
-			"total_canines": total_canines,
-			"total_enrollments": total_enrollments,
-			"active_enrollments": active_enrollments,
-			"total_attendance_today": total_attendance_today,
-			"enrollments_by_plan": enrollments_by_plan,
-			"attendance_by_size": attendance_by_size,
-			"attendance_by_status": attendance_by_status,
-			"upcoming_expirations": upcoming_expirations,
-		}
-
-		serializer = DashboardStatsSerializer(stats)
-		return Response(serializer.data)
 
 
 class EnrollmentsByPlanReportView(APIView):

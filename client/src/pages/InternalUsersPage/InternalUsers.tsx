@@ -1,6 +1,6 @@
 // client/src/pages/InternalUsersPage/InternalUsers.tsx
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import apiClient from "../../api/axiosConfig";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import PersonIcon from "@mui/icons-material/Person";
@@ -13,7 +13,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PetsIcon from "@mui/icons-material/Pets";
-import AssessmentIcon from "@mui/icons-material/Assessment"; // <-- NEW IMPORT
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import logoSrc from "../../assets/logo.png";
 
 export const InternalUsersPage = () => {
@@ -24,7 +24,7 @@ export const InternalUsersPage = () => {
 		year: "numeric",
 	});
 	const loc = useLocation();
-	const isActive = (p: string) => loc.pathname.endsWith(p);
+	const isActive = (p: string) => loc.pathname.includes(p);
 
 	const [role] = useState<string | null>(() => {
 		return localStorage.getItem("user_role") || sessionStorage.getItem("user_role") || null;
@@ -212,25 +212,37 @@ export const InternalUsersPage = () => {
 						</Link>
 					)}
 					{canAccess.registerUsers && (
-						<Link to="registrar-usuarios" className="sidebar-link has-hover-indicator">
+						<Link
+							to="registrar-usuarios"
+							className={`sidebar-link has-hover-indicator ${isActive("registrar-usuarios") ? "active" : ""}`}
+						>
 							<PersonAddIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar usuarios</span>
 						</Link>
 					)}
 					{canAccess.manageUsers && (
-						<Link to="administrar-usuarios" className="sidebar-link has-hover-indicator">
+						<Link
+							to="administrar-usuarios"
+							className={`sidebar-link has-hover-indicator ${isActive("administrar-usuarios") ? "active" : ""}`}
+						>
 							<SupervisorAccountIcon className="sidebar-icon" />
 							<span className="sidebar-text">Administrar Usuarios</span>
 						</Link>
 					)}
 					{canAccess.registerAttendance && (
-						<Link to="registrar-asistencia" className="sidebar-link has-hover-indicator">
+						<Link
+							to="registrar-asistencia"
+							className={`sidebar-link has-hover-indicator ${isActive("registrar-asistencia") ? "active" : ""}`}
+						>
 							<EventAvailableIcon className="sidebar-icon" />
 							<span className="sidebar-text">Registrar asistencia</span>
 						</Link>
 					)}
 					{canAccess.viewAttendance && (
-						<Link to="visualizar-asistencia" className="sidebar-link has-hover-indicator">
+						<Link
+							to="visualizar-asistencia"
+							className={`sidebar-link has-hover-indicator ${isActive("visualizar-asistencia") ? "active" : ""}`}
+						>
 							<VisibilityIcon className="sidebar-icon" />
 							<span className="sidebar-text">Visualizar asistencia</span>
 						</Link>
@@ -247,7 +259,10 @@ export const InternalUsersPage = () => {
 					)}
 					{/* --- NEW LINK FOR HU-7 --- */}
 					{canAccess.reports && (
-						<Link to="reportes" className="sidebar-link has-hover-indicator">
+						<Link
+							to="reportes"
+							className={`sidebar-link has-hover-indicator ${isActive("reportes") ? "active" : ""}`}
+						>
 							<AssessmentIcon className="sidebar-icon" />
 							<span className="sidebar-text">Reportes</span>
 						</Link>
