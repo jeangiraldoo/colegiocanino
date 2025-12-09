@@ -254,7 +254,7 @@ export const InternalUsersPage = () => {
 							className={`sidebar-link has-hover-indicator ${isActive("listar-caninos") ? "active" : ""}`}
 						>
 							<PetsIcon className="sidebar-icon" />
-							<span className="sidebar-text">Listar caninos</span>
+							<span className="sidebar-text">Caninos</span>
 						</Link>
 					)}
 					{/* --- NEW LINK FOR HU-7 --- */}
