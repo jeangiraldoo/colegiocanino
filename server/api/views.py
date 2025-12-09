@@ -7,6 +7,7 @@ from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.conf import settings
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -555,7 +556,20 @@ def verify_recaptcha_view(request):
 	except Exception:
 		token = request.POST.get("token") if hasattr(request, "POST") else None
 
-	# no debug logging in production
+	# Allow test bypass via header when DEBUG or explicit env var set
+	# This enables E2E test runs (Cypress) to bypass real reCAPTCHA verification.
+	import os
+
+	bypass_header = None
+	try:
+		bypass_header = request.headers.get("x-skip-recaptcha")
+	except Exception:
+		# WSGI servers may provide META instead
+		bypass_header = request.META.get("HTTP_X_SKIP_RECAPTCHA")
+
+	disable_globally = os.environ.get("DISABLE_RECAPTCHA", "0") == "1"
+	if bypass_header == "1" and (getattr(settings, "DEBUG", False) or disable_globally):
+		return Response({"success": True, "score": 1.0})
 
 	if not token:
 		return Response(
@@ -563,7 +577,6 @@ def verify_recaptcha_view(request):
 		)
 
 	# read secret from environment
-	import os
 
 	try:
 		import requests

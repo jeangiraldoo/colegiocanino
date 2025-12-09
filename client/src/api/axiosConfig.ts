@@ -17,6 +17,20 @@ apiClient.interceptors.request.use(
 			config.headers.Authorization = `Bearer ${token}`;
 		}
 
+		// When running under Cypress e2e, set a header to bypass reCAPTCHA verification on server
+		// If running under Cypress, set header to allow server-side test bypass.
+		// Use a narrow cast to avoid `any` lint complaints.
+		try {
+			if (typeof window !== "undefined") {
+				const w = window as unknown as { Cypress?: boolean };
+				if (w.Cypress) {
+					config.headers["x-skip-recaptcha"] = "1";
+				}
+			}
+		} catch {
+			// ignore in non-browser contexts
+		}
+
 		return config;
 	},
 	(error) => {
