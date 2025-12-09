@@ -6,10 +6,10 @@ type User = {
 
 export const TEST_DATA: User[] = [
 	{
-		name: "Nombre Actualizado",
-		last_name: "Apellido Actualizado",
-		username: "nuevousuario",
-		password: "superjean",
+		name: "Carlos",
+		last_name: "Director",
+		username: "carlos.director",
+		password: "Perro123",
 	},
 	{
 		name: "Jean",
