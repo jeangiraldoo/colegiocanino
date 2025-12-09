@@ -7,15 +7,24 @@ export function login(user) {
 	cy.get('input[type="password"]').type(user.password);
 	cy.get('button[type="submit"]').click();
 
-	// Wait for client portal to load (allow either dashboard or other portal routes)
+	// Wait for either client or internal portal to load
 	cy.url({ timeout: 10000 }).should((u) => {
-		expect(u).to.include("/portal-cliente");
+		expect(u).to.satisfy(
+			(val) => val.includes("/portal-cliente") || val.includes("/internal-users"),
+		);
 	});
 
 	// Ensure the UI shows a welcome indicator (don't assert full name to avoid flaky selectors)
 	cy.contains("¡Bienvenido").should("exist");
 
-	// Navigate to 'Mis Mascotas' in the sidebar so tests can continue from there
-	// Use a tolerant selector in case the element is inside a nav or button
-	cy.contains(/Mis Mascotas/i).click({ force: true });
+	// Navigate to a sensible default area depending on the portal type
+	cy.url().then((u) => {
+		if (String(u).includes("/portal-cliente")) {
+			// Client portal: go to 'Mis Mascotas'
+			cy.contains(/Mis Mascotas/i, { timeout: 5000 }).click({ force: true });
+		} else {
+			// Internal users portal: go to 'Caninos' list
+			cy.get(".sidebar-link").contains("Caninos", { timeout: 5000 }).click({ force: true });
+		}
+	});
 }
