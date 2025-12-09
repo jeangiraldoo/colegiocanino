@@ -1,11 +1,17 @@
 import json
 from datetime import timedelta
 from decimal import Decimal
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -13,13 +19,6 @@ from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser, Is
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
-from rest_framework import status
 
 from .models import (
 	Attendance,
@@ -561,7 +560,20 @@ def verify_recaptcha_view(request):
 	except Exception:
 		token = request.POST.get("token") if hasattr(request, "POST") else None
 
-	# no debug logging in production
+	# Allow test bypass via header when DEBUG or explicit env var set
+	# This enables E2E test runs (Cypress) to bypass real reCAPTCHA verification.
+	import os
+
+	bypass_header = None
+	try:
+		bypass_header = request.headers.get("x-skip-recaptcha")
+	except Exception:
+		# WSGI servers may provide META instead
+		bypass_header = request.META.get("HTTP_X_SKIP_RECAPTCHA")
+
+	disable_globally = os.environ.get("DISABLE_RECAPTCHA", "0") == "1"
+	if bypass_header == "1" and (getattr(settings, "DEBUG", False) or disable_globally):
+		return Response({"success": True, "score": 1.0})
 
 	if not token:
 		return Response(
@@ -569,7 +581,6 @@ def verify_recaptcha_view(request):
 		)
 
 	# read secret from environment
-	import os
 
 	try:
 		import requests
@@ -923,51 +934,51 @@ def verify_password(request):
 		return Response({"valid": True})
 	return Response({"valid": False})
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def password_reset_request(request):
-    email = request.data.get("email")
-    if not email:
-        return Response({"detail": "Email is required."},
-                        status=status.HTTP_400_BAD_REQUEST)
+	email = request.data.get("email")
+	if not email:
+		return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        user = UserModel.objects.get(email=email)
-    except UserModel.DoesNotExist:
-        return Response({"detail": "Password reset email sent."})
+	try:
+		user = UserModel.objects.get(email=email)
+	except UserModel.DoesNotExist:
+		return Response({"detail": "Password reset email sent."})
 
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
+	uid = urlsafe_base64_encode(force_bytes(user.pk))
+	token = default_token_generator.make_token(user)
 
-    reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
+	reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
 
-    send_mail(
-        subject="Password Reset Request",
-        message=f"Click the link to reset your password: {reset_url}",
-        from_email="no-reply@example.com",
-        recipient_list=[email],
-    )
+	send_mail(
+		subject="Password Reset Request",
+		message=f"Click the link to reset your password: {reset_url}",
+		from_email="no-reply@example.com",
+		recipient_list=[email],
+	)
 
-    return Response({"detail": "Password reset email sent."})
+	return Response({"detail": "Password reset email sent."})
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def password_reset_confirm(request, uidb64, token):
-    new_password = request.data.get("new_password")
-    if not new_password:
-        return Response({"detail": "New password is required."},
-                        status=status.HTTP_400_BAD_REQUEST)
-    
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = UserModel.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, UserModel.DoesNotExist):
-        return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if not default_token_generator.check_token(user, token):
-        return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    user.set_password(new_password)
-    user.save()
+	new_password = request.data.get("new_password")
+	if not new_password:
+		return Response({"detail": "New password is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+	try:
+		uid = force_str(urlsafe_base64_decode(uidb64))
+		user = UserModel.objects.get(pk=uid)
+	except (TypeError, ValueError, OverflowError, UserModel.DoesNotExist):
+		return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
+
+	if not default_token_generator.check_token(user, token):
+		return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+	user.set_password(new_password)
+	user.save()
+
+	return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)

@@ -1,6 +1,5 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from django.contrib.auth import views as auth_views
 
 from .views import (
 	AttendanceViewSet,
@@ -15,12 +14,12 @@ from .views import (
 	TransportServiceViewSet,
 	UserViewSet,
 	canine_attendance_view,
+	password_reset_confirm,
+	password_reset_request,
 	profile_view,
 	register_view,
 	user_type_view,
 	verify_password,
-	password_reset_request,
-	password_reset_confirm
 	verify_recaptcha_view,
 )
 
@@ -63,6 +62,10 @@ urlpatterns = [
 	),
 	path("auth/verify-password/", verify_password, name="verify-password"),
 	path("auth/password_reset/", password_reset_request, name="password_reset"),
-	path('auth/password_reset_confirm/<uidb64>/<token>/', password_reset_confirm, name='password_reset_confirm'),
+	path(
+		"auth/password_reset_confirm/<uidb64>/<token>/",
+		password_reset_confirm,
+		name="password_reset_confirm",
+	),
 	path("recaptcha/verify/", verify_recaptcha_view, name="recaptcha-verify"),
 ]

@@ -24,10 +24,15 @@ export const LoginPage = () => {
 
 	const navigate = useNavigate();
 
+	// detect if running under Cypress (E2E) to bypass client-side captcha enforcement
+	const isCypress =
+		typeof window !== "undefined" && (window as unknown as { Cypress?: boolean }).Cypress;
+
 	const validate = () => {
 		if (!username || !username.trim()) return "Ingresa el usuario.";
 		if (!password) return "Ingresa la contraseña.";
-		if (!captchaToken) return "Por favor, completa el captcha.";
+		// In Cypress E2E runs we skip client-side captcha enforcement
+		if (!captchaToken && !isCypress) return "Por favor, completa el captcha.";
 		// Password validation is handled by backend
 		return "";
 	};
@@ -288,16 +293,19 @@ export const LoginPage = () => {
 							</a>
 						</div>
 
-						<div className="mt-4 flex justify-center">
-							<ReCAPTCHA
-								ref={recaptchaRef}
-								sitekey="6LcvQyQsAAAAAMnj13iM7U89OTlTSt72jng-RDZb"
-								onChange={(token) => {
-									console.log("Captcha resuelto. Token:", token);
-									setCaptchaToken(token);
-								}}
-							/>
-						</div>
+						{/* Do not render actual reCAPTCHA when running under Cypress; tests bypass verification via header */}
+						{!isCypress && (
+							<div className="mt-4 flex justify-center">
+								<ReCAPTCHA
+									ref={recaptchaRef}
+									sitekey="6LcvQyQsAAAAAMnj13iM7U89OTlTSt72jng-RDZb"
+									onChange={(token: string | null) => {
+										console.log("Captcha resuelto. Token:", token);
+										setCaptchaToken(token);
+									}}
+								/>
+							</div>
+						)}
 
 						{error && (
 							<div role="alert" aria-live="assertive" className="text-red-600 mt-3">
